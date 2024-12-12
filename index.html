@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./src/styles.css">
+    <title>Simple Document Camera</title>
+</head>
+<body>
+    <div id="videoContainer">
+        <div id="island_controlBar">
+
+            <!-- Rotate button -->
+            <button id="buttonRotate" title="Rotate">
+                <img class="icon" src="./images/rotate.png" alt="Rotate">
+            </button>
+
+            <!-- Flip button -->
+            <button id="buttonFlip" title="Flip">
+                <img class="icon" src="./images/flip.png" alt="Flip">
+            </button>
+
+            <!-- Freeze button -->
+            <button id="buttonFreeze" title="Freeze">
+                <img id="iconFreeze" class="icon" src="./images/freeze.png" alt="Freeze">
+            </button>
+
+            <!-- Save image button -->
+            <button id="buttonSaveImage" title="Download Image">
+                <img class="icon" src="./images/downloadImage.png" alt="Download Image">
+            </button>
+
+            <!-- Add overlay button -->
+            <button id="buttonOverlay" title="Add Overlay">
+                <img id="iconOverlay" class="icon" src="./images/overlay.png" alt="Overlay">
+            </button>
+
+            <!-- Add text button -->
+            <button id="buttonAddText" title="Add Text">
+                <img id="iconText" class="icon" src="./images/text.png" alt="Add Text">
+            </button>
+
+            <div id="textControls">
+                <button id="buttonSmallerFont">-</button>
+                <label id="textSizeLabel" title="Text Size">Text size</label>
+                <button id="buttonBiggerFont">+</button>
+            </div>
+        </div>
+
+        <!-- Full screen button -->
+        <button id="buttonFullScreen" title="Full Screen">
+            <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+        </button>
+
+        <!-- Button for hiding control bar and island -->
+        <button id="buttonCollapse" title="Hide Controls">
+            <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
+        </button>
+
+        <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
+        <canvas id="canvasMain"></canvas> <!-- TODO: Display mode could be "none" and controlled using CSS -->
+
+        <div id="controlBar">
+            <select id="selectorDevice" title="Select Camera"></select>
+            <!-- Zoom Controls -->
+            <div id="zoomControls">
+                <button id="zoomOutButton">-</button>
+                <label for ="zoomSlider"></label>
+                <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
+                <button id="zoomInButton">+</button>
+                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load camera feed -->
+    <script src="src/main.js"></script> <!-- When script not within html, https:// or file:/// may be required to run scripts -->
+
+</body>
+</html>
