@@ -1,4 +1,5 @@
-console.log('Happy developing ✨');
+let debug = true;                                                                     // Sets level of console output
+print("Happy developing ✨");                                                           // Prints if debug on at start
 
 const videoElement = document.getElementById('cameraFeed');             // Fetch HTML element for camera feed
 const canvasElement = document.getElementById('canvasMain');            // Fetch HTML element for main canvas
@@ -15,7 +16,7 @@ let isIslandDragging = false                                                    
 let isMoving = false;                                                                 // Is text area moving
 let mouseX, mouseY, overlayX, overlayY, islandX, islandY;                                      // Initial positions of the mouse, overlay and island element
 let isFreeze = false;                                                                 // Video freeze on or off
-let overlayAmount = 0;                                                                // Counter for overlays
+
 let textAreaAmount = -1;                                                              // Counter for text areas
 let activeTextArea;                                                                           // Shows which text area is currently active
 let isResizing = false;                                                              // Textarea resizing
@@ -210,7 +211,7 @@ function updateVideoTransform() {
  */
 function videoFreeze(freezeIcon) {
     const stream = videoElement.srcObject;                                                     // Get the current video stream
-                                                                                                    // TODO: Consider not disabling stream, instead simply not showing it
+    // TODO: Consider not disabling stream, instead simply not showing it
     if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
@@ -296,118 +297,26 @@ function stopIslandDrag() {
 }
 
 /**
- * Adds new element and remove button for it.
- * @param element Element that is added
- * @param amount Amount of elements
- * @param id Id for added element
- * @param elementCssStyle CSS style for added element
- * @param buttonCssStyle CSS style for remove button
- */
-function addElements(element, amount, id, elementCssStyle, buttonCssStyle) {
-
-    let newElement = document.createElement(element);
-    newElement.id = amount + id;
-    newElement.class = id;
-    newElement.style.cssText = elementCssStyle // New elements style must be edited in js
-
-    let removeButton = document.createElement('button');
-    removeButton.class = "removeButton";
-    removeButton.id = amount + "remove";
-    removeButton.title = "Remove";
-    removeButton.textContent = "X";
-    removeButton.style.cssText = buttonCssStyle;
-    removeButton.addEventListener('click', () => removeElement(newElement.id));
-
-    // Remove buttons are only visible when hovered
-    newElement.addEventListener('mouseover', () => (
-        removeButton.style.display = "block"
-    ));
-
-    newElement.addEventListener('mouseout', () => (
-        removeButton.style.display = "none"
-    ));
-
-    // Add element after island in html
-    island.after(newElement);
-    newElement.appendChild(removeButton);
-}
-
-/**
- * Remove the element which was clicked.
- * @param id Id of element that is removed
+ * Remove an element
+ * @param id Id of element to remove
  */
 function removeElement(id) {
     document.getElementById(id).remove();
+    print("Removed element: " + id);
 }
 
 /**
- * Adds new overlay on top of video or still frame and other content like text areas.
- * Overlay can be dragged with mouse.
+ * Adds new draggable overlay on top of feed
  */
 function addOverlay() {
-    let elementStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
-    let buttonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
-    addElements("div", overlayAmount, "overlay", elementStyle, buttonStyle);
-    let overlay = document.getElementById(overlayAmount + "overlay");
-    overlayAmount++;
-
-    overlay.addEventListener('mousedown', (e) => dragOverlay(e, overlay)); //Start overlay dragging
+    new Overlay();
 }
 
-/**
- * Handles dragging overlay elements with mouse.
- * @param e MouseEvent 'mousedown'
- * @param overlay Overlay element
- */
-function dragOverlay(e, overlay) {
-    overlay.style.zIndex = '10'
-    isOverlayDragging = true;
 
-    // Stores the initial mouse and overlay positions
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-    overlayX = parseInt(overlay.style.left, 10) || overlay.offsetLeft || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
-    overlayY = parseInt(overlay.style.top, 10) || overlay.offsetTop || 0;
 
-    // Stores references to the event handlers
-    const mouseMoveHandler = (event) => startOverlayDrag(event, overlay);
-    const mouseUpHandler = () => stopOverlayDrag(overlay, mouseMoveHandler, mouseUpHandler);
 
-    // Event listeners for mouse move and release
-    document.addEventListener('mousemove', mouseMoveHandler);
-    document.addEventListener('mouseup', mouseUpHandler);
-}
 
-/**
- * Calculates new position for overlay when dragged with mouse.
- * @param e MouseEvent 'mousemove'
- * @param overlay Overlay element
- */
-function startOverlayDrag(e, overlay) {
-    if (isOverlayDragging) {
-        // Calculates new position
-        const deltaX = e.clientX - mouseX;
-        const deltaY = e.clientY - mouseY;
 
-        // Updates the dragged overlay's position
-        overlay.style.left = `${overlayX + deltaX}px`;
-        overlay.style.top = `${overlayY + deltaY}px`;
-    }
-}
-
-/**
- * Stops overlay dragging and removes event listeners.
- * @param overlay Overlay element
- * @param mouseMoveHandler EventListener
- * @param mouseUpHandler EventListener
- */
-function stopOverlayDrag(overlay, mouseMoveHandler, mouseUpHandler) {
-    overlay.style.zIndex = '10';
-    isOverlayDragging = false;
-
-    document.removeEventListener('mousemove', mouseMoveHandler);
-    document.removeEventListener('mouseup', mouseUpHandler);
-}
 
 /**
  * Draws the current frame of videoElement to canvasElement
@@ -660,4 +569,284 @@ function getDateTime() {
     const seconds = String(now.getSeconds()).padStart(2, '0');
 
     return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+}
+
+
+
+
+
+// Setup
+
+let elementArray = [
+    [[], [], []],
+    [[], [], []],
+    [[], [], []]
+]; // ID, type, object reference, isMoving
+
+function handleUserInterfaceElements() {
+}
+
+// Utility methods
+
+function findElementReference() {
+// Should return found element, however how is type communicated? Or just return index?
+}
+
+function deleteAllAddedElements() {
+}
+
+// Custom classes
+
+
+/**
+ * Parent class for dynamically created movable elements.
+ * Parent class should not be directly instantiated.
+ */
+class MovableElement {
+
+    // Do I need to initialize type and index and others used with this.variable?
+
+    constructor(type) {
+        this.type = type;
+        this.index = elementArray.length; // Length is the index of the empty, append happens in updateArray
+        this.id = null;
+
+        this.updateArray();
+    }
+
+    // Methods implemented in parent class
+    updateArray() {
+        // Handling element array that keeps track of all created elements
+    }
+
+    hide() {
+    }
+
+    show() {
+    }
+
+    delete() {
+        // Never change indices
+    }
+
+    resetPosition() {
+    }
+
+
+    do() {
+        // Something
+    }
+
+// Methods to be implemented in subclasses
+    handleListeners() {
+        // Subclasses: Listeners for click
+        this.errorUnimplemented();
+    }
+
+    setStyling() {
+        // Subclasses:
+        this.errorUnimplemented();
+    }
+
+    setVisibility() {
+        // Subclasses:
+        this.errorUnimplemented();
+    }
+
+    createControls() {
+        // Subclasses:
+        this.errorUnimplemented();
+    }
+
+    handleCanvas() {
+        // Subclasses: Create canvas elements as needed
+        this.errorUnimplemented();
+    }
+    errorUnimplemented() {
+        throw new Error("Called unimplemented method in parent class MovableElement");
+    }
+
+
+
+
+    // In progress
+    /**
+     * Adds new element and remove button for it.
+     * @param element Element type to add
+     * @param amount Amount of elements
+     * @param id Identifier for added element
+     * @param elementCssStyle CSS style for added element
+     * @param buttonCssStyle CSS style for remove button
+     */
+    addElements(element, amount, id, elementCssStyle, buttonCssStyle) {
+
+        // Create main element
+        let newElement = document.createElement(element);
+        newElement.id = amount + id;
+        newElement.class = id;
+        newElement.style.cssText = elementCssStyle // New elements style must be edited in js
+        print("Added element:" + newElement.id);
+
+        // Create remove button
+        let removeButton = document.createElement('button');
+        removeButton.class = "removeButton";
+        removeButton.id = amount + "remove";
+        removeButton.title = "Remove";
+        removeButton.textContent = "X";
+        removeButton.style.cssText = buttonCssStyle;
+        removeButton.addEventListener('click', () => removeElement(newElement.id));
+        print("Added remove button " + removeButton.id + " for :" + newElement.id);
+
+        // Remove buttons only visible when hovered over
+        newElement.addEventListener('mouseover', () => (
+            removeButton.style.display = "block"
+        ));
+        newElement.addEventListener('mouseout', () => (
+            removeButton.style.display = "none"
+        ));
+
+        // Add element after island in HTML
+        island.after(newElement);
+        newElement.appendChild(removeButton);
+    }
+
+
+}
+
+/**
+ * Class for dynamically created overlay elements.
+ */
+class Overlay extends MovableElement {
+
+    static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
+    static overlayRemoveButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
+
+    static overlayCount = 0;                                                                // Counter for overlays
+
+    constructor() {
+        super('overlay');
+
+        this.create();
+        this.handleListeners();
+
+        // Update overlay count
+        Overlay.overlayCount++;
+    }
+
+    /**
+     * Adds new draggable overlay on top of feed.
+     */
+    create() {
+        // Add element
+        super.addElements("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
+    }
+
+
+    /**
+     * Adds listener for drag of overlay.
+     */
+    handleListeners() {
+        print("Adding drag listener for overlay:" +  Overlay.overlayCount + "overlay");
+
+        let overlay = document.getElementById(Overlay.overlayCount + "overlay");
+        overlay.addEventListener('mousedown', (e) => this.startDrag(e, overlay)); // Start overlay dragging
+    }
+
+
+    /**
+     * Handles dragging overlay elements with mouse.
+     * Starts drag.
+     * @param e MouseEvent 'mousedown'
+     * @param overlay Overlay element
+     */
+    startDrag(e, overlay) {
+        print("Overlay drag initiated");
+
+        overlay.style.zIndex = '10'
+        isOverlayDragging = true;
+
+        // Stores the initial mouse and overlay positions
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        overlayX = parseInt(overlay.style.left, 10) || overlay.offsetLeft || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
+        overlayY = parseInt(overlay.style.top, 10) || overlay.offsetTop || 0;
+
+        // Stores references to the event handlers
+        const mouseMoveHandler = (event) => this.updateDrag(event, overlay);
+        const mouseUpHandler = () => this.stopDrag(overlay, mouseMoveHandler, mouseUpHandler);
+
+        // Event listeners for mouse move and release
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+    }
+
+
+    /**
+     * Calculates new position for overlay when dragged with mouse.
+     * Runs while dragging.
+     * @param e MouseEvent 'mousemove'
+     * @param overlay Overlay element
+     */
+    updateDrag(e, overlay) {
+        if (isOverlayDragging) {
+            // Calculates new position
+            const deltaX = e.clientX - mouseX;
+            const deltaY = e.clientY - mouseY;
+
+            // Updates the dragged overlay's position
+            overlay.style.left = `${overlayX + deltaX}px`;
+            overlay.style.top = `${overlayY + deltaY}px`;
+        }
+    }
+
+
+    /**
+     * Stops overlay dragging.
+     * @param overlay Overlay element
+     * @param mouseMoveHandler EventListener
+     * @param mouseUpHandler EventListener
+     */
+    stopDrag(overlay, mouseMoveHandler, mouseUpHandler) {
+        print("Overlay drag stopped");
+
+        overlay.style.zIndex = '10';
+        isOverlayDragging = false;
+
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+    }
+
+}
+
+/**
+ * Class for dynamically created text box elements.
+ */
+class TextBox extends MovableElement {
+    constructor() {
+        super('textbox') // Must call super or this will result in error? Subclass can't add properties before parent class constructor initializes object. Unless parent class does not have constructor.
+    }
+
+    do() {
+        // Something else else
+    }
+
+}
+
+/**
+ * Class for dynamically created user interface elements.
+ */
+class UserInterface extends MovableElement {
+    do() {
+        // Something else else else
+    }
+}
+
+/**
+ * Outputs stings to console.
+ * Used in debug and development.
+ * @param string String to output
+ */
+function print(string) {
+    if (!debug) return;
+    console.log(string);
 }
