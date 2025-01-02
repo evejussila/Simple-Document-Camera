@@ -134,35 +134,36 @@ async function findDevices() {
             }
         })
         if (foundVideoInputs > 0) {break;}
-        if (failedCount > 10) {throw Error("No video inputs found")}
+        if (failedCount > 10) {console.error("No video inputs found")}
         failedCount++;
     }
 }
 
 /**
- * Requests media device access, assigns selected camera to HTML element for camera feed.
+ * Assigns selected camera to HTML element for camera feed.
+ * Requests media device access.
  * @returns {Promise<void>}
  */
 async function videoStart() {
     if (selector.value === "") {                                                              // If selector is empty then get first video input
-        videoElement.srcObject = await navigator.mediaDevices.getUserMedia({        // Request media device access, assign selected camera to HTML element
-            video: {facingMode: 'environment'}                                                // DEV: Comment out to induce error ; facing mode request for camera facing away from the user
+        print("videoStart(): Selector empty, using any camera");
+        videoElement.srcObject = await navigator.mediaDevices.getUserMedia({        // Request media device access, assign camera to HTML element
+            video: {facingMode: 'environment'}                                                // Facing mode request for a camera that is facing away from the user
         });
-    }
-    else {
+    } else { // TODO: Code block is unreachable!
+        print("videoStart(): Using selected camera");
         try {
             videoElement.srcObject = await navigator.mediaDevices.getUserMedia({    // Request media device access, assign selected camera to HTML element
                 video: {
                     deviceId: {
-                        exact: selector.value                                                 // Select the camera that's selected on dropdown
+                        exact: selector.value                                                 // Select the camera that's selected in dropdown
                     }
                 }
             });
+            throw new Error("Testing catch");
         } catch (error) {
-            // DEV: Comment out to induce error ; facing mode request for camera facing away from the user
-            const message = 'The camera could not be accessed: ';
-            console.error(message, error);                                                     // Output error to console
-            alert(`${message} ${error}`);                                                      // Display alert to user
+            console.error('Camera could not be accessed: ', error);                                                     // Output error to console
+            alert(`'Camera could not be accessed: ${error}`);                       // Display alert to user
         }
     }
 }
