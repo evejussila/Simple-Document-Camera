@@ -13,13 +13,13 @@ let currentZoom = 1;                                                            
 let flip = 1;                                                                         // State of image mirroring, 1 = no flip, -1 = horizontal flip
 let isOverlayDragging = false;                                                        // Shows if dragging of an overlay element is allowed
 let isIslandDragging = false                                                          // Shows if dragging of an island control bar is allowed
-let isMoving = false;                                                                 // Is text area moving
+
 let mouseX, mouseY, overlayX, overlayY, islandX, islandY;                                      // Initial positions of the mouse, overlay and island element
 let isFreeze = false;                                                                 // Video freeze on or off
 
-let activeTextArea;                                                                           // Shows which text area is currently active
-let isResizing = false;                                                              // Textarea resizing
-let offsetXText, offsetYText, startWidth, startHeight;                                        // To change the size and position of the textarea
+
+
+
 let isControlCollapsed = false;                                                      // Are control bar and island in hidden mode or not
 
 document.addEventListener('DOMContentLoaded', start);                                   // Start running scripts only after HTML has been loaded and elements are available
@@ -31,22 +31,16 @@ function start() {
     const collapseButton = document.getElementById('buttonCollapse');
     collapseButton.addEventListener('click', ()=> toggleControlCollapse(collapseIcon));
 
-    // Fetch HTML element for rotate button and attach event listener to it.
-    const rotateButton = document.getElementById('buttonRotate');
-    rotateButton.addEventListener('click', videoRotate);
-
-    // Fetch HTML element for flip button and attach event listener to it.
-    const flipButton = document.getElementById('buttonFlip');
-    flipButton.addEventListener('click', videoFlip);
-
     // Fetch HTML element for freeze button and it's icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
     const freezeButton = document.getElementById('buttonFreeze');
     freezeButton.addEventListener('click', () => videoFreeze(freezeIcon));
 
-    // Fetch HTML element for save image button and attach event listener to it.
-    const saveImageButton = document.getElementById('buttonSaveImage');
-    saveImageButton.addEventListener('click', saveImage);
+
+    // Fetch HTML elements for buttons and attach event listeners to them
+    listenerToElement('buttonRotate', 'click', videoRotate);                                        // Rotate button
+    listenerToElement('buttonFlip', 'click', videoFlip);                                            // Flip button
+    listenerToElement('buttonSaveImage', 'click', saveImage);                                       // Save image button
 
     // Fetch HTML element for overlay button and attach event listener to it.
     const overlayButton = document.getElementById('buttonOverlay');
@@ -103,6 +97,11 @@ function start() {
     findDevices().then(r => {
         videoStart();
     });
+}
+
+function listenerToElement(elementId, eventType, action) {
+    const element = document.getElementById(elementId);
+    element.addEventListener(eventType, action);
 }
 
 /**
@@ -742,6 +741,14 @@ class TextArea extends MovableElement {
 
     static textAreaCount = -1;                                                              // Counter for text areas
 
+    isMoving = false;                                                                        // Is text area moving
+    static activeTextArea;                                                                           // Shows which text area is currently active
+    isResizing = false;                                                              // Textarea resizing
+    offsetXText;
+    offsetYText;
+    startWidth;
+    startHeight;                                        // To change the size and position of the textarea
+
     constructor() {
         super('textarea');
 
@@ -806,14 +813,14 @@ class TextArea extends MovableElement {
      * @param textArea TextArea element
      */
     dragTextArea(e, textAreaContainer, textArea) {
-        if (isMoving) {                                                                             // Move the textarea when the mouse moves
-            const x = e.clientX - offsetXText;                                              // new position x for textarea container
-            const y = e.clientY - offsetYText;                                              // new position y
+        if (this.isMoving) {                                                                             // Move the textarea when the mouse moves
+            const x = e.clientX - this.offsetXText;                                              // new position x for textarea container
+            const y = e.clientY - this.offsetYText;                                              // new position y
             textAreaContainer.style.left = `${x}px`;
             textAreaContainer.style.top = `${y}px`;
-        } else if (isResizing) {                                                                      // Expand the textarea when the mouse moves
-            const newWidth = startWidth + (e.clientX - offsetXText);                                  // new width for textarea container
-            const newHeight = startHeight + (e.clientY - offsetYText);                                // new height
+        } else if (this.isResizing) {                                                                      // Expand the textarea when the mouse moves
+            const newWidth = this.startWidth + (e.clientX - this.offsetXText);                                  // new width for textarea container
+            const newHeight = this.startHeight + (e.clientY - this.offsetYText);                                // new height
             textAreaContainer.style.width = `${newWidth}px`;
             textAreaContainer.style.height = `${newHeight}px`;
 
@@ -831,7 +838,7 @@ class TextArea extends MovableElement {
      * @param currentTextArea Currently active text area element
      */
     handleTextArea(e, textAreaContainer, resizeHandle, currentTextArea) {
-        activeTextArea = currentTextArea;
+        TextArea.activeTextArea = currentTextArea;
         textAreaContainer.style.zIndex = '7';
 
         /**
@@ -847,15 +854,15 @@ class TextArea extends MovableElement {
 
         // Check is the mouse click on the text area or the resize handle
         if (e.target === resizeHandle) {
-            isResizing = true;
-            startWidth = textAreaContainer.offsetWidth;
-            startHeight = textAreaContainer.offsetHeight;
-            offsetXText = e.clientX;
-            offsetYText = e.clientY;
+            this.isResizing = true;
+            this.startWidth = textAreaContainer.offsetWidth;
+            this.startHeight = textAreaContainer.offsetHeight;
+            this.offsetXText = e.clientX;
+            this.offsetYText = e.clientY;
         } else {
-            isMoving = true;
-            offsetXText = e.clientX - textAreaContainer.offsetLeft;
-            offsetYText = e.clientY - textAreaContainer.offsetTop;
+            this.isMoving = true;
+            this.offsetXText = e.clientX - textAreaContainer.offsetLeft;
+            this.offsetYText = e.clientY - textAreaContainer.offsetTop;
             textAreaContainer.style.cursor = "move";
         }
 
@@ -872,8 +879,8 @@ class TextArea extends MovableElement {
     stopTextAreaDrag(mouseMoveHandler, mouseUpHandler, textAreaContainer) {
         document.removeEventListener("mousemove", mouseMoveHandler);
         document.removeEventListener("mouseup", mouseUpHandler);
-        isMoving = false;
-        isResizing = false;
+        this.isMoving = false;
+        this.isResizing = false;
         // textAreaContainer.style.cursor = "default";
     }
 
