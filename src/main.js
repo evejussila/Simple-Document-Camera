@@ -28,7 +28,10 @@ let islandX, islandY;                                                           
 let mouseX;                                                                                        // Initial position of the mouse
 let mouseY;
 
-document.addEventListener('DOMContentLoaded', start);                                         // Start running scripts only after HTML has been loaded and elements are available
+
+// Initialization
+
+document.addEventListener('DOMContentLoaded', start);                                               // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
 
@@ -36,14 +39,14 @@ function start() {
     addCoreListeners();
 
     // Find video devices
-    findDevices();
+    findMediaDevices();
     // TODO: Ensure the method is run periodically (or when update button or option is clicked somewhere) to update device list without need to refresh page
 
     // Start video feed
     videoStart();
 
     // // Find all video devices first, then start the selected camera
-    // findDevices().then(r => {
+    // findMediaDevices().then(r => {
     //     videoStart();
     // });
 
@@ -101,22 +104,14 @@ function addCoreListeners() {
     })
 }
 
-/**
- * Attaches an event listener to an element
- * @param elementId
- * @param eventType
- * @param action
- */
-function listenerToElement(elementId, eventType, action) {
-    const element = document.getElementById(elementId);
-    element.addEventListener(eventType, action);
-}
+
+// Camera control methods
 
 /**
  * Finds all video media devices and lists them to feed selector dropdown.
  * @returns {Promise<void>}
  */
-async function findDevices() {
+async function findMediaDevices() {
     const retryAttempts =3;
 
     let failedCount = 0;
@@ -126,7 +121,7 @@ async function findDevices() {
         await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
             for (let i = 0; i < devices.length; i++) {
                 if (devices[i].kind === 'videoinput') {                                                 // Only use video sources
-                    print("findDevices(): Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
+                    print("findMediaDevices(): Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
                     foundVideoInputs++;
                     let option = document.createElement('option');            // Create new option for dropdown
                     option.value = devices[i].deviceId;
@@ -151,13 +146,13 @@ async function videoStart() {// If selector is empty then get first video input
             try {
                 print("videoStart(): Assigning a camera");
                 const stream = await navigator.mediaDevices.getUserMedia({        // Request media device access, assign camera to HTML element
-                        video: {facingMode: 'environment'}                                            // Request a camera that is facing away from the user
+                        video: {facingMode: { ideal: 'environment' }}                                   // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
                     }
                 );
                 videoElement.srcObject = stream;
 
                 // TODO: Debug low video quality
-                printStreamVideoTrackInformation(stream);
+                printStreamInformation(stream);
 
                 break;
             } catch (error) {
@@ -166,22 +161,6 @@ async function videoStart() {// If selector is empty then get first video input
                 alert(`'Camera could not be accessed. Make sure you have given camera permission and that your camera is not being used by other software.`);                       // Display alert to user
             }
         }
-}
-
-/**
- * Prints video track settings and capabilities for all tracks associated with a stream.
- * For development.
- * @param stream The stream from navigator.mediaDevices.getUserMedia()
- */
-function printStreamVideoTrackInformation(stream) {
-    // const videoTrack = stream.getVideoTracks()[0];
-
-    stream.getVideoTracks().forEach(videoTrack => {
-        print("printStreamInformation(): Video track: " + videoTrack.id);
-        print("printStreamInformation(): Settings:" + JSON.stringify(videoTrack.getSettings(), null, 2));
-        print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
-    });
-
 }
 
 /**
@@ -221,81 +200,14 @@ async function changeCamera(camera) {
 }
 
 /**
- * Reset camera back to its original state.
+ * Reset camera back to its default state.
  */
 function resetCamera() {
-    // Reset camera back to its original state
+    // TODO: Reset camera back to its default state
 }
 
-/**
- * Rotate video. Calculate rotation 0 -> 90 -> 180 -> 270 -> 0
- */
-function videoRotate() {
-    rotation = (rotation + 90) % 360;
-    updateVideoTransform();
-}
 
-/**
- * Flip video horizontally. Toggle between 1 (no flip) and -1 (flip).
- */
-function videoFlip() {
-    flip *= -1;
-    updateVideoTransform();
-}
-
-/**
- * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
- */
-function updateVideoTransform() {
-    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
-    canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
-}
-
-/**
- * Toggle between video feed and freeze image (still frame).
- * @param freezeIcon Icon for freeze button
- */
-function videoFreeze(freezeIcon) {
-    const stream = videoElement.srcObject;                                                     // Get the current video stream
-    // TODO: Consider not disabling stream, instead simply not showing it
-    if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
-        if (stream) {
-            canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
-            stream.getTracks().forEach(track => track.enabled = false);             // Disable all tracks to freeze the video
-        }
-        freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
-        freezeIcon.title = "Show video";                                                            // Change tool tip text
-        isFreeze = true;                                                                            // Freeze is on
-    } else {
-        videoStart().then(r => {console.log(r);});
-        videoElement.style.display = 'block';
-        canvasElement.style.display = 'none';
-        freezeIcon.src = "./images/freeze.png";
-        freezeIcon.title = "Freeze";
-        isFreeze = false;                                                                           // Freeze is off
-    }
-}
-
-/**
- * Hides or shows control bar and island when collapseButton is clicked.
- * @param collapseIcon Icon for collapseButton
- */
-function toggleControlCollapse(collapseIcon) {
-    isControlCollapsed = !isControlCollapsed;
-
-    if (isControlCollapsed) {
-        collapseIcon.title = 'Show controls';
-        collapseIcon.src = "./images/showControls.png";
-        controlBar.style.display = 'none';
-        island.style.display = 'none';
-    }
-    else {
-        collapseIcon.title = 'Hide controls';
-        collapseIcon.src = "./images/hideControls.png";
-        controlBar.style.display = 'inline-flex';
-        island.style.display = 'flex';
-    }
-}
+// UI methods
 
 /**
  * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
@@ -340,54 +252,6 @@ function stopIslandDrag() {
     isIslandDragging = false;
     document.removeEventListener('mousemove', startIslandDrag);
     document.removeEventListener('mouseup', stopIslandDrag);
-}
-
-/**
- * Remove an element
- * @param id Id of element to remove
- */
-function removeElement(id) {
-    document.getElementById(id).remove();
-    print("Removed element: " + id);
-}
-
-/**
- * Adds new overlay
- */
-function addOverlay() {
-    new Overlay();
-}
-
-/**
- * Adds new text area
- */
-function addText() {
-    new TextArea();
-}
-
-/**
- * Draws the current frame of videoElement to canvasElement
- * Hides videoElement, shows canvasElement
- */
-function canvasDrawCurrentFrame() {
-    matchElementDimensions(videoElement, canvasElement);                                        // Update canvas to match video element
-    const canvasContext = canvasElement.getContext("2d");                              // Get canvas context for drawing
-    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);                                                 // Draw frame from video element
-    videoElement.style.display = 'none';                                                         // Disable video element visibility
-    canvasElement.style.display = 'block';                                                       // Make canvas element visible
-}
-
-/**
- * Matches the width, height and transforms of two elements
- * @param elementMaster Element to use as model, will not be changed
- * @param elementSub Element to match, will change
- */
-function matchElementDimensions(elementMaster, elementSub) {
-    elementSub.width = elementMaster.videoWidth;                  // DEV: Note that element.width refers to CSS width, videoWidth to feed width, may not work with two canvas elements for example
-    elementSub.height = elementMaster.videoHeight;
-
-    elementSub.style.transform = elementMaster.style.transform; // Matches ALL transformations, including rotation
-
 }
 
 /**
@@ -439,14 +303,28 @@ function switchToFullscreen(fullScreenIcon) {
 }
 
 /**
- * Changes the active text area's font size
- * @param size Size value
+ * Hides or shows control bar and island when collapseButton is clicked.
+ * @param collapseIcon Icon for collapseButton
  */
-function changeFontSize(size) {
-    let fontSize = parseFloat(activeTextArea.style.fontSize);                             // Get fontsize without "px"
-    fontSize += size;                                                                             // Make font size bigger or smaller
-    activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+function toggleControlCollapse(collapseIcon) {
+    isControlCollapsed = !isControlCollapsed;
+
+    if (isControlCollapsed) {
+        collapseIcon.title = 'Show controls';
+        collapseIcon.src = "./images/showControls.png";
+        controlBar.style.display = 'none';
+        island.style.display = 'none';
+    }
+    else {
+        collapseIcon.title = 'Hide controls';
+        collapseIcon.src = "./images/hideControls.png";
+        controlBar.style.display = 'inline-flex';
+        island.style.display = 'flex';
+    }
 }
+
+
+// Functionality methods
 
 /**
  * Saves the current view as a jpg file
@@ -479,6 +357,61 @@ function saveImage() {
 }
 
 /**
+ * Rotate video. Calculate rotation 0 -> 90 -> 180 -> 270 -> 0
+ */
+function videoRotate() {
+    rotation = (rotation + 90) % 360;
+    updateVideoTransform();
+}
+
+/**
+ * Flip video horizontally. Toggle between 1 (no flip) and -1 (flip).
+ */
+function videoFlip() {
+    flip *= -1;
+    updateVideoTransform();
+}
+
+/**
+ * Toggle between video feed and freeze image (still frame).
+ * @param freezeIcon Icon for freeze button
+ */
+function videoFreeze(freezeIcon) {
+    const stream = videoElement.srcObject;                                                     // Get the current video stream
+    // TODO: Consider not disabling stream, instead simply not showing it
+    if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
+        if (stream) {
+            canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
+            stream.getTracks().forEach(track => track.enabled = false);             // Disable all tracks to freeze the video
+        }
+        freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
+        freezeIcon.title = "Show video";                                                            // Change tool tip text
+        isFreeze = true;                                                                            // Freeze is on
+    } else {
+        videoStart().then(r => {console.log(r);});
+        videoElement.style.display = 'block';
+        canvasElement.style.display = 'none';
+        freezeIcon.src = "./images/freeze.png";
+        freezeIcon.title = "Freeze";
+        isFreeze = false;                                                                           // Freeze is off
+    }
+}
+
+
+// Utility methods
+
+/**
+ * Attaches an event listener to an element
+ * @param elementId
+ * @param eventType
+ * @param action
+ */
+function listenerToElement(elementId, eventType, action) {
+    const element = document.getElementById(elementId);
+    element.addEventListener(eventType, action);
+}
+
+/**
  * Returns date and time in format: YYMMDD_hhmmss
  * @returns {string} Date and time
  */
@@ -494,38 +427,80 @@ function getDateTime() {
     return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
 
-
-
-
-
-// Setup
-
-let elementArray = [
-    [[], [], []],
-    [[], [], []],
-    [[], [], []]
-]; // ID, type, object reference, isMoving
-
-function handleUserInterfaceElements() {
+/**
+ * Remove an element
+ * @param id Id of element to remove
+ */
+function removeElement(id) {
+    document.getElementById(id).remove();
+    print("removeElement(): Removed element: " + id);
 }
 
-// Utility methods
-
-function findElementReference() {
-// Should return found element, however how is type communicated? Or just return index?
+/**
+ * Draws the current frame of videoElement to canvasElement
+ * Hides videoElement, shows canvasElement
+ */
+function canvasDrawCurrentFrame() {
+    matchElementDimensions(videoElement, canvasElement);                                        // Update canvas to match video element
+    const canvasContext = canvasElement.getContext("2d");                              // Get canvas context for drawing
+    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);                                                 // Draw frame from video element
+    videoElement.style.display = 'none';                                                         // Disable video element visibility
+    canvasElement.style.display = 'block';                                                       // Make canvas element visible
 }
 
-function deleteAllAddedElements() {
+/**
+ * Matches the width, height and transforms of two elements
+ * @param elementMaster Element to use as model, will not be changed
+ * @param elementSub Element to match, will change
+ */
+function matchElementDimensions(elementMaster, elementSub) {
+    elementSub.width = elementMaster.videoWidth;                  // DEV: Note that element.width refers to CSS width, videoWidth to feed width, may not work with two canvas elements for example
+    elementSub.height = elementMaster.videoHeight;
+
+    elementSub.style.transform = elementMaster.style.transform; // Matches ALL transformations, including rotation
+
 }
 
-// Custom classes
+/**
+ * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
+ */
+function updateVideoTransform() {
+    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
+    canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+}
 
+
+// Simple element creation methods
+
+/**
+ * Adds new overlay
+ */
+function addOverlay() {
+    new Overlay();
+}
+
+/**
+ * Adds new text area
+ */
+function addText() {
+    new TextArea();
+}
+
+
+// Classes for created elements
 
 /**
  * Parent class for dynamically created movable elements.
  * Parent class should not be directly instantiated.
  */
 class MovableElement {
+
+    // Array for keeping track of created elements. Can be used for toggling visibility, deletion and other management of elements.
+    // static elementArray = [
+    //     [[], [], []],
+    //     [[], [], []],
+    //     [[], [], []]
+    // ]; // ID, type, object reference, isMoving, etc...
 
     // Do I need to initialize type and index and others used with this.variable?
 
@@ -555,10 +530,6 @@ class MovableElement {
     resetPosition() {
     }
 
-
-    do() {
-        // Something
-    }
 
 // Methods to be implemented in subclasses
     handleListeners() {
@@ -632,7 +603,6 @@ class MovableElement {
 
 
 }
-
 
 /**
  * Class for dynamically created overlay elements.
@@ -745,31 +715,15 @@ class Overlay extends MovableElement {
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * Changes the active text area's font size
+ * @param size Size value
+ */
+function changeFontSize(size) {
+    let fontSize = parseFloat(activeTextArea.style.fontSize);                             // Get fontsize without "px"
+    fontSize += size;                                                                             // Make font size bigger or smaller
+    activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+}
 
 /**
  * Class for dynamically created text area elements.
@@ -930,17 +884,13 @@ class TextArea extends MovableElement {
 
 }
 
+
+// Development methods
+
 /**
- * Class for dynamically created user interface elements.
+ * Method to enable debug mode while using application.
+ * Can be called from console with: debug();
  */
-class UserInterface extends MovableElement {
-    do() {
-        // Something else else else
-    }
-}
-
-
-
 function debug() {
     debugMode = true;
     print("Debug mode is enabled!");
@@ -955,4 +905,20 @@ function debug() {
 function print(string) {
     if (!debug) return;
     console.log(string);
+}
+
+/**
+ * Prints video track settings and capabilities for all tracks associated with a stream.
+ * For development.
+ * @param stream The stream from navigator.mediaDevices.getUserMedia()
+ */
+function printStreamInformation(stream) {
+    // const videoTrack = stream.getVideoTracks()[0];
+
+    stream.getVideoTracks().forEach(videoTrack => {
+        print("printStreamInformation(): Video track: " + videoTrack.id);
+        print("printStreamInformation(): Settings:" + JSON.stringify(videoTrack.getSettings(), null, 2));
+        print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+    });
+
 }
