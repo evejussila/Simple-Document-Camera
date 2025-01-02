@@ -117,6 +117,8 @@ function listenerToElement(elementId, eventType, action) {
  * @returns {Promise<void>}
  */
 async function findDevices() {
+    const retryAttempts =3;
+
     let failedCount = 0;
     while (true) {                                                                                      // Run until a device is found
         selector.innerHTML = '';                                                                        // Clear dropdown first
@@ -124,7 +126,7 @@ async function findDevices() {
         await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
             for (let i = 0; i < devices.length; i++) {
                 if (devices[i].kind === 'videoinput') {                                                 // Only use video sources
-                    print("Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
+                    print("findDevices(): Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
                     foundVideoInputs++;
                     let option = document.createElement('option');            // Create new option for dropdown
                     option.value = devices[i].deviceId;
@@ -134,59 +136,88 @@ async function findDevices() {
             }
         })
         if (foundVideoInputs > 0) {break;}
-        if (failedCount > 10) {console.error("No video inputs found")}
+        if (failedCount > retryAttempts) {console.error("No video inputs found")}
         failedCount++;
     }
 }
 
 /**
- * Assigns selected camera to HTML element for camera feed.
+ * Assigns a camera to HTML element for camera feed.
  * Requests media device access.
  * @returns {Promise<void>}
  */
-async function videoStart() {
-    if (selector.value === "") {                                                              // If selector is empty then get first video input
-        print("videoStart(): Selector empty, using any camera");
-        videoElement.srcObject = await navigator.mediaDevices.getUserMedia({        // Request media device access, assign camera to HTML element
-            video: {facingMode: 'environment'}                                                // Facing mode request for a camera that is facing away from the user
-        });
-    } else { // TODO: Code block is unreachable!
-        print("videoStart(): Using selected camera");
-        try {
-            videoElement.srcObject = await navigator.mediaDevices.getUserMedia({    // Request media device access, assign selected camera to HTML element
-                video: {
-                    deviceId: {
-                        exact: selector.value                                                 // Select the camera that's selected in dropdown
+async function videoStart() {// If selector is empty then get first video input
+        while (true) {
+            try {
+                print("videoStart(): Assigning a camera");
+                const stream = await navigator.mediaDevices.getUserMedia({        // Request media device access, assign camera to HTML element
+                        video: {facingMode: 'environment'}                                            // Request a camera that is facing away from the user
                     }
-                }
-            });
-            throw new Error("Testing catch");
-        } catch (error) {
-            console.error('Camera could not be accessed: ', error);                                                     // Output error to console
-            alert(`'Camera could not be accessed: ${error}`);                       // Display alert to user
+                );
+                videoElement.srcObject = stream;
+
+                // TODO: Debug low video quality
+                printStreamVideoTrackInformation(stream);
+
+                break;
+            } catch (error) {
+                // TODO: Instead of displaying error immediately, should attempt using other cameras from dropdown, as they are already enumerated.
+                print("videoStart(): Camera could not be accessed: " + error);
+                alert(`'Camera could not be accessed. Make sure you have given camera permission and that your camera is not being used by other software.`);                       // Display alert to user
+            }
         }
-    }
 }
 
 /**
- * Changes active camera to the selected one.
- * @param camera Selected camera
+ * Prints video track settings and capabilities for all tracks associated with a stream.
+ * For development.
+ * @param stream The stream from navigator.mediaDevices.getUserMedia()
+ */
+function printStreamVideoTrackInformation(stream) {
+    // const videoTrack = stream.getVideoTracks()[0];
+
+    stream.getVideoTracks().forEach(videoTrack => {
+        print("printStreamInformation(): Video track: " + videoTrack.id);
+        print("printStreamInformation(): Settings:" + JSON.stringify(videoTrack.getSettings(), null, 2));
+        print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+    });
+
+}
+
+/**
+ * Changes active camera to a specific one.
+ * @param camera Specified camera
  * @returns {Promise<void>}
  */
 async function changeCamera(camera) {
     videoElement.srcObject.getTracks().forEach(track => {                      // Stop current camera feed
         track.stop();
     })
-    navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
-        video: {
-            deviceId: {
-                exact: camera
+
+    try {
+        print("changeCamera(): Assigning new camera");
+        navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
+            video: {
+                deviceId: {
+                    exact: camera
+                }
             }
-        }
-    }).then(stream => {
-        videoElement.srcObject = stream;
-    })
+        }).then(stream => {
+            videoElement.srcObject = stream;
+        })
+
+    } catch (error) {
+        print("changeCamera(): Camera could not be accessed: " + error);
+        alert(`'Camera could not be accessed. Make sure the camera is not being used by other software.`);
+    }
+
     resetCamera();
+
+    // Legacy code to consider:
+    // if (selector.value === "") // If selector value is empty
+    // deviceId: {
+    // exact: selector.value                                                                   // Request the camera that's selected in dropdown
+
 }
 
 /**
