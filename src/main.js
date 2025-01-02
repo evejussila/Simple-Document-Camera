@@ -2,8 +2,8 @@
 let debugMode = true;                                                                     // Sets default level of console output
 if (debugMode) debug();
 const version = ("2025-01-01-a");
-console.log(version);
-console.log("To enable debug mode, type: debug()");
+console.log("Version: " + version);
+console.log("To enable debug mode, type to console: debug()");
 
 // Fetch core HTML elements
 const videoElement      = document.getElementById('cameraFeed');             // Camera feed
@@ -141,25 +141,35 @@ async function findMediaDevices() {
  * Requests media device access.
  * @returns {Promise<void>}
  */
-async function videoStart() {// If selector is empty then get first video input
-        while (true) {
-            try {
-                print("videoStart(): Assigning a camera");
-                const stream = await navigator.mediaDevices.getUserMedia({        // Request media device access, assign camera to HTML element
-                        video: {facingMode: { ideal: 'environment' }}                                   // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
-                    }
-                );
-                videoElement.srcObject = stream;
+async function videoStart(camera = null) {// If selector is empty then get first video input
+        if (camera === null) {                                                                          // Is camera specified?
+            while (true) {                                                                              // Retry until success
+                try {
+                    print("videoStart(): Assigning a camera");
+                    const stream = await navigator.mediaDevices.getUserMedia({    // Request media device access, assign camera to HTML element
+                        video: {
+                            facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
+                            width: {ideal: 1920},
+                            height: {ideal: 1080},
+                            frameRate: {ideal: 60}
+                        }
+                    });
+                    videoElement.srcObject = stream;
 
-                // TODO: Debug low video quality
-                printStreamInformation(stream);
+                    // TODO: Selector dropdown should be updated to show this exact feed as chosen, otherwise may bug
 
-                break;
-            } catch (error) {
-                // TODO: Instead of displaying error immediately, should attempt using other cameras from dropdown, as they are already enumerated.
-                print("videoStart(): Camera could not be accessed: " + error);
-                alert(`'Camera could not be accessed. Make sure you have given camera permission and that your camera is not being used by other software.`);                       // Display alert to user
+                    // TODO: Debug low video quality
+                    printStreamInformation(stream);
+
+                    break;
+                } catch (error) {
+                    // TODO: Instead of displaying error immediately, should attempt using other cameras from dropdown, as they are already enumerated.
+                    print("videoStart(): Camera could not be accessed: " + error);
+                    alert(`'Camera could not be accessed. Make sure you have given camera permission and that your camera is not being used by other software.`);                       // Display alert to user
+                }
             }
+        } else {
+            // TODO: Contents of changeCamera can be moved here
         }
 }
 
@@ -175,27 +185,38 @@ async function changeCamera(camera) {
 
     try {
         print("changeCamera(): Assigning new camera");
-        navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
+        const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
             video: {
-                deviceId: {
-                    exact: camera
-                }
+                deviceId: {exact: camera},
+                facingMode: { ideal: 'environment' },                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
+                width: { ideal: 1920 },                                                        // These are useless unless there are multiple tracks with the same deviceId
+                height: { ideal: 1080 },
+                frameRate: { ideal: 60 }
             }
-        }).then(stream => {
-            videoElement.srcObject = stream;
-        })
+        });
+        videoElement.srcObject = stream;
+
+        // TODO: Debug low video quality
+        printStreamInformation(stream);
 
     } catch (error) {
         print("changeCamera(): Camera could not be accessed: " + error);
-        alert(`'Camera could not be accessed. Make sure the camera is not being used by other software.`);
+        alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
     }
 
     resetCamera();
 
-    // Legacy code to consider:
+    // Legacy code snippets to consider:
     // if (selector.value === "") // If selector value is empty
     // deviceId: {
     // exact: selector.value                                                                   // Request the camera that's selected in dropdown
+    // navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
+    //     video: {
+    //         deviceId: {exact: camera},
+    //     }
+    // }).then(stream => {
+    //     videoElement.srcObject = stream;
+    // })
 
 }
 
@@ -283,7 +304,7 @@ function switchToFullscreen(fullScreenIcon) {
 
     if(!document.fullscreenElement) {                                   // Is fullscreen active?
         videoContainer.requestFullscreen().then(() => {
-            console.log('Full screen mode active');
+            print("switchToFullscreen(): Full screen mode active");
             fullScreenIcon.title = 'Close full screen';
             fullScreenIcon.src = "./images/closeFullScreen.png";
         }).catch(error => {
@@ -291,7 +312,7 @@ function switchToFullscreen(fullScreenIcon) {
         });
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
-            console.log('Full screen mode successfully closed');
+            print("switchToFullscreen(): Full screen mode successfully closed");
             fullScreenIcon.title = 'Full screen';
             fullScreenIcon.src = "./images/fullscreen.png";
             island.style.top = '';                                       // UI island to starting position
@@ -506,7 +527,7 @@ class MovableElement {
 
     constructor(type) {
         this.type = type;
-        this.index = elementArray.length; // Length is the index of the empty, append happens in updateArray
+        // this.index = elementArray.length; // Length is the index of the empty, append happens in updateArray
         this.id = null;
 
         this.updateArray();
