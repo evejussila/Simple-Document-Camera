@@ -1,32 +1,77 @@
-let debug = true;                                                                     // Sets level of console output
-print("Happy developing ✨");                                                           // Prints if debug on at start
+// Development tools
+let debugMode = true;                                                                     // Sets default level of console output
+if (debugMode) debug();
+const version = ("2025-01-01-a");
+console.log(version);
+console.log("To enable debug mode, type: debug()");
 
-const videoElement = document.getElementById('cameraFeed');             // Fetch HTML element for camera feed
-const canvasElement = document.getElementById('canvasMain');            // Fetch HTML element for main canvas
-const selector = document.querySelector('select#selectorDevice');            // Fetch HTML element for camera feed selector
-const island = document.getElementById('island_controlBar');            // Fetch HTML element for floating island control bar
-const videoContainer = document.getElementById('videoContainer');       // Fetch HTML element for video container
-const controlBar = document.getElementById('controlBar');               // Fetch HTML element for fixed control bar
+// Fetch core HTML elements
+const videoElement      = document.getElementById('cameraFeed');             // Camera feed
+const canvasElement     = document.getElementById('canvasMain');             // Main canvas
+const selector              = document.querySelector('select#selectorDevice');    // Camera feed selector
+const island            = document.getElementById('island_controlBar');      // Floating island control bar
+const videoContainer    = document.getElementById('videoContainer');         // Video container
+const controlBar        = document.getElementById('controlBar');             // Fixed control bar
 
-let rotation = 0;                                                                     // Store rotation state
-let currentZoom = 1;                                                                  // Current zoom level
-let flip = 1;                                                                         // State of image mirroring, 1 = no flip, -1 = horizontal flip
-let isOverlayDragging = false;                                                        // Shows if dragging of an overlay element is allowed
-let isIslandDragging = false                                                          // Shows if dragging of an island control bar is allowed
+// Video feed state
+let rotation = 0;                                                                          // Store rotation state
+let currentZoom = 1;                                                                       // Current zoom level
+let flip = 1;                                                                              // State of image mirroring, 1 = no flip, -1 = horizontal flip
+let isFreeze = false;                                                                      // Video freeze on or off
 
-let mouseX, mouseY, overlayX, overlayY, islandX, islandY;                                      // Initial positions of the mouse, overlay and island element
-let isFreeze = false;                                                                 // Video freeze on or off
+// UI state
+let isIslandDragging = false                                                               // Shows if dragging of an island control bar is allowed
+let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
+let islandX, islandY;                                                                              // Initial position of the control island
 
+// Other
+let mouseX;                                                                                        // Initial position of the mouse
+let mouseY;
 
-
-
-let isControlCollapsed = false;                                                      // Are control bar and island in hidden mode or not
-
-document.addEventListener('DOMContentLoaded', start);                                   // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                         // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
 
-    // Fetch HTML element for collapse button and it's icon. Attach event listener to collapse button.
+    // Add core listeners for interface elements
+    addCoreListeners();
+
+    // Find video devices
+    findDevices();
+    // TODO: Ensure the method is run periodically (or when update button or option is clicked somewhere) to update device list without need to refresh page
+
+    // Start video feed
+    videoStart();
+
+    // // Find all video devices first, then start the selected camera
+    // findDevices().then(r => {
+    //     videoStart();
+    // });
+
+}
+
+/**
+ * Adds critical listeners for interface elements
+ */
+function addCoreListeners() {
+
+    // Fetch HTML elements for buttons and attach event listeners to them
+    listenerToElement('buttonRotate', 'click', videoRotate);                                             // Rotate button
+    listenerToElement('buttonFlip', 'click', videoFlip);                                                 // Flip button
+    listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
+    listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
+    listenerToElement('buttonAddText', 'click', addText);                                                // Text button
+    listenerToElement('buttonSmallerFont', 'click', () => changeFontSize(-5));          // Font size decrease button
+    listenerToElement('buttonBiggerFont', 'click', () => changeFontSize(5));            // Font size increase button
+    listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
+    listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
+    listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
+
+    // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
+    const fullScreenIcon = document.getElementById("iconFullScreen");
+    const fullScreenButton = document.getElementById('buttonFullScreen');
+    fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon));
+
+    // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
     const collapseIcon = document.getElementById("iconCollapse");
     const collapseButton = document.getElementById('buttonCollapse');
     collapseButton.addEventListener('click', ()=> toggleControlCollapse(collapseIcon));
@@ -36,54 +81,16 @@ function start() {
     const freezeButton = document.getElementById('buttonFreeze');
     freezeButton.addEventListener('click', () => videoFreeze(freezeIcon));
 
-
-    // Fetch HTML elements for buttons and attach event listeners to them
-    listenerToElement('buttonRotate', 'click', videoRotate);                                        // Rotate button
-    listenerToElement('buttonFlip', 'click', videoFlip);                                            // Flip button
-    listenerToElement('buttonSaveImage', 'click', saveImage);                                       // Save image button
-
-    // Fetch HTML element for overlay button and attach event listener to it.
-    const overlayButton = document.getElementById('buttonOverlay');
-    overlayButton.addEventListener('click', addOverlay);
-
-    // Fetch HTML element for text button and attach event listener to it.
-    const addTextButton = document.getElementById('buttonAddText');
-    addTextButton.addEventListener('click', addText);
-
-    // Fetch HTML element for smaller font button and attach event listener to it.
-    const smallerFontButton= document.getElementById('buttonSmallerFont');
-    smallerFontButton.addEventListener('click', () => changeFontSize(-5));
-
-    // Fetch HTML element for bigger font button and attach event listener to it.
-    const biggerFontButton= document.getElementById('buttonBiggerFont');
-    biggerFontButton.addEventListener('click', () => changeFontSize(5));
-
-    // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
-    const fullScreenIcon = document.getElementById("iconFullScreen");
-    const fullScreenButton = document.getElementById('buttonFullScreen');
-    fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon));
-
-    // Fetch HTML element for zoom slider and attach event listener to it for zooming in and out.
-    const zoomSlider = document.getElementById('zoomSlider');
-    zoomSlider.addEventListener('input', (event) => setZoomLevel(event.target.value));
-
-    // Fetch HTML element for zoom in button and attach event listener to it for increasing zoom by 10%.
-    const zoomInButton = document.getElementById('zoomInButton');
-    zoomInButton.addEventListener('click', () => adjustZoom(0.1));
-
-    // Fetch HTML element for zoom out button and attach event listener to it for decreasing zoom by 10%.
-    const zoomOutButton = document.getElementById('zoomOutButton');
-    zoomOutButton.addEventListener('click', () => adjustZoom(-0.1));
-
     // Make control island draggable.
     island.addEventListener('mousedown', (e) => dragIsland(e));
 
     // Add event lister to video element for zooming with mouse scroll.
+    const zoomIncrement = 0.1;
     videoElement.addEventListener('wheel', (event) => {
         if (event.deltaY < 0) {
-            adjustZoom(0.1);                // Scroll up, zoom in by 10%
+            adjustZoom(zoomIncrement);                // Scroll up, zoom in
         } else {
-            adjustZoom(-0.1);               // Scroll down, zoom out by 10%
+            adjustZoom(-zoomIncrement);               // Scroll down, zoom out
         }
         event.preventDefault();                      // Remove the page's default scrolling over the image
     });
@@ -92,35 +99,44 @@ function start() {
     selector.addEventListener('change', (event) => {
         changeCamera(event.target.value);
     })
-
-    // Find all video devices first then start the selected camera.
-    findDevices().then(r => {
-        videoStart();
-    });
 }
 
+/**
+ * Attaches an event listener to an element
+ * @param elementId
+ * @param eventType
+ * @param action
+ */
 function listenerToElement(elementId, eventType, action) {
     const element = document.getElementById(elementId);
     element.addEventListener(eventType, action);
 }
 
 /**
- * Finds all camera feed devices. Lists them to camera feed selector dropdown.
+ * Finds all video media devices and lists them to feed selector dropdown.
  * @returns {Promise<void>}
  */
 async function findDevices() {
-    let num = 1;
-    await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
-        for (let i = 0; i < devices.length; i++) {
-            if (devices[i].kind === 'videoinput') {                                                 // Make sure media source is a camera
-                let option = document.createElement('option');            // Create new option for dropdown
-                option.value = devices[i].deviceId;
-                option.text = devices[i].label;
-                selector.appendChild(option);                                                       // Add new option to dropdown
-                num++;
+    let failedCount = 0;
+    while (true) {                                                                                      // Run until a device is found
+        selector.innerHTML = '';                                                                        // Clear dropdown first
+        let foundVideoInputs = 0;
+        await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
+            for (let i = 0; i < devices.length; i++) {
+                if (devices[i].kind === 'videoinput') {                                                 // Only use video sources
+                    print("Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
+                    foundVideoInputs++;
+                    let option = document.createElement('option');            // Create new option for dropdown
+                    option.value = devices[i].deviceId;
+                    option.text = devices[i].label;
+                    selector.appendChild(option);                                                       // Add new option to dropdown
+                }
             }
-        }
-    })
+        })
+        if (foundVideoInputs > 0) {break;}
+        if (failedCount > 10) {throw Error("No video inputs found")}
+        failedCount++;
+    }
 }
 
 /**
@@ -138,7 +154,7 @@ async function videoStart() {
             videoElement.srcObject = await navigator.mediaDevices.getUserMedia({    // Request media device access, assign selected camera to HTML element
                 video: {
                     deviceId: {
-                        exact: selector.value                                                 // Select that camera that's selected on dropdown
+                        exact: selector.value                                                 // Select the camera that's selected on dropdown
                     }
                 }
             });
@@ -310,18 +326,12 @@ function addOverlay() {
     new Overlay();
 }
 
-
 /**
  * Adds new text area
  */
 function addText() {
     new TextArea();
 }
-
-
-
-
-
 
 /**
  * Draws the current frame of videoElement to canvasElement
@@ -359,7 +369,7 @@ function setZoomLevel(value) {
 }
 
 /**
- * Adjusts the zoom value set by the user.
+ * Adjusts the zoom according to value set by the user.
  * @param increment Zoom increment value
  */
 function adjustZoom(increment) {
@@ -396,10 +406,8 @@ function switchToFullscreen(fullScreenIcon) {
     }
 }
 
-
-
 /**
- * Changes the active text area's font size bigger or smaller.
+ * Changes the active text area's font size
  * @param size Size value
  */
 function changeFontSize(size) {
@@ -407,9 +415,6 @@ function changeFontSize(size) {
     fontSize += size;                                                                             // Make font size bigger or smaller
     activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
 }
-
-
-
 
 /**
  * Saves the current view as a jpg file
@@ -596,6 +601,7 @@ class MovableElement {
 
 }
 
+
 /**
  * Class for dynamically created overlay elements.
  */
@@ -606,6 +612,11 @@ class Overlay extends MovableElement {
     static overlayRemoveButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
 
     static overlayCount = 0;                                                                // Counter for overlays
+
+    static isOverlayDragging = false;                                                        // Shows if dragging of an overlay element is allowed
+
+    overlayX;                                                                         // Initial position of the overlay
+    overlayY;
 
     constructor() {
         super('overlay');
@@ -647,13 +658,13 @@ class Overlay extends MovableElement {
         print("Overlay drag initiated");
 
         overlay.style.zIndex = '10'
-        isOverlayDragging = true;
+        Overlay.isOverlayDragging = true;
 
         // Stores the initial mouse and overlay positions
         mouseX = e.clientX;
         mouseY = e.clientY;
-        overlayX = parseInt(overlay.style.left, 10) || overlay.offsetLeft || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
-        overlayY = parseInt(overlay.style.top, 10) || overlay.offsetTop || 0;
+        this.overlayX = parseInt(overlay.style.left, 10) || overlay.offsetLeft || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
+        this.overlayY = parseInt(overlay.style.top, 10) || overlay.offsetTop || 0;
 
         // Stores references to the event handlers
         const mouseMoveHandler = (event) => this.updateDrag(event, overlay);
@@ -672,14 +683,14 @@ class Overlay extends MovableElement {
      * @param overlay Overlay element
      */
     updateDrag(e, overlay) {
-        if (isOverlayDragging) {
+        if (Overlay.isOverlayDragging) {
             // Calculates new position
             const deltaX = e.clientX - mouseX;
             const deltaY = e.clientY - mouseY;
 
             // Updates the dragged overlay's position
-            overlay.style.left = `${overlayX + deltaX}px`;
-            overlay.style.top = `${overlayY + deltaY}px`;
+            overlay.style.left = `${this.overlayX + deltaX}px`;
+            overlay.style.top = `${this.overlayY + deltaY}px`;
         }
     }
 
@@ -694,7 +705,7 @@ class Overlay extends MovableElement {
         print("Overlay drag stopped");
 
         overlay.style.zIndex = '10';
-        isOverlayDragging = false;
+        Overlay.isOverlayDragging = false;
 
         document.removeEventListener('mousemove', mouseMoveHandler);
         document.removeEventListener('mouseup', mouseUpHandler);
@@ -894,6 +905,14 @@ class UserInterface extends MovableElement {
     do() {
         // Something else else else
     }
+}
+
+
+
+function debug() {
+    debugMode = true;
+    print("Debug mode is enabled!");
+    print("Happy developing ✨");
 }
 
 /**
