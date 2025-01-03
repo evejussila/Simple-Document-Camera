@@ -42,22 +42,14 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Find video devices
-    findMediaDevices();
-    // TODO: Ensure the method is run periodically (or when update button or option is clicked somewhere) to update device list without need to refresh page
-
-    // Start video feed
-    videoStart();
+    // Find video devices first, then start a video feed (required due to asynchronous functions)
+    findMediaDevices().then(() => {
+        videoStart().then(() => {});
+    });
 
     // Development
     if (debugMode) debug();
     if (debugModeVisual) debugVisual();
-
-    // Legacy code snippets
-    // // Find all video devices first, then start the selected camera
-    // findMediaDevices().then(r => {
-    //     videoStart();
-    // });
 
 }
 
@@ -109,7 +101,7 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', () => {
-        changeCamera();                                   // Can also forward camera deviceId: changeCamera(event.target.value);
+        videoStart();                                   // Can also forward camera deviceId: changeCamera(event.target.value);
     })
 }
 
@@ -139,10 +131,26 @@ async function findMediaDevices() {
                 }
             }
         })
-        if (foundVideoInputs > 0) {break;}
-        if (failedCount > retryAttempts) {console.error("No video inputs found")}
+        if (foundVideoInputs > 0) {
+            // Success
+            selector.selectedIndex = 0;                                                                // Select an initial camera in dropdown to prevent mismatch between choice and used feed
+            print("findMediaDevices(): Selecting initial video source: " + selector.value)
+            if (selector.value === "" || selector.value === undefined || selector.value === null) {
+                console.error("findMediaDevices(): Failed to select initial video source")
+            }
+            break;
+        }
+
+        // Failure
+        if (failedCount > retryAttempts) {
+            console.error("findMediaDevices(): No video sources found, retries: " + failedCount)
+            // throw Error("No video inputs");
+        }
         failedCount++;
     }
+
+    // TODO: Function needs a logic for persistent failure
+    // TODO: Ensure the method is run periodically (or when update button or option is clicked somewhere) to update device list without need to refresh page
 }
 
 /**
@@ -150,8 +158,9 @@ async function findMediaDevices() {
  * Requests media device access.
  * @returns {Promise<void>}
  */
-async function videoStart(camera = null) {// If selector is empty then get first video input
-        if (camera === null) {                                                                          // Is camera specified?
+async function videoStart() {
+        if (false) {                                                                          // Is camera specified?
+            print("videoStart(): Invalid selector value " + selector.value);
             while (true) {                                                                              // Retry until success
                 try {
                     print("videoStart(): Assigning a camera");
@@ -165,6 +174,7 @@ async function videoStart(camera = null) {// If selector is empty then get first
                     });
                     videoElement.srcObject = stream;
 
+
                     // TODO: Selector dropdown should be updated to show this exact feed as chosen, otherwise may bug
 
                     // TODO: Debug low video quality
@@ -173,61 +183,53 @@ async function videoStart(camera = null) {// If selector is empty then get first
                     break;
                 } catch (error) {
                     // TODO: Instead of displaying error immediately, should attempt using other cameras from dropdown, as they are already enumerated.
-                    print("videoStart(): Camera could not be accessed: " + error);
+                    console.error("videoStart(): Camera could not be accessed: " + error);
                     alert(`'Camera could not be accessed. Make sure you have given camera permission and that your camera is not being used by other software.`);                       // Display alert to user
                 }
             }
         } else {
-            // TODO: Contents of changeCamera can be moved here
-        }
-}
+            let camera = selector.value;
 
-/**
- * Changes active camera to the currently chosen one one.
- * @returns {Promise<void>}
- */
-async function changeCamera() {
-    let camera = selector.value;
+            // If active
+            // videoElement.srcObject.getTracks().forEach(track => {                      // Stop current camera feed
+            //     track.stop();
+            // })
 
-    videoElement.srcObject.getTracks().forEach(track => {                      // Stop current camera feed
-        track.stop();
-    })
+            try {
+                print("changeCamera(): Assigning new camera");
+                const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
+                    video: {
+                        deviceId: {exact: camera},
+                        facingMode: { ideal: 'environment' },                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
+                        width: { ideal: 1920 },                                                        // These are useless unless there are multiple tracks with the same deviceId
+                        height: { ideal: 1080 },
+                        frameRate: { ideal: 60 }
+                    }
+                });
+                videoElement.srcObject = stream;
 
-    try {
-        print("changeCamera(): Assigning new camera");
-        const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
-            video: {
-                deviceId: {exact: camera},
-                facingMode: { ideal: 'environment' },                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
-                width: { ideal: 1920 },                                                        // These are useless unless there are multiple tracks with the same deviceId
-                height: { ideal: 1080 },
-                frameRate: { ideal: 60 }
+                // TODO: Debug low video quality
+                printStreamInformation(stream);
+
+            } catch (error) {
+                console.error("videoStart(): Camera could not be accessed: " + error);
+                alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
             }
-        });
-        videoElement.srcObject = stream;
 
-        // TODO: Debug low video quality
-        printStreamInformation(stream);
+            resetCamera();
 
-    } catch (error) {
-        print("changeCamera(): Camera could not be accessed: " + error);
-        alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
-    }
-
-    resetCamera();
-
-    // Legacy code snippets to consider:
-    // if (selector.value === "") // If selector value is empty
-    // deviceId: {
-    // exact: selector.value                                                                   // Request the camera that's selected in dropdown
-    // navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
-    //     video: {
-    //         deviceId: {exact: camera},
-    //     }
-    // }).then(stream => {
-    //     videoElement.srcObject = stream;
-    // })
-
+            // Legacy code snippets to consider:
+            // if (selector.value === "") // If selector value is empty
+            // deviceId: {
+            // exact: selector.value                                                                   // Request the camera that's selected in dropdown
+            // navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
+            //     video: {
+            //         deviceId: {exact: camera},
+            //     }
+            // }).then(stream => {
+            //     videoElement.srcObject = stream;
+            // })
+        }
 }
 
 /**
@@ -419,7 +421,7 @@ function videoFreeze(freezeIcon) {
         freezeIcon.title = "Show video";                                                            // Change tool tip text
         isFreeze = true;                                                                            // Freeze is on
     } else {
-        changeCamera();
+        videoStart();
         videoElement.style.display = 'block';
         canvasElement.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
@@ -1027,7 +1029,7 @@ function printStreamInformation(stream) {
 function drawCentreIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
     let horizontalOffset = size * 1.2;
     let {x: centerX, y: centerY} = getElementCenter(element);
-    let text = centerX + " " + centerX  + " " + " is middle of: " + (element.getId || '') + " " + (element.getAttribute('id') || '') + " " + (element.getAttribute('class') || '');
+    let text = centerX + " " + centerX  + " " + " is centre of: " + (element.getId || '') + " " + (element.getAttribute('id') || '') + " " + (element.getAttribute('class') || '');
 
     const ball = drawBall(centerX, centerY, size, color, opacity, zindex);
     const label = drawLabel(centerX + horizontalOffset, centerY, size, color, opacity, zindex, text);
