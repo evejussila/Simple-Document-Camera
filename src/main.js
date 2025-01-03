@@ -1,9 +1,9 @@
 // Development tools
 let debugMode = true;                                                                     // Sets default level of console output
 if (debugMode) debug();
-const version = ("2025-01-01-a");
+const version = ("2025-01-03-beta");
 console.log("Version: " + version);
-console.log("To enable debug mode, type to console: debug()");
+console.log("To toggle debug mode, type to console: debug()");
 
 // Fetch core HTML elements
 const videoElement      = document.getElementById('cameraFeed');             // Camera feed
@@ -541,6 +541,8 @@ class MovableElement {
     type;
     element;
 
+    listeners;
+
     constructor(type) {
         this.type = type;
     }
@@ -656,17 +658,20 @@ class Overlay extends MovableElement {
     constructor() {
         super('overlay');
         this.element = this.create();
-
-        this.handleListeners();
-        Overlay.overlayCount++;
     }
 
     /**
      * Adds new draggable overlay on top of feed.
      */
     create() {
-        // Add elements
-        return super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
+        // Create element
+        let overlay = super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
+
+        // Add listeners
+        this.handleListeners();
+
+        Overlay.overlayCount++;
+        return overlay;
     }
 
 
@@ -674,8 +679,8 @@ class Overlay extends MovableElement {
      * Adds listener for drag of overlay.
      */
     handleListeners() {
+        // Add listener for drag
         print("Adding drag listener for overlay:" +  Overlay.overlayCount + "overlay");
-
         let overlay = document.getElementById(Overlay.overlayCount + "overlay");
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
     }
@@ -767,56 +772,48 @@ class TextArea extends MovableElement {
     startWidth;
     startHeight;                                        // To change the size and position of the textarea
 
+    textAreaElement;                                    // Element reference for text area, not container
+
     constructor() {
         super('textArea');
         this.element = this.create();
-
-        TextArea.textAreaCount++;
-
-        this.addText();
     }
 
     create() {
-        // Add main elements
-        return super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.elementStyle, TextArea.buttonStyle);        // Container
+        // Create container
+        let container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.elementStyle, TextArea.buttonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
+
+        // Add text area
+        this.textAreaElement = document.createElement("textarea");
+        this.textAreaElement.id = TextArea.textAreaCount + "textArea";
+        this.textAreaElement.placeholder = "Text";
+        this.textAreaElement.style.cssText = TextArea.textAreaStyle;
+        this.textAreaElement.spellcheck = false;                                                                                                // Try to prevent spell checks by browsers
+        container.appendChild(this.textAreaElement);
+        if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.textAreaElement;
 
         // Add resize handle
-    }
-
-    // Move addText to create()
-
-    /**
-     * Adds new text area.
-     * Sets the styles for the text area and its buttons.
-     * Adds event listeners to mouse actions.
-     */
-    addText() {
-        let currentTextAreaContainer = this.element;                        // Or: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
-        let textArea = document.createElement("textarea");
-        textArea.id = TextArea.textAreaCount + "textArea";
-        textArea.placeholder = "Text";
-        textArea.style.cssText = TextArea.textAreaStyle;
-        textArea.spellcheck = false;                                                                                                // Try to prevent spell checks by browsers
-        currentTextAreaContainer.appendChild(textArea);
-
         let resizeHandle = document.createElement("div");                                                   // Option to resize the textArea box
         resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
         resizeHandle.style.cssText = TextArea.resizeHandleStyle;
-        currentTextAreaContainer.appendChild(resizeHandle);
+        container.appendChild(resizeHandle);
 
-        currentTextAreaContainer.addEventListener("mousedown", (e) => this.handleTextArea(e, currentTextAreaContainer, resizeHandle, textArea)); // Handle mousedown action
-        currentTextAreaContainer.addEventListener("mousemove", (e) => this.dragTextArea(e, currentTextAreaContainer, textArea)); //Handle mousemove action
-        currentTextAreaContainer.addEventListener("mouseup", () => this.stopTextAreaDrag(currentTextAreaContainer));        // Stop moving or expanding when the mouse is released
+        // Add resize listeners
+        container.addEventListener("mousedown", (e) => this.handleTextArea(e, container, resizeHandle, this.textAreaElement)); // Handle mousedown action
+        container.addEventListener("mousemove", (e) => this.dragTextArea(e, container, this.textAreaElement)); //Handle mousemove action
+        container.addEventListener("mouseup", () => this.stopTextAreaDrag(container));        // Stop moving or expanding when the mouse is released
+        this.textAreaElement.addEventListener('input', () => this.resizeToFitText(this.textAreaElement, container));
 
-        textArea.addEventListener('input', () => this.resizeTextAreaWithoutMouse(textArea, currentTextAreaContainer));
+        TextArea.textAreaCount++;
+        return container;
     }
 
     /**
-     * Expands textarea automatically (without a mouse) if content exceeds current height.
+     * Expands textarea if content exceeds current height.
      * @param textArea TextArea element
      * @param textAreaContainer TextAreaContainer element
      */
-    resizeTextAreaWithoutMouse(textArea, textAreaContainer) {
+    resizeToFitText(textArea, textAreaContainer) {
         if (textArea.scrollHeight > textArea.offsetHeight) {
             textArea.style.height = `${textArea.scrollHeight}px`;
             textAreaContainer.style.height = textArea.style.height;
@@ -894,9 +891,9 @@ class TextArea extends MovableElement {
      */
     static changeFontSize(size) {
         let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
-        // TODO: Fix, if no text area has been clicked, even if one was created, style is not defined: Uncaught TypeError: Cannot read properties of undefined (reading 'style')
         fontSize += size;                                                                                      // Make font size bigger or smaller
         TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+        // TODO: Eliminate static function and add resize call for container based on text size: this.resizeToFitText(this.textAreaElement, this.element)
     }
 
     /**
@@ -924,9 +921,11 @@ class TextArea extends MovableElement {
  * Can be called from console with: debug();
  */
 function debug() {
-    debugMode = true;
-    print("Debug mode is enabled!");
-    print("Happy developing ✨");
+    debugMode = -debugMode;
+    if (debug) {
+        print("Debug mode is enabled!");
+        print("Happy developing ✨");
+    }
 }
 
 /**
