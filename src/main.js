@@ -27,13 +27,17 @@ let islandX, islandY;                                                           
 // Other
 let mouseX;                                                                                        // Initial position of the mouse
 let mouseY;
+let createdElements;                                                                               // Handles created elements
 
 
 // Initialization
 
-document.addEventListener('DOMContentLoaded', start);                                               // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                         // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
+
+    // Instantiate class for created elements
+    createdElements = new CreatedElements();                                                       // Handles created elements
 
     // Add core listeners for interface elements
     addCoreListeners();
@@ -491,7 +495,7 @@ function updateVideoTransform() {
 }
 
 
-// Simple element creation methods
+// Simple caller methods
 
 /**
  * Adds new overlay
@@ -507,8 +511,23 @@ function addText() {
     new TextArea();
 }
 
+function changeFontSize(size) {
+    TextArea.changeFontSize(size);
+}
+
 
 // Classes for created elements
+
+class CreatedElements {
+
+    // All created elements' information: id, reference, type
+    elements = [
+        [[], [], []],
+        [[], [], []],
+        [[], [], []]
+    ];
+
+}
 
 /**
  * Parent class for dynamically created movable elements.
@@ -516,67 +535,39 @@ function addText() {
  */
 class MovableElement {
 
-    // Array for keeping track of created elements. Can be used for toggling visibility, deletion and other management of elements.
-    // static elementArray = [
-    //     [[], [], []],
-    //     [[], [], []],
-    //     [[], [], []]
-    // ]; // ID, type, object reference, isMoving, etc...
+    id;
+    reference;
+    type;
 
-    // Do I need to initialize type and index and others used with this.variable?
-
-    constructor(type) {
+    constructor(type, id = null) {
+        this.id = id;
+        this.reference = this;
         this.type = type;
-        // this.index = elementArray.length; // Length is the index of the empty, append happens in updateArray
-        this.id = null;
-
-        this.updateArray();
-    }
-
-    // Methods implemented in parent class
-    updateArray() {
-        // Handling element array that keeps track of all created elements
     }
 
     hide() {
+        // document.getElementById('elementId').style.transition = 'opacity 1s';
+        // document.getElementById('elementId').style.opacity = 0;
+        // set to hide
+        this.errorUnimplemented();
     }
 
     show() {
+        // document.getElementById('elementId').style.transition = 'opacity 1s';
+        // document.getElementById('elementId').style.opacity = 0;
+        // set to block
+        this.errorUnimplemented();
     }
 
     delete() {
         // Never change indices
+        this.errorUnimplemented();
     }
 
-    resetPosition() {
-    }
-
-
-// Methods to be implemented in subclasses
     handleListeners() {
-        // Subclasses: Listeners for click
         this.errorUnimplemented();
     }
 
-    setStyling() {
-        // Subclasses:
-        this.errorUnimplemented();
-    }
-
-    setVisibility() {
-        // Subclasses:
-        this.errorUnimplemented();
-    }
-
-    createControls() {
-        // Subclasses:
-        this.errorUnimplemented();
-    }
-
-    handleCanvas() {
-        // Subclasses: Create canvas elements as needed
-        this.errorUnimplemented();
-    }
     errorUnimplemented() {
         throw new Error("Called unimplemented method in parent class MovableElement");
     }
@@ -736,15 +727,6 @@ class Overlay extends MovableElement {
 
 }
 
-/**
- * Changes the active text area's font size
- * @param size Size value
- */
-function changeFontSize(size) {
-    let fontSize = parseFloat(activeTextArea.style.fontSize);                             // Get fontsize without "px"
-    fontSize += size;                                                                             // Make font size bigger or smaller
-    activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
-}
 
 /**
  * Class for dynamically created text area elements.
@@ -761,7 +743,7 @@ class TextArea extends MovableElement {
 
     isMoving = false;                                                                        // Is text area moving
     static activeTextArea;                                                                           // Shows which text area is currently active
-    isResizing = false;                                                              // Textarea resizing
+    isResizing = false;                                                                      // Textarea resizing
     offsetXText;
     offsetYText;
     startWidth;
@@ -886,6 +868,17 @@ class TextArea extends MovableElement {
 
         document.addEventListener("mousemove", mouseMoveHandler);
         document.addEventListener("mouseup", mouseUpHandler);
+    }
+
+    /**
+     * Changes the active text area's font size
+     * @param size Size value
+     */
+    static changeFontSize(size) {
+        let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
+        // TODO: Fix, if no text area has been clicked, even if one was created, style is not defined: Uncaught TypeError: Cannot read properties of undefined (reading 'style')
+        fontSize += size;                                                                                      // Make font size bigger or smaller
+        TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
     }
 
     /**
