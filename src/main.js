@@ -454,15 +454,6 @@ function getDateTime() {
 }
 
 /**
- * Remove an element
- * @param id Id of element to remove
- */
-function removeElement(id) {
-    document.getElementById(id).remove();
-    print("removeElement(): Removed element: " + id);
-}
-
-/**
  * Draws the current frame of videoElement to canvasElement
  * Hides videoElement, shows canvasElement
  */
@@ -493,6 +484,44 @@ function matchElementDimensions(elementMaster, elementSub) {
 function updateVideoTransform() {
     videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
     canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+}
+
+/**
+ * Removes an element.
+ * @param element Element to remove
+ * @param fadeTime Fade duration s (optional)
+ */
+function removeElement(element, fadeTime = 0.2) {
+    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.opacity = '0';
+
+    setTimeout(() => element.remove(), fadeTime*1000);      // Asynchronous
+
+    print("removeElement(): Removed element: " + element.id);
+}
+
+/**
+ * Hides an element
+ * @param element Element to hide
+ * @param fadeTime Fade duration s (optional)
+ */
+function hideElement(element, fadeTime = 0.3) {
+    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.opacity = '0';
+    // THEN: element.style.display = 'none';
+    // TODO: Test method
+}
+
+/**
+ * Shows a hidden element
+ * @param element Element to hide
+ * @param fadeTime Fade duration s (optional)
+ */
+function showElement(element, fadeTime = 0.4) {
+    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.opacity = '1';
+    element.style.display = 'block';
+    // TODO: Test method
 }
 
 
@@ -569,15 +598,11 @@ class MovableElement {
 
     // Styling
     hide() {
-        this.element.style.transition = 'opacity 1s';
-        this.element.style.opacity = '0';
-        // TODO: Test method, set element to hide
+        hideElement(this.element);
     }
 
     show() {
-        this.element.style.transition = 'opacity 1s';
-        this.element.style.opacity = '1';
-        // TODO: Test method, set element to block
+        showElement(this.element);
     }
 
     // Management
@@ -586,24 +611,21 @@ class MovableElement {
     }
 
     // Other
-    handleListeners() {
-        this.errorUnimplemented();
-    }
 
     /**
-     * Adds new element and remove button for it.
-     * @param element Element type to add
+     * Creates new element and a remove button for it.
+     * @param type Element type to add (tagName)
      * @param number Number of element (for avoiding identical ids)
-     * @param id Identifier for added element
+     * @param idBase Identifier base for added element
      * @param elementCssStyle CSS style for added element
      * @param buttonCssStyle CSS style for remove button
      */
-    createElement(element, number, id, elementCssStyle, buttonCssStyle) {
+    createElement(type, number, idBase, elementCssStyle, buttonCssStyle) {
 
         // Create main element
-        let newElement = document.createElement(element);
-        newElement.id = number + id;
-        newElement.class = id;
+        let newElement = document.createElement(type);
+        newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken.
+        newElement.class = idBase;
         newElement.style.cssText = elementCssStyle // New elements style must be edited in js
         print("Added element:" + newElement.id);
 
@@ -614,7 +636,7 @@ class MovableElement {
         removeButton.title = "Remove";
         removeButton.textContent = "X";
         removeButton.style.cssText = buttonCssStyle;
-        removeButton.addEventListener('click', () => removeElement(newElement.id));
+        removeButton.addEventListener('click', () => removeElement(newElement));
         print("Added remove button " + removeButton.id + " for :" + newElement.id);
 
         // Remove buttons only visible when hovered over TODO: Add fast fade
