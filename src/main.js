@@ -150,93 +150,48 @@ async function findMediaDevices() {
     }
 
     // TODO: Function needs a logic for persistent failure
-    // TODO: Ensure the method is run periodically (or when update button or option is clicked somewhere) to update device list without need to refresh page
+    // TODO: Ensure the check is run periodically to update device list without need to refresh page, but note that mismatch between choice and current feed must be prevented
 }
 
 /**
- * Assigns a camera to HTML element for camera feed.
+ * Assigns currently selected camera to HTML element for camera feed.
  * Requests media device access.
  * @returns {Promise<void>}
  */
 async function videoStart() {
-        if (false) {                                                                          // Is camera specified?
-            print("videoStart(): Invalid selector value " + selector.value);
-            while (true) {                                                                              // Retry until success
-                try {
-                    print("videoStart(): Assigning a camera");
-                    const stream = await navigator.mediaDevices.getUserMedia({    // Request media device access, assign camera to HTML element
-                        video: {
-                            facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
-                            width: {ideal: 1920},
-                            height: {ideal: 1080},
-                            frameRate: {ideal: 60}
-                        }
-                    });
-                    videoElement.srcObject = stream;
-
-
-                    // TODO: Selector dropdown should be updated to show this exact feed as chosen, otherwise may bug
-
-                    // TODO: Debug low video quality
-                    printStreamInformation(stream);
-
-                    break;
-                } catch (error) {
-                    // TODO: Instead of displaying error immediately, should attempt using other cameras from dropdown, as they are already enumerated.
-                    console.error("videoStart(): Camera could not be accessed: " + error);
-                    alert(`'Camera could not be accessed. Make sure you have given camera permission and that your camera is not being used by other software.`);                       // Display alert to user
+    while (true) {
+        try {
+            print("videoStart(): Accessing a camera feed: " + selector.value);
+            const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
+                video: {
+                    deviceId: {exact: selector.value},
+                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
+                    width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
+                    height: {ideal: 1080},
+                    frameRate: {ideal: 60}
                 }
-            }
-        } else {
-            let camera = selector.value;
+            });
+            videoElement.srcObject = stream;
 
-            // If active
-            // videoElement.srcObject.getTracks().forEach(track => {                      // Stop current camera feed
-            //     track.stop();
-            // })
+            // TODO: Debug low video quality
+            printStreamInformation(stream);
 
-            try {
-                print("changeCamera(): Assigning new camera");
-                const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
-                    video: {
-                        deviceId: {exact: camera},
-                        facingMode: { ideal: 'environment' },                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
-                        width: { ideal: 1920 },                                                        // These are useless unless there are multiple tracks with the same deviceId
-                        height: { ideal: 1080 },
-                        frameRate: { ideal: 60 }
-                    }
-                });
-                videoElement.srcObject = stream;
-
-                // TODO: Debug low video quality
-                printStreamInformation(stream);
-
-            } catch (error) {
-                console.error("videoStart(): Camera could not be accessed: " + error);
-                alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
-            }
-
-            resetCamera();
-
-            // Legacy code snippets to consider:
-            // if (selector.value === "") // If selector value is empty
-            // deviceId: {
-            // exact: selector.value                                                                   // Request the camera that's selected in dropdown
-            // navigator.mediaDevices.getUserMedia({                                            // Change to that camera that is selected
-            //     video: {
-            //         deviceId: {exact: camera},
-            //     }
-            // }).then(stream => {
-            //     videoElement.srcObject = stream;
-            // })
+            break;
+        } catch (error) {
+            console.error("videoStart(): Camera could not be accessed: " + error);
+            alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
+            // TODO: User may get stuck here with alerts, if no camera works
         }
+    }
+
+    resetVideoState();
 }
 
 /**
- * Reset camera back to its default state.
+ * Reset video feed back to its default state.
  */
-function resetCamera() {
-    // TODO: Reset camera back to its default state
+function resetVideoState() {
+    // TODO: Reset video feed back to its default state (rotation, zoom, etc.)
 }
 
 
@@ -345,14 +300,14 @@ function toggleControlCollapse(collapseIcon) {
     if (isControlCollapsed) {
         collapseIcon.title = 'Show controls';
         collapseIcon.src = "./images/showControls.png";
-        controlBar.style.display = 'none';
-        island.style.display = 'none';
+        hideElement(controlBar);
+        hideElement(island);
     }
     else {
         collapseIcon.title = 'Hide controls';
         collapseIcon.src = "./images/hideControls.png";
-        controlBar.style.display = 'inline-flex';
-        island.style.display = 'flex';
+        showElement(controlBar, undefined, 'inline-flex');
+        showElement(island, undefined, 'flex');
     }
 }
 
@@ -516,19 +471,18 @@ function hideElement(element, fadeTime = 0.3) {
     element.style.transition = `opacity ${fadeTime}s`;
     element.style.opacity = '0';
     // THEN: element.style.display = 'none';
-    // TODO: Test method
 }
 
 /**
  * Shows a hidden element
  * @param element Element to hide
- * @param fadeTime Fade duration s (optional)
+ * @param fadeTime Fade duration in s (optional)
+ * @param displayStyle Display style (optional)
  */
-function showElement(element, fadeTime = 0.4) {
+function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
     element.style.transition = `opacity ${fadeTime}s`;
     element.style.opacity = '1';
-    element.style.display = 'block';
-    // TODO: Test method
+    element.style.display = displayStyle;
 }
 
 /**
@@ -983,7 +937,7 @@ function debugVisual() {
 
     // Indicate element centres
     debugVisualDrawCentreTrackingIndicator(videoElement, 20, 'red', '0.8');
-    debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.4');
+    debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
     debugVisualDrawCentreTrackingIndicator(canvasElement, 60, 'green', '0.4');
 }
 
@@ -1027,7 +981,7 @@ function printStreamInformation(stream) {
 }
 
 function drawCentreIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
-    let horizontalOffset = size * 1.2;
+    let horizontalOffset = size / 2 * 1.05 + 10;
     let {x: centerX, y: centerY} = getElementCenter(element);
     let text = centerX + " " + centerX  + " " + " is centre of: " + (element.getId || '') + " " + (element.getAttribute('id') || '') + " " + (element.getAttribute('class') || '');
 
