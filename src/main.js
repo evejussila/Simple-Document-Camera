@@ -1,5 +1,5 @@
 // Development tools
-let debugMode = true;                                                                     // Sets default level of console output
+let debugMode = true;                                                                      // Sets default level of console output
 let debugModeVisual = false;                                                               // Enables visual debug tools
 const version = ("2025-01-03-beta");
 console.log("Version: " + version);
@@ -502,10 +502,8 @@ function getElementCenter(element) {
 
     return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
 
-    // TODO: Does not give real coordinates for some objects (like very large video inputs) that have been resized due to browser window resizing
-    // Alternate approaches
-    // const x = rect.left + rect.width / 2;
-    // const y = rect.top + rect.height / 2;
+    // TODO: May not give real coordinates for some objects (like very large video inputs) that have been resized due to browser window resizing
+
 }
 
 
@@ -552,7 +550,11 @@ class CreatedElements {
 class MovableElement {
 
     type;
+
+    // Element references
     element;
+    container;
+    resizeHandle;
 
     listeners;
 
@@ -654,32 +656,39 @@ class Overlay extends MovableElement {
     static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
     static overlayRemoveButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
 
+    // Class shared variables
     static overlayCount = 0;                                                                // Counter for overlays
-
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
-    overlayX;                                                                                       // Initial position of the overlay
+    // Other
+    overlayX;                                                                                       // Initial position of the overlay when starting drag
     overlayY;
 
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
     constructor() {
         super('overlay');
-        this.element = this.create();
+        this.create();
     }
 
     /**
-     * Adds new draggable overlay on top of feed.
+     * Creates new overlay on top of feed.
+     * Draggable.
      */
     create() {
         // Create element
-        let overlay = super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
+        this.element = super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
 
         // Add listeners
         this.handleListeners();
 
         Overlay.overlayCount++;
-        return overlay;
     }
-
 
     /**
      * Adds listener for drag of overlay.
@@ -691,6 +700,8 @@ class Overlay extends MovableElement {
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
     }
 
+
+    // Drag handling
 
     /**
      * Handles dragging overlay elements with mouse.
@@ -719,7 +730,6 @@ class Overlay extends MovableElement {
         document.addEventListener('mouseup', mouseUpHandler);
     }
 
-
     /**
      * Calculates new position for overlay when dragged with mouse.
      * Runs while dragging.
@@ -737,7 +747,6 @@ class Overlay extends MovableElement {
             overlay.style.top = `${this.overlayY + deltaY}px`;
         }
     }
-
 
     /**
      * Stops overlay dragging.
@@ -768,64 +777,117 @@ class TextArea extends MovableElement {
     static buttonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
     static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
 
+    // Class shared variables
     static textAreaCount = 0;                                                              // Counter for text areas
-
     isMoving = false;                                                                        // Is text area moving
-    static activeTextArea;                                                                           // Shows which text area is currently active
     isResizing = false;                                                                      // Textarea resizing
-    offsetXText;
+    static activeTextArea;                                                                           // Shows which text area is currently active
+
+    // Other
+    offsetXText;                                                                                      // Initial position of the text area when starting drag
     offsetYText;
-    startWidth;
-    startHeight;                                        // To change the size and position of the textarea
+    startWidth;                                                                                       // Initial size of the text area when starting resize
+    startHeight;
 
-    textAreaElement;                                    // Element reference for text area, not container
 
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
     constructor() {
         super('textArea');
-        this.element = this.create();
-    }
-
-    create() {
-        // Create container
-        let container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.elementStyle, TextArea.buttonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
-
-        // Add text area
-        this.textAreaElement = document.createElement("textarea");
-        this.textAreaElement.id = TextArea.textAreaCount + "textArea";
-        this.textAreaElement.placeholder = "Text";
-        this.textAreaElement.style.cssText = TextArea.textAreaStyle;
-        this.textAreaElement.spellcheck = false;                                                                                                // Try to prevent spell checks by browsers
-        container.appendChild(this.textAreaElement);
-        if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.textAreaElement;
-
-        // Add resize handle
-        let resizeHandle = document.createElement("div");                                                   // Option to resize the textArea box
-        resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
-        resizeHandle.style.cssText = TextArea.resizeHandleStyle;
-        container.appendChild(resizeHandle);
-
-        // Add resize listeners
-        container.addEventListener("mousedown", (e) => this.handleTextArea(e, container, resizeHandle, this.textAreaElement)); // Handle mousedown action
-        container.addEventListener("mousemove", (e) => this.dragTextArea(e, container, this.textAreaElement)); //Handle mousemove action
-        container.addEventListener("mouseup", () => this.stopTextAreaDrag(container));        // Stop moving or expanding when the mouse is released
-        this.textAreaElement.addEventListener('input', () => this.resizeToFitText(this.textAreaElement, container));
-
-        TextArea.textAreaCount++;
-        return container;
+        this.create();
     }
 
     /**
-     * Expands textarea if content exceeds current height.
-     * @param textArea TextArea element
-     * @param textAreaContainer TextAreaContainer element
+     * Creates new text area on top of feed.
+     * Draggable, resizable.
      */
-    resizeToFitText(textArea, textAreaContainer) {
-        if (textArea.scrollHeight > textArea.offsetHeight) {
-            textArea.style.height = `${textArea.scrollHeight}px`;
-            textAreaContainer.style.height = textArea.style.height;
-        }
+    create() {
+        // Create container
+        this.container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.elementStyle, TextArea.buttonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
+
+        // Add text area
+        this.element = document.createElement("textarea");
+        this.element.id = TextArea.textAreaCount + "textArea";
+        this.element.placeholder = "Text";
+        this.element.style.cssText = TextArea.textAreaStyle;
+        this.element.spellcheck = false;                                                                                                // Try to prevent spell checks by browsers
+        this.container.appendChild(this.element);
+        if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.textAreaElement;
+
+        // Add resize handle
+        this.resizeHandle = document.createElement("div");                                                   // Option to resize the textArea box
+        this.resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
+        this.resizeHandle.style.cssText = TextArea.resizeHandleStyle;
+        this.container.appendChild(this.resizeHandle);
+
+        // Add resize listeners
+        this.handleListeners();
+
+        TextArea.textAreaCount++;
     }
 
+    /**
+     * Adds listeners for drag and resize of text area.
+     */
+    handleListeners() {
+        this.container.addEventListener("mousedown", (e) => this.handleTextArea(e, this.container, this.resizeHandle, this.element)); // Handle mousedown action (for text area and resize handle)
+        this.container.addEventListener("mousemove", (e) => this.dragTextArea(e, this.container, this.element));                      // Handle mousemove action (for text area and resize handle)
+        this.container.addEventListener("mouseup", () => this.stopTextAreaDrag(this.container));                                      // Stop moving or resizing when the mouse is released
+        this.element.addEventListener('input', () => this.resizeToFitText(this.element, this.container));                             // Expand to fit text
+    }
+
+
+    // Drag and sizing handling
+
+
+    decideAction() {
+
+    }
+
+    /**
+     * Activates the selected text area with mouse click and captures the mouse click position.
+     * Attaches event listeners for `mousemove` and `mouseup`.
+     * @param e MouseEvent 'mousedown'
+     * @param textAreaContainer TextAreaContainer element
+     * @param resizeHandle ResizeHandle element
+     * @param currentTextArea Currently active text area element
+     */
+    handleTextArea(e, textAreaContainer, resizeHandle, currentTextArea) {
+        TextArea.activeTextArea = currentTextArea;
+        this.container.style.zIndex = '7';
+
+        /**
+         * Handles mousemove event for text area. Starts text area drag or resizing text area.
+         * @param event Mouse event 'mousemove'
+         */
+        const mouseMoveHandler = (event) => this.dragTextArea(event, this.container, currentTextArea);
+
+        /**
+         * Handles mouseup event for text area. Stops text area drag.
+         */
+        const mouseUpHandler = () => this.stopTextAreaDrag(mouseMoveHandler, mouseUpHandler);
+
+        // Check is the mouse click on the text area or the resize handle
+        if (e.target === resizeHandle) {
+            this.isResizing = true;
+            this.startWidth = this.container.offsetWidth;
+            this.startHeight = this.container.offsetHeight;
+            this.offsetXText = e.clientX;
+            this.offsetYText = e.clientY;
+        } else {
+            this.isMoving = true;
+            this.offsetXText = e.clientX - this.container.offsetLeft;
+            this.offsetYText = e.clientY - this.container.offsetTop;
+            this.container.style.cursor = "move";
+        }
+
+        document.addEventListener("mousemove", mouseMoveHandler);
+        document.addEventListener("mouseup", mouseUpHandler);
+    }
     /**
      * Moves or expands the text area according to mouse movement.
      * Sets new position for text area and text area container.
@@ -850,57 +912,7 @@ class TextArea extends MovableElement {
         }
     }
 
-    /**
-     * Activates the selected text area with mouse click and captures the mouse click position.
-     * Attaches event listeners for `mousemove` and `mouseup`.
-     * @param e MouseEvent 'mousedown'
-     * @param textAreaContainer TextAreaContainer element
-     * @param resizeHandle ResizeHandle element
-     * @param currentTextArea Currently active text area element
-     */
-    handleTextArea(e, textAreaContainer, resizeHandle, currentTextArea) {
-        TextArea.activeTextArea = currentTextArea;
-        textAreaContainer.style.zIndex = '7';
 
-        /**
-         * Handles mousemove event for text area. Starts text area drag or resizing text area.
-         * @param event Mouse event 'mousemove'
-         */
-        const mouseMoveHandler = (event) => this.dragTextArea(event, textAreaContainer, currentTextArea);
-
-        /**
-         * Handles mouseup event for text area. Stops text area drag.
-         */
-        const mouseUpHandler = () => this.stopTextAreaDrag(mouseMoveHandler, mouseUpHandler);
-
-        // Check is the mouse click on the text area or the resize handle
-        if (e.target === resizeHandle) {
-            this.isResizing = true;
-            this.startWidth = textAreaContainer.offsetWidth;
-            this.startHeight = textAreaContainer.offsetHeight;
-            this.offsetXText = e.clientX;
-            this.offsetYText = e.clientY;
-        } else {
-            this.isMoving = true;
-            this.offsetXText = e.clientX - textAreaContainer.offsetLeft;
-            this.offsetYText = e.clientY - textAreaContainer.offsetTop;
-            textAreaContainer.style.cursor = "move";
-        }
-
-        document.addEventListener("mousemove", mouseMoveHandler);
-        document.addEventListener("mouseup", mouseUpHandler);
-    }
-
-    /**
-     * Changes the active text area's font size
-     * @param size Size value
-     */
-    static changeFontSize(size) {
-        let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
-        fontSize += size;                                                                                      // Make font size bigger or smaller
-        TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
-        // TODO: Eliminate static function and add resize call for container based on text size: this.resizeToFitText(this.textAreaElement, this.element)
-    }
 
     /**
      * Stops text area dragging and removes event listeners mousemove and mouseup.
@@ -916,6 +928,33 @@ class TextArea extends MovableElement {
         // textAreaContainer.style.cursor = "default";
     }
 
+    /**
+     * Expands textarea if content exceeds current height.
+     * @param textArea TextArea element
+     * @param textAreaContainer TextAreaContainer element
+     */
+    resizeToFitText(textArea, textAreaContainer) {
+        if (textArea.scrollHeight > textArea.offsetHeight) {
+            textArea.style.height = `${textArea.scrollHeight}px`;
+            textAreaContainer.style.height = textArea.style.height;
+        }
+        // TODO: Will not work if amount of text is very low (1-4 characters) or there are no spaces (impedes word wrap)
+        // TODO: Should also be run when font + is pressed, see changeFontSize()
+    }
+
+
+    // Font size handling
+
+    /**
+     * Changes the active text area's font size
+     * @param size Size value
+     */
+    static changeFontSize(size) {
+        let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
+        fontSize += size;                                                                                      // Make font size bigger or smaller
+        TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+        // TODO: Eliminate static function and add resize call for container based on text size: this.resizeToFitText(this.textAreaElement, this.element)
+    }
 
 }
 
@@ -956,8 +995,9 @@ function debugVisual() {
         debugVisualDrawCentreTrackingIndicator(videoElement, 20, 'red', '0.8');
         debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
         debugVisualDrawCentreTrackingIndicator(canvasElement, 60, 'green', '0.4');
+    } else {
+        print("Visual debug disabled!");
     }
-    print("Visual debug Disabled!");
 }
 
 function developerMenu() {
