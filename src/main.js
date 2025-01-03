@@ -1,9 +1,9 @@
 // Development tools
 let debugMode = true;                                                                     // Sets default level of console output
-if (debugMode) debug();
+let debugModeVisual = true;                                                               // Enables visual debug tools
 const version = ("2025-01-03-beta");
 console.log("Version: " + version);
-console.log("To toggle debug mode, type to console: debug()");
+console.log("To activate debug mode, type to console: debug()");
 
 // Fetch core HTML elements
 const videoElement      = document.getElementById('cameraFeed');             // Camera feed
@@ -48,6 +48,10 @@ function start() {
 
     // Start video feed
     videoStart();
+
+    // Development
+    if (debugMode) debug();
+    if (debugModeVisual) debugVisual();
 
     // Legacy code snippets
     // // Find all video devices first, then start the selected camera
@@ -943,11 +947,21 @@ class TextArea extends MovableElement {
  * Can be called from console with: debug();
  */
 function debug() {
-    debugMode = -debugMode;
-    if (debug) {
+    debugMode = true;
+    if (debugMode) {
         print("Debug mode is enabled!");
         print("Happy developing ✨");
     }
+}
+
+function debugVisual() {
+    debugModeVisual = true;
+    if (debugModeVisual) {
+        print("Visual debug enabled!");
+    }
+
+    // Draw visual indicators over elements
+    // debugVisualDrawIndicators();
 }
 
 /**
@@ -956,7 +970,7 @@ function debug() {
  * @param string String to output
  */
 function print(string) {
-    if (!debug) return;
+    if (!debugMode) return;
     console.log(string);
 }
 
@@ -975,3 +989,7 @@ function printStreamInformation(stream) {
     });
 
 }
+
+
+
+
