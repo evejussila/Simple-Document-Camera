@@ -1,6 +1,6 @@
 // Development tools
 let debugMode = true;                                                                     // Sets default level of console output
-let debugModeVisual = true;                                                               // Enables visual debug tools
+let debugModeVisual = false;                                                               // Enables visual debug tools
 const version = ("2025-01-03-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
@@ -49,7 +49,6 @@ function start() {
 
     // Development
     if (debugMode) debug();
-    if (debugModeVisual) debugVisual();
 
 }
 
@@ -106,7 +105,7 @@ function addCoreListeners() {
 }
 
 
-// Camera control methods
+// Camera control functions
 
 /**
  * Finds all video media devices and lists them to feed selector dropdown.
@@ -195,7 +194,7 @@ function resetVideoState() {
 }
 
 
-// UI methods
+// UI functions
 
 /**
  * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
@@ -312,7 +311,7 @@ function toggleControlCollapse(collapseIcon) {
 }
 
 
-// Functionality methods
+// Functionality functions
 
 /**
  * Saves the current view as a jpg file
@@ -386,7 +385,7 @@ function videoFreeze(freezeIcon) {
 }
 
 
-// Utility methods
+// Utility functions
 
 /**
  * Attaches an event listener to an element
@@ -470,19 +469,25 @@ function removeElement(element, fadeTime = 0.2) {
 function hideElement(element, fadeTime = 0.3) {
     element.style.transition = `opacity ${fadeTime}s`;
     element.style.opacity = '0';
-    // THEN: element.style.display = 'none';
+    setTimeout(() => {
+        element.style.display = 'none';
+    }, fadeTime * 1000);
 }
 
 /**
- * Shows a hidden element
+ * Shows a hidden element by fading in
  * @param element Element to hide
  * @param fadeTime Fade duration in s (optional)
  * @param displayStyle Display style (optional)
  */
 function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
+    element.style.opacity = '0';                                // Ensures not visible
+    element.style.display = displayStyle;                       // Renders element display
     element.style.transition = `opacity ${fadeTime}s`;
-    element.style.opacity = '1';
-    element.style.display = displayStyle;
+
+    requestAnimationFrame(() => {                               // Runs code after display is rendered
+        element.style.opacity = '1';
+    });
 }
 
 /**
@@ -915,7 +920,7 @@ class TextArea extends MovableElement {
 }
 
 
-// Development methods
+// Developer functions
 
 /**
  * Method to enable debug mode while using application.
@@ -927,32 +932,38 @@ function debug() {
         print("Debug mode is enabled!");
         print("Happy developing ✨");
     }
+
+    // Enable developer menu
+    const developerButton = document.createElement('button');
+    developerButton.id = 'buttonDev';
+    developerButton.title = 'Developer';
+    developerButton.textContent = 'Developer Options';
+    developerButton.addEventListener('click', developerMenu);
+    developerButton.style.zIndex = '9999';
+    developerButton.style.border = '2px solid black';
+
+    // const placement = document.getElementById('textControls');
+    controlBar.appendChild(developerButton);
+
 }
 
 function debugVisual() {
-    debugModeVisual = true;
+    debugModeVisual = !debugModeVisual;
     if (debugModeVisual) {
         print("Visual debug enabled!");
+
+        // Indicate element centres
+        debugVisualDrawCentreTrackingIndicator(videoElement, 20, 'red', '0.8');
+        debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
+        debugVisualDrawCentreTrackingIndicator(canvasElement, 60, 'green', '0.4');
     }
-
-    // Indicate element centres
-    debugVisualDrawCentreTrackingIndicator(videoElement, 20, 'red', '0.8');
-    debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-    debugVisualDrawCentreTrackingIndicator(canvasElement, 60, 'green', '0.4');
+    print("Visual debug Disabled!");
 }
 
-function debugVisualDrawCentreTrackingIndicator(element, size, color, opacity) {
-    let interval = setInterval(() => {
-        if (debugModeVisual === false) {clearInterval(interval);}
-        const {ball: ball, label: label} = drawCentreIndicator(element, size, color, opacity);
-        setTimeout(() => {
-            ball.remove();
-            label.remove();
-        }, 300);
-    }, 300);
+function developerMenu() {
+    console.error("Developer button pressed, menu not finished yet!")
+    debugVisual();
 }
-
-
 
 /**
  * Outputs strings to console if debug is enabled.
@@ -978,6 +989,17 @@ function printStreamInformation(stream) {
         // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
     });
 
+}
+
+function debugVisualDrawCentreTrackingIndicator(element, size, color, opacity) {
+    let interval = setInterval(() => {
+        if (debugModeVisual === false) {clearInterval(interval);}
+        const {ball: ball, label: label} = drawCentreIndicator(element, size, color, opacity);
+        setTimeout(() => {
+            ball.remove();
+            label.remove();
+        }, 300);
+    }, 300);
 }
 
 function drawCentreIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
