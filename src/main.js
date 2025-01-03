@@ -49,6 +49,7 @@ function start() {
     // Start video feed
     videoStart();
 
+    // Legacy code snippets
     // // Find all video devices first, then start the selected camera
     // findMediaDevices().then(r => {
     //     videoStart();
@@ -518,74 +519,88 @@ function changeFontSize(size) {
 
 // Classes for created elements
 
+/**
+ * Class for handling created elements.
+ */
 class CreatedElements {
 
-    // All created elements' information: id, reference, type
-    elements = [
-        [[], [], []],
-        [[], [], []],
-        [[], [], []]
-    ];
+    elements = [[["classReference"], ["type"], ["other"]]];                 // Contains information on all created elements
+
+    constructor() {
+
+    }
 
 }
 
 /**
  * Parent class for dynamically created movable elements.
- * Parent class should not be directly instantiated.
+ * Parent class should not be directly instantiated (use inheritors instead).
  */
 class MovableElement {
 
-    id;
-    reference;
     type;
+    element;
 
-    constructor(type, id = null) {
-        this.id = id;
-        this.reference = this;
+    constructor(type) {
         this.type = type;
     }
 
+    // Setters
+
+    setElement(element) {
+        this.element = element;
+    }
+
+    // Getters
+
+    getType() {
+        return this.type;
+    }
+
+    getElement() {
+        return this.element;                                                            // Returns HTML element reference
+    }
+
+    getId() {
+        return this.element.getId();                                                    // Returns HTML element id
+    }
+
+    // Styling
     hide() {
-        // document.getElementById('elementId').style.transition = 'opacity 1s';
-        // document.getElementById('elementId').style.opacity = 0;
-        // set to hide
-        this.errorUnimplemented();
+        this.element.style.transition = 'opacity 1s';
+        this.element.style.opacity = '0';
+        // TODO: Test method, set element to hide
     }
 
     show() {
-        // document.getElementById('elementId').style.transition = 'opacity 1s';
-        // document.getElementById('elementId').style.opacity = 0;
-        // set to block
-        this.errorUnimplemented();
+        this.element.style.transition = 'opacity 1s';
+        this.element.style.opacity = '1';
+        // TODO: Test method, set element to block
     }
 
+    // Management
     delete() {
-        // Never change indices
         this.errorUnimplemented();
     }
 
+    // Other
     handleListeners() {
         this.errorUnimplemented();
     }
 
-    errorUnimplemented() {
-        throw new Error("Called unimplemented method in parent class MovableElement");
-    }
-
-
     /**
      * Adds new element and remove button for it.
      * @param element Element type to add
-     * @param amount Amount of elements
+     * @param number Number of element (for avoiding identical ids)
      * @param id Identifier for added element
      * @param elementCssStyle CSS style for added element
      * @param buttonCssStyle CSS style for remove button
      */
-    addElements(element, amount, id, elementCssStyle, buttonCssStyle) {
+    createElement(element, number, id, elementCssStyle, buttonCssStyle) {
 
         // Create main element
         let newElement = document.createElement(element);
-        newElement.id = amount + id;
+        newElement.id = number + id;
         newElement.class = id;
         newElement.style.cssText = elementCssStyle // New elements style must be edited in js
         print("Added element:" + newElement.id);
@@ -593,14 +608,14 @@ class MovableElement {
         // Create remove button
         let removeButton = document.createElement('button');
         removeButton.class = "removeButton";
-        removeButton.id = amount + "remove";
+        removeButton.id = number + "remove";
         removeButton.title = "Remove";
         removeButton.textContent = "X";
         removeButton.style.cssText = buttonCssStyle;
         removeButton.addEventListener('click', () => removeElement(newElement.id));
         print("Added remove button " + removeButton.id + " for :" + newElement.id);
 
-        // Remove buttons only visible when hovered over
+        // Remove buttons only visible when hovered over TODO: Add fast fade
         newElement.addEventListener('mouseover', () => (
             removeButton.style.display = "block"
         ));
@@ -611,8 +626,14 @@ class MovableElement {
         // Add element after island in HTML
         island.after(newElement);
         newElement.appendChild(removeButton);
+
+        return newElement;
     }
 
+    // Development
+    errorUnimplemented() {
+        throw new Error("Called unimplemented method in parent class MovableElement");
+    }
 
 }
 
@@ -627,18 +648,16 @@ class Overlay extends MovableElement {
 
     static overlayCount = 0;                                                                // Counter for overlays
 
-    static isOverlayDragging = false;                                                        // Shows if dragging of an overlay element is allowed
+    static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
-    overlayX;                                                                         // Initial position of the overlay
+    overlayX;                                                                                       // Initial position of the overlay
     overlayY;
 
     constructor() {
         super('overlay');
+        this.element = this.create();
 
-        this.create();
         this.handleListeners();
-
-        // Update overlay count
         Overlay.overlayCount++;
     }
 
@@ -647,7 +666,7 @@ class Overlay extends MovableElement {
      */
     create() {
         // Add elements
-        super.addElements("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
+        return super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.overlayRemoveButtonStyle);
     }
 
 
@@ -727,7 +746,6 @@ class Overlay extends MovableElement {
 
 }
 
-
 /**
  * Class for dynamically created text area elements.
  */
@@ -739,7 +757,7 @@ class TextArea extends MovableElement {
     static buttonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
     static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
 
-    static textAreaCount = -1;                                                              // Counter for text areas
+    static textAreaCount = 0;                                                              // Counter for text areas
 
     isMoving = false;                                                                        // Is text area moving
     static activeTextArea;                                                                           // Shows which text area is currently active
@@ -750,22 +768,22 @@ class TextArea extends MovableElement {
     startHeight;                                        // To change the size and position of the textarea
 
     constructor() {
-        super('textarea');
+        super('textArea');
+        this.element = this.create();
 
-        // Update text area count TODO: Remove negative
         TextArea.textAreaCount++;
-
-        this.create();
 
         this.addText();
     }
 
     create() {
         // Add main elements
-        super.addElements("div", TextArea.textAreaCount, "textAreaContainer", TextArea.elementStyle, TextArea.buttonStyle);
+        return super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.elementStyle, TextArea.buttonStyle);        // Container
 
         // Add resize handle
     }
+
+    // Move addText to create()
 
     /**
      * Adds new text area.
@@ -773,17 +791,17 @@ class TextArea extends MovableElement {
      * Adds event listeners to mouse actions.
      */
     addText() {
-        let currentTextAreaContainer = document.getElementById(TextArea.textAreaCount + "textAreaContainer");
+        let currentTextAreaContainer = this.element;                        // Or: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
         let textArea = document.createElement("textarea");
         textArea.id = TextArea.textAreaCount + "textArea";
         textArea.placeholder = "Text";
         textArea.style.cssText = TextArea.textAreaStyle;
+        textArea.spellcheck = false;                                                                                                // Try to prevent spell checks by browsers
+        currentTextAreaContainer.appendChild(textArea);
 
         let resizeHandle = document.createElement("div");                                                   // Option to resize the textArea box
         resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
         resizeHandle.style.cssText = TextArea.resizeHandleStyle;
-
-        currentTextAreaContainer.appendChild(textArea);
         currentTextAreaContainer.appendChild(resizeHandle);
 
         currentTextAreaContainer.addEventListener("mousedown", (e) => this.handleTextArea(e, currentTextAreaContainer, resizeHandle, textArea)); // Handle mousedown action
