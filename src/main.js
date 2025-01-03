@@ -408,7 +408,7 @@ function videoFlip() {
  */
 function videoFreeze(freezeIcon) {
     const stream = videoElement.srcObject;                                                     // Get the current video stream
-    // TODO: Consider not disabling stream, instead simply not showing it
+
     if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
@@ -418,7 +418,7 @@ function videoFreeze(freezeIcon) {
         freezeIcon.title = "Show video";                                                            // Change tool tip text
         isFreeze = true;                                                                            // Freeze is on
     } else {
-        videoStart().then(r => {console.log(r);});
+        videoStart();
         videoElement.style.display = 'block';
         canvasElement.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
@@ -526,6 +526,24 @@ function showElement(element, fadeTime = 0.4) {
     element.style.opacity = '1';
     element.style.display = 'block';
     // TODO: Test method
+}
+
+/**
+ * Gets the center coordinates of an HTML element.
+ * @param {HTMLElement} element HTML element
+ * @returns {{x: number, y: number}} Object with x, y coordinates
+ */
+function getElementCenter(element) {
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + window.scrollX + rect.width / 2; // Rounding with Math.round() should not be necessary
+    const y = rect.top + window.scrollY + rect.height / 2;
+
+    return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+
+    // TODO: Does not give real coordinates for some objects (like very large video inputs) that have been resized due to browser window resizing
+    // Alternate approaches
+    // const x = rect.left + rect.width / 2;
+    // const y = rect.top + rect.height / 2;
 }
 
 
@@ -960,9 +978,24 @@ function debugVisual() {
         print("Visual debug enabled!");
     }
 
-    // Draw visual indicators over elements
-    // debugVisualDrawIndicators();
+    // Indicate element centres
+    debugVisualDrawCentreTrackingIndicator(videoElement, 20, 'red', '0.8');
+    debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.4');
+    debugVisualDrawCentreTrackingIndicator(canvasElement, 60, 'green', '0.4');
 }
+
+function debugVisualDrawCentreTrackingIndicator(element, size, color, opacity) {
+    let interval = setInterval(() => {
+        if (debugModeVisual === false) {clearInterval(interval);}
+        const {ball: ball, label: label} = drawCentreIndicator(element, size, color, opacity);
+        setTimeout(() => {
+            ball.remove();
+            label.remove();
+        }, 300);
+    }, 300);
+}
+
+
 
 /**
  * Outputs strings to console if debug is enabled.
@@ -984,12 +1017,86 @@ function printStreamInformation(stream) {
 
     stream.getVideoTracks().forEach(videoTrack => {
         print("printStreamInformation(): Video track: " + videoTrack.id);
-        print("printStreamInformation(): Settings:" + JSON.stringify(videoTrack.getSettings(), null, 2));
-        print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+        // print("printStreamInformation(): Settings:" + JSON.stringify(videoTrack.getSettings(), null, 2));
+        // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
     });
 
 }
 
+function drawCentreIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
+    let horizontalOffset = size * 1.2;
+    let {x: centerX, y: centerY} = getElementCenter(element);
+    let text = centerX + " " + centerX  + " " + " is middle of: " + (element.getId || '') + " " + (element.getAttribute('id') || '') + " " + (element.getAttribute('class') || '');
 
+    const ball = drawBall(centerX, centerY, size, color, opacity, zindex);
+    const label = drawLabel(centerX + horizontalOffset, centerY, size, color, opacity, zindex, text);
 
+    return { ball, label };
+}
+
+/**
+ * Draws a ball (with its center) at the coordinates.
+ * HTML/CSS implementation.
+ *
+ * @param coordinateX
+ * @param coordinateY
+ * @param diameter
+ * @param color
+ * @param opacity
+ * @param zindex
+ * @returns {HTMLDivElement}
+ */
+function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity = '1', zindex = '100') {
+    // print("Drew " + color + " ball at X: " + coordinateX + " Y: " + coordinateY);
+
+    const ball = document.createElement('div');
+    ball.style.position = 'absolute';
+    ball.style.left = `${coordinateX - diameter / 2}px`;
+    ball.style.top = `${coordinateY - diameter / 2}px`;
+    ball.style.width = `${diameter}px`;
+    ball.style.height = `${diameter}px`;
+    ball.style.backgroundColor = color;
+    ball.style.borderRadius = '50%';
+    ball.style.zIndex = zindex;
+    ball.style.opacity = opacity;
+    ball.style.pointerEvents = 'none';                    // Make not clickable
+
+    document.body.appendChild(ball);
+
+    return ball;
+}
+
+/**
+ * Draws a label (with the middle of its left edge) at the coordinates
+ * HTML/CSS implementation.
+ *
+ * @param coordinateX
+ * @param coordinateY
+ * @param height
+ * @param backgroundColor
+ * @param opacity
+ * @param zindex
+ * @param text
+ * @returns {HTMLDivElement}
+ */
+function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', opacity = '1', zindex = '100', text = "text") {
+    // print("Drew " + backgroundColor + " label at X: " + coordinateX + " Y: " + coordinateY);
+
+    const label = document.createElement('div');
+    label.style.position = 'absolute';
+    label.style.left = `${coordinateX}px`;
+    label.style.top = `${coordinateY - height / 2}px`;
+    label.style.width = 'auto';
+    label.style.height = `${height}px`;
+    label.style.backgroundColor = backgroundColor;
+    label.style.color = 'black';
+    label.style.opacity = opacity;
+    label.style.zIndex = zindex;
+    label.style.pointerEvents = 'none';
+    label.textContent = text;
+
+    document.body.appendChild(label);
+
+    return label;
+}
 
