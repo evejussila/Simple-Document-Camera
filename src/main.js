@@ -108,8 +108,8 @@ function addCoreListeners() {
     });
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
-    selector.addEventListener('change', (event) => {
-        changeCamera(event.target.value);
+    selector.addEventListener('change', () => {
+        changeCamera();                                   // Can also forward camera deviceId: changeCamera(event.target.value);
     })
 }
 
@@ -183,11 +183,12 @@ async function videoStart(camera = null) {// If selector is empty then get first
 }
 
 /**
- * Changes active camera to a specific one.
- * @param camera Specified camera
+ * Changes active camera to the currently chosen one one.
  * @returns {Promise<void>}
  */
-async function changeCamera(camera) {
+async function changeCamera() {
+    let camera = selector.value;
+
     videoElement.srcObject.getTracks().forEach(track => {                      // Stop current camera feed
         track.stop();
     })
@@ -418,7 +419,7 @@ function videoFreeze(freezeIcon) {
         freezeIcon.title = "Show video";                                                            // Change tool tip text
         isFreeze = true;                                                                            // Freeze is on
     } else {
-        videoStart();
+        changeCamera();
         videoElement.style.display = 'block';
         canvasElement.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
@@ -944,9 +945,9 @@ class TextArea extends MovableElement {
      * Stops text area dragging and removes event listeners mousemove and mouseup.
      * @param mouseMoveHandler handler for mousemove
      * @param mouseUpHandler handler for mouseup
-     * @param textAreaContainer TextAreaContainer element
+     * @param _textAreaContainer TextAreaContainer element
      */
-    stopTextAreaDrag(mouseMoveHandler, mouseUpHandler, textAreaContainer) {
+    stopTextAreaDrag(mouseMoveHandler, mouseUpHandler, _textAreaContainer) {
         document.removeEventListener("mousemove", mouseMoveHandler);
         document.removeEventListener("mouseup", mouseUpHandler);
         this.isMoving = false;
