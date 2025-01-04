@@ -1,5 +1,5 @@
 // Development tools
-let debugMode = true;                                                                      // Sets default level of console output
+let debugMode = false;                                                                     // Sets default level of console output
 let debugModeVisual = false;                                                               // Enables visual debug tools
 const version = ("2025-01-03-beta");
 console.log("Version: " + version);
@@ -579,7 +579,7 @@ class MovableElement {
     }
 
     getElementId() {
-        return this.element.getId();                                                    // Returns main HTML element id
+        return this.element.getAttribute('id');                                                    // Returns main HTML element id
     }
 
     // Styling
@@ -867,7 +867,7 @@ class TextArea extends MovableElement {
 
         // Add temporary drag handlers
 
-        // TODO: These are duplicates of existing event handlers. Without these, however, dragging and especially resize are sluggish, though they do work.
+        // TODO: These are duplicates of existing event handlers. Without these, however, dragging and especially resize are sluggish, though they do work. These handlers have generic naming (risky when intended to be deleted) regardless of limited intended scope.
 
         const mouseMoveHandler = (e) => this.dragUpdater(e);
         document.addEventListener("mousemove", mouseMoveHandler);           // Handles mousemove event for text area. Starts text area drag or resizing text area.
@@ -878,23 +878,22 @@ class TextArea extends MovableElement {
 
     /**
      * Moves or expands the text area according to mouse movement.
-     * Sets new position for text area and text area container.
+     * Sets new position for text area and its container.
      * @param e MouseEvent 'mousemove'
-
      */
     dragUpdater(e) {
-        if (this.isMoving) {                                                                             // Move the textarea when the mouse moves
-            const x = e.clientX - this.offsetXText;                                              // new position x for textarea container
-            const y = e.clientY - this.offsetYText;                                              // new position y
+        if (this.isMoving) {                                                                              // Move the textarea when the mouse moves
+            const x = e.clientX - this.offsetXText;                                               // new position x for textarea container
+            const y = e.clientY - this.offsetYText;                                               // new position y
             this.container.style.left = `${x}px`;
             this.container.style.top = `${y}px`;
         } else if (this.isResizing) {                                                                      // Expand the textarea when the mouse moves
-            const newWidth = this.startWidth + (e.clientX - this.offsetXText);                                  // new width for textarea container
-            const newHeight = this.startHeight + (e.clientY - this.offsetYText);                                // new height
+            const newWidth = this.startWidth + (e.clientX - this.offsetXText);                             // New width for textarea container
+            const newHeight = this.startHeight + (e.clientY - this.offsetYText);                           // New height
             this.container.style.width = `${newWidth}px`;
             this.container.style.height = `${newHeight}px`;
 
-            this.element.style.width = `${newWidth}px`;                                                  // Update also the textarea size
+            this.element.style.width = `${newWidth}px`;
             this.element.style.height = `${newHeight}px`;
         }
     }
@@ -903,14 +902,13 @@ class TextArea extends MovableElement {
      * Stops text area dragging and removes event listeners mousemove and mouseup.
      * @param mouseMoveHandler handler for mousemove
      * @param mouseUpHandler handler for mouseup
-     * @param _textAreaContainer TextAreaContainer element
      */
-    dragStop(mouseMoveHandler, mouseUpHandler, _textAreaContainer) {
+    dragStop(mouseMoveHandler, mouseUpHandler) {
         document.removeEventListener("mousemove", mouseMoveHandler);
         document.removeEventListener("mouseup", mouseUpHandler);
         this.isMoving = false;
         this.isResizing = false;
-        // textAreaContainer.style.cursor = "default";
+        this.container.style.cursor = "default";
     }
 
     /**
@@ -976,10 +974,10 @@ function debugVisual() {
     if (debugModeVisual) {
         print("Visual debug enabled!");
 
-        // Indicate element centres
-        debugVisualDrawCentreTrackingIndicator(videoElement, 20, 'red', '0.8');
-        debugVisualDrawCentreTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-        debugVisualDrawCentreTrackingIndicator(canvasElement, 60, 'green', '0.4');
+        // Indicate element centers
+        debugVisualDrawCenterTrackingIndicator(videoElement, 20, 'red', '0.8');
+        debugVisualDrawCenterTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
+        debugVisualDrawCenterTrackingIndicator(canvasElement, 60, 'green', '0.4');
     } else {
         print("Visual debug disabled!");
     }
@@ -1016,10 +1014,10 @@ function printStreamInformation(stream) {
 
 }
 
-function debugVisualDrawCentreTrackingIndicator(element, size, color, opacity) {
+function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
     let interval = setInterval(() => {
         if (debugModeVisual === false) {clearInterval(interval);}
-        const {ball: ball, label: label} = drawCentreIndicator(element, size, color, opacity);
+        const {ball: ball, label: label} = drawCenterIndicator(element, size, color, opacity);
         setTimeout(() => {
             ball.remove();
             label.remove();
@@ -1027,10 +1025,10 @@ function debugVisualDrawCentreTrackingIndicator(element, size, color, opacity) {
     }, 300);
 }
 
-function drawCentreIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
+function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
     let horizontalOffset = size / 2 * 1.05 + 10;
     let {x: centerX, y: centerY} = getElementCenter(element);
-    let text = centerX + " " + centerX  + " " + " is centre of: " + (element.getId || '') + " " + (element.getAttribute('id') || '') + " " + (element.getAttribute('class') || '');
+    let text = centerX + " " + centerX  + " " + " is center of: " + (element.getAttribute('id') || 'id_undefined') + " " + (element.getAttribute('class') || '');
 
     const ball = drawBall(centerX, centerY, size, color, opacity, zindex);
     const label = drawLabel(centerX + horizontalOffset, centerY, size, color, opacity, zindex, text);
@@ -1104,3 +1102,19 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
     return label;
 }
 
+/**
+ * Calculates and visualizes how many times an action is run per second.
+ * Used in assessment of listener performance.
+ */
+function debugShowRunSpeed() {
+
+}
+
+/**
+ * Calculates the time between the current and last instance of running this function.
+ * Used to determine latencies.
+ */
+function calculateRunTime() {
+
+    // Store time for calculation in a non-displayed HTML element, not global variable
+}
