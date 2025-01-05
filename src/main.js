@@ -1,5 +1,5 @@
 // Development tools
-let debugMode = true;                                                                      // Sets default level of console output
+let debugMode = false;                                                                     // Sets default level of console output
 let debugModeVisual = false;                                                               // Enables visual debug tools
 const version = ("2025-01-05-alpha-beta");
 console.log("Version: " + version);
@@ -47,6 +47,13 @@ function start() {
         videoStart().then(() => {});
     });
     // TODO: Need handling for thrown errors in promises
+
+    // Handle URL parameters
+    const urlParameters = new URLSearchParams(window.location.search);
+    if (urlParameters.has('debug')) {
+        debugMode = true;
+        print("start(): Found URL parameter for debug");
+    }
 
     // Development
     if (debugMode) debug();
