@@ -101,7 +101,7 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', () => {
-        videoStart().then(r => {});                                   // Can also forward camera deviceId: changeCamera(event.target.value);
+        videoStart().then(() => {});                                   // Can also forward camera deviceId: changeCamera(event.target.value);
     })
 }
 
@@ -642,7 +642,7 @@ class MovableElement {
         newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken.
         newElement.class = idBase;
         newElement.style.cssText = elementCssStyle // New elements style must be edited in js
-        print("Added element:" + newElement.id);
+        print("createElement(): Added element: " + newElement.id);
 
         // Create remove button
         let removeButton = document.createElement('button');
@@ -652,7 +652,7 @@ class MovableElement {
         removeButton.textContent = "X";
         removeButton.style.cssText = buttonCssStyle;
         removeButton.addEventListener('click', () => removeElement(newElement));
-        print("Added remove button " + removeButton.id + " for :" + newElement.id);
+        print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
 
         // Remove buttons only visible when hovered over TODO: Add fast fade
         newElement.addEventListener('mouseover', () => (
@@ -724,7 +724,7 @@ class Overlay extends MovableElement {
      */
     handleListeners() {
         // Add listener for drag
-        print("Adding drag listener for overlay:" +  Overlay.overlayCount + "overlay");
+        print("handleListeners(): Adding drag listener for overlay: " +  Overlay.overlayCount + "overlay");
         let overlay = document.getElementById(Overlay.overlayCount + "overlay");
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
     }
@@ -739,7 +739,7 @@ class Overlay extends MovableElement {
      * @param overlay Overlay element
      */
     dragStart(e, overlay) {
-        print("Overlay drag initiated");
+        print("dragStart(): Overlay drag initiated");
 
         overlay.style.zIndex = '10'
         Overlay.isOverlayDragging = true;
@@ -784,7 +784,7 @@ class Overlay extends MovableElement {
      * @param mouseUpHandler EventListener
      */
     dragStop(overlay, mouseMoveHandler, mouseUpHandler) {
-        print("Overlay drag stopped");
+        print("dragStop(): Overlay drag stopped");
 
         overlay.style.zIndex = '10';
         Overlay.isOverlayDragging = false;
@@ -1127,7 +1127,7 @@ function printStreamInformation(stream) {
 
     stream.getVideoTracks().forEach(videoTrack => {
         print("printStreamInformation(): Video track: " + videoTrack.id);
-        // print("printStreamInformation(): Settings:" + JSON.stringify(videoTrack.getSettings(), null, 2));
+        // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
         // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
     });
 
