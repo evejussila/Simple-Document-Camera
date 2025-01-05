@@ -1,7 +1,7 @@
 // Development tools
-let debugMode = false;                                                                     // Sets default level of console output
+let debugMode = true;                                                                      // Sets default level of console output
 let debugModeVisual = false;                                                               // Enables visual debug tools
-const version = ("2025-01-03-beta");
+const version = ("2025-01-05-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
 
@@ -46,6 +46,7 @@ function start() {
     findMediaDevices().then(() => {
         videoStart().then(() => {});
     });
+    // TODO: Need handling for thrown errors in promises
 
     // Development
     if (debugMode) debug();
@@ -69,6 +70,9 @@ function addCoreListeners() {
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
 
+    // Make control island draggable.
+    island.addEventListener('mousedown', (e) => dragIsland(e));
+
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
     const fullScreenButton = document.getElementById('buttonFullScreen');
@@ -84,9 +88,6 @@ function addCoreListeners() {
     const freezeButton = document.getElementById('buttonFreeze');
     freezeButton.addEventListener('click', () => videoFreeze(freezeIcon));
 
-    // Make control island draggable.
-    island.addEventListener('mousedown', (e) => dragIsland(e));
-
     // Add event lister to video element for zooming with mouse scroll.
     const zoomIncrement = 0.1;
     videoElement.addEventListener('wheel', (event) => {
@@ -95,12 +96,12 @@ function addCoreListeners() {
         } else {
             adjustZoom(-zoomIncrement);               // Scroll down, zoom out
         }
-        event.preventDefault();                      // Remove the page's default scrolling over the image
+        event.preventDefault();                       // Remove the page's default scrolling over the image
     });
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', () => {
-        videoStart();                                   // Can also forward camera deviceId: changeCamera(event.target.value);
+        videoStart().then(r => {});                                   // Can also forward camera deviceId: changeCamera(event.target.value);
     })
 }
 
@@ -112,44 +113,64 @@ function addCoreListeners() {
  * @returns {Promise<void>}
  */
 async function findMediaDevices() {
-    const retryAttempts =3;
 
+    // Handle selector background update
+    // TODO: Make check run periodically to update device list without need to refresh page
+    // DEV: Mismatch between choice and current feed must always be prevented (definitely causes selection bugs), but would eventually be caused by only updating list
+    // Check current video feed (either directly or from current selector choice, should be same if no errors)
+    // Enumerate devices to a temporary array
+    // Check current choice is in temporary array
+    // If is not, do not update selector dropdown
+    // Is is, update selector dropdown and set the current video feed as the selected option (programmatic setting will not trigger change event for selector listener)
+
+    const retryAttempts = 3;                                                                     // Amount of retries before giving up
     let failedCount = 0;
     while (true) {                                                                                      // Run until a device is found
-        selector.innerHTML = '';                                                                        // Clear dropdown first
         let foundVideoInputs = 0;
+        selector.innerHTML = '';                                                                        // Clear dropdown first
         await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
             for (let i = 0; i < devices.length; i++) {
-                if (devices[i].kind === 'videoinput') {                                                 // Only use video sources
-                    print("findMediaDevices(): Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
-                    foundVideoInputs++;
+                if (devices[i].kind === 'videoinput') {                                                 // Only accept video sources
                     let option = document.createElement('option');            // Create new option for dropdown
                     option.value = devices[i].deviceId;
                     option.text = devices[i].label;
                     selector.appendChild(option);                                                       // Add new option to dropdown
+                    foundVideoInputs++;
+
+                    print("findMediaDevices(): Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
+
+                    if (devices[i].deviceId === "") {
+                        // An invalid value with no deviceId may be accepted and it may have object reference (JSON: [object Object]), will be empty value in selector
+                        console.error("findMediaDevices(): Added invalid input device to menu: " + devices[i].label + " " + devices[i].deviceId + devices[i].toJSON() + " " + devices[i].toString());
+                    }
                 }
             }
         })
-        if (foundVideoInputs > 0) {
-            // Success
+
+        if (foundVideoInputs > 0) {                                                                     // Success
+            // Select camera
             selector.selectedIndex = 0;                                                                // Select an initial camera in dropdown to prevent mismatch between choice and used feed
             print("findMediaDevices(): Selecting initial video source: " + selector.value)
-            if (selector.value === "" || selector.value === undefined || selector.value === null) {
-                console.error("findMediaDevices(): Failed to select initial video source")
+
+            // Check selection is valid (trying to use empty value camera throws OverconstrainedError)
+            let errorValue = "valid";
+            if (selector.value === "") errorValue = "empty";
+            if (selector.value === undefined) errorValue = "undefined";
+            if (selector.value === null) errorValue = "null";
+            if (errorValue !== "valid") {
+                console.error("findMediaDevices(): Failed to select valid initial video source, selection: " + errorValue + " value: " + selector.value);
+            } else {                                                                                    // Only break if check explicitly did not fail
+                break;
             }
-            break;
         }
 
-        // Failure
-        if (failedCount > retryAttempts) {
+        if (failedCount >= retryAttempts) {
             console.error("findMediaDevices(): No video sources found, retries: " + failedCount)
-            // throw Error("No video inputs");
+            throw Error("No video inputs");
+            // TODO: Need to deal with persistent failure. Custom prompt with retry options?
         }
-        failedCount++;
+        failedCount++;                                                                                  // Failure(s)
     }
-
-    // TODO: Function needs a logic for persistent failure
-    // TODO: Ensure the check is run periodically to update device list without need to refresh page, but note that mismatch between choice and current feed must be prevented
 }
 
 /**
@@ -158,6 +179,9 @@ async function findMediaDevices() {
  * @returns {Promise<void>}
  */
 async function videoStart() {
+    const retryAttempts = 3;                                                                     // Amount of retries before giving up
+    let failedCount = 0;
+
     while (true) {
         try {
             print("videoStart(): Accessing a camera feed: " + selector.value);
@@ -166,7 +190,7 @@ async function videoStart() {
                     deviceId: {exact: selector.value},
                     facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
                     width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
-                    height: {ideal: 1080},
+                    height: {ideal: 1080},                                                       // Ideal values are not constraints
                     frameRate: {ideal: 60}
                 }
             });
@@ -176,10 +200,15 @@ async function videoStart() {
             printStreamInformation(stream);
 
             break;
-        } catch (error) {
-            console.error("videoStart(): Camera could not be accessed: " + error);
-            alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
-            // TODO: User may get stuck here with alerts, if no camera works
+        } catch (error) {                                                                          // Failure
+            console.error("videoStart(): Camera could not be accessed (retry " + failedCount + "): " + error);
+            if (failedCount >= retryAttempts) {
+                alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
+                console.error("videoStart(): Could not select camera, retries: " + failedCount);
+                throw Error("Could not select camera");
+                // TODO: Need to deal with persistent failure. Custom prompt with retry options?
+            }
+            failedCount++;
         }
     }
 
@@ -388,10 +417,10 @@ function videoFreeze(freezeIcon) {
 // Utility functions
 
 /**
- * Attaches an event listener to an element
- * @param elementId
- * @param eventType
- * @param action
+ * Attaches an event listener to an element based on element id.
+ * @param elementId Element id to attach listener to
+ * @param eventType Even to listen to
+ * @param action Action to trigger on event
  */
 function listenerToElement(elementId, eventType, action) {
     const element = document.getElementById(elementId);
@@ -984,8 +1013,98 @@ function debugVisual() {
 }
 
 function developerMenu() {
-    console.error("Developer button pressed, menu not finished yet!")
-    debugVisual();
+    print("Developer button pressed");
+
+    // Menu
+    const controlBar = document.getElementById('controlBar');
+    const controlBarHeight = controlBar.offsetHeight;                   // Total height of bottom bar
+    let menu = null;
+    menu = document.getElementById('developerMenu');
+    if (menu === null) {                                                // If does not exist
+        // console.error("Null");
+
+        menu = document.createElement('div');                   // Then create
+        menu.id = 'developerMenu';
+
+        menu.style.position = 'fixed';
+        menu.style.bottom = `0px`;                                          // Initial position before animation
+        menu.style.left = '50%';
+        menu.style.transform = 'translateX(-50%)';
+        menu.style.width = '200px';
+        menu.style.background = '#333';
+        menu.style.borderRadius = '10px';
+        menu.style.padding = '10px';
+        menu.style.opacity = '0';
+        menu.style.transition = 'bottom 0.5s ease-out, opacity 0.5s ease-out';
+        menu.style.zIndex = '9999';
+
+        // Create buttons
+        const buttons = [];
+        for (let i = 0; i < 3; i++) {                                       // Create placeholders
+            const btn = document.createElement('button');
+            btn.textContent = `Button ${i + 1}`;
+            btn.style.width = '100%';
+            btn.style.margin = '5px 0';
+            btn.style.color = '#fff';
+            btn.style.background = '#555';
+            btn.style.border = 'none';
+            btn.style.padding = '10px';
+            menu.appendChild(btn);
+            buttons.push(btn);                                              // Store button
+        }
+
+        // Customize individually
+        buttons[0].textContent = 'Toggle visual debug';
+        buttons[0].addEventListener('click', () => { debugVisual(); });
+        buttons[1].textContent = 'No function';
+        buttons[1].addEventListener('click', () => { console.error("Button has no function yet"); }); // TODO: Add developer function calls here to use them through the menu
+        buttons[2].textContent = 'No function';
+        buttons[2].addEventListener('click', () => { console.error("Button has no function yet"); });
+
+        menu.setAttribute("visible", "false");
+        document.body.appendChild(menu);
+
+    }
+
+
+
+    if (menu.getAttribute("visible") === "true") {      // Visible
+        // console.error("Fading out");
+
+        // Fade out
+        menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
+        menu.style.bottom = '-100px';
+        menu.style.opacity = '0';
+        menu.setAttribute("visible", "false");
+    } else {                                                        // Not visible
+        // console.error("Fading in");
+
+        // Fade in
+        requestAnimationFrame(() => {
+            menu.style.bottom = `${controlBarHeight + 10}px`;               // Position after animation
+            menu.style.opacity = '1';
+        });
+        menu.setAttribute("visible", "true");
+
+    }
+
+
+
+
+
+
+
+
+
+
+    // setTimeout(() => {
+    //     menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
+    //     menu.style.bottom = '-100px';
+    //     menu.style.opacity = '0';
+    // }, 5000);
+
+
+
 }
 
 /**
