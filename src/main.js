@@ -144,7 +144,7 @@ async function findMediaDevices() {
                     selector.appendChild(option);                                                       // Add new option to dropdown
                     foundVideoInputs++;
 
-                    print("findMediaDevices(): Added video input device to menu: " + devices[i].label + " " + devices[i].deviceId);
+                    print("findMediaDevices(): Added video input device to menu: " + devices[i].label + " " + shorten(devices[i].deviceId));
 
                     if (devices[i].deviceId === "") {
                         // An invalid value with no deviceId may be accepted and it may have object reference (JSON: [object Object]), will be empty value in selector
@@ -157,7 +157,7 @@ async function findMediaDevices() {
         if (foundVideoInputs > 0) {                                                                     // Success
             // Select camera
             selector.selectedIndex = 0;                                                                // Select an initial camera in dropdown to prevent mismatch between choice and used feed
-            print("findMediaDevices(): Selecting initial video source: " + selector.value)
+            print("findMediaDevices(): Selecting initial video source: " + shorten(selector.value))
 
             // Check selection is valid (trying to use empty value camera throws OverconstrainedError)
             let errorValue = "valid";
@@ -191,7 +191,7 @@ async function videoStart() {
 
     while (true) {
         try {
-            print("videoStart(): Accessing a camera feed: " + selector.value);
+            print("videoStart(): Accessing a camera feed: " + shorten(selector.value));
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
                     deviceId: {exact: selector.value},
@@ -999,6 +999,8 @@ function debug() {
     developerButton.addEventListener('click', developerMenu);
     developerButton.style.zIndex = '9999';
     developerButton.style.border = '2px solid black';
+    developerButton.style.height = '40px';
+    // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
     controlBar.appendChild(developerButton);
@@ -1038,7 +1040,7 @@ function developerMenu() {
         menu.style.left = '50%';
         menu.style.transform = 'translateX(-50%)';
         menu.style.width = '200px';
-        menu.style.background = '#333';
+        menu.style.background = '#454545';
         menu.style.borderRadius = '10px';
         menu.style.padding = '10px';
         menu.style.opacity = '0';
@@ -1046,8 +1048,9 @@ function developerMenu() {
         menu.style.zIndex = '9999';
 
         // Create buttons
+        const numberOfButtons = 3;
         const buttons = [];
-        for (let i = 0; i < 3; i++) {                                       // Create placeholders
+        for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
             const btn = document.createElement('button');
             btn.textContent = `Button ${i + 1}`;
             btn.style.width = '100%';
@@ -1063,10 +1066,12 @@ function developerMenu() {
         // Customize individually
         buttons[0].textContent = 'Toggle visual debug';
         buttons[0].addEventListener('click', () => { debugVisual(); });
-        buttons[1].textContent = 'No function';
-        buttons[1].addEventListener('click', () => { console.error("Button has no function yet"); }); // TODO: Add developer function calls here to use them through the menu
+
+        buttons[1].textContent = 'Test dark theme';
+        buttons[1].addEventListener('click', () => { testThemeDark(); });
+
         buttons[2].textContent = 'No function';
-        buttons[2].addEventListener('click', () => { console.error("Button has no function yet"); });
+        buttons[2].addEventListener('click', () => { console.error("Button has no function yet"); }); // TODO: Add developer function calls here and update numberOfButtons above to use them through the menu
 
         menu.setAttribute("visible", "false");
         document.body.appendChild(menu);
@@ -1095,22 +1100,11 @@ function developerMenu() {
 
     }
 
-
-
-
-
-
-
-
-
-
     // setTimeout(() => {
     //     menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
     //     menu.style.bottom = '-100px';
     //     menu.style.opacity = '0';
     // }, 5000);
-
-
 
 }
 
@@ -1132,14 +1126,27 @@ function print(string) {
 function printStreamInformation(stream) {
     // const videoTrack = stream.getVideoTracks()[0];
 
+    print ("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+    let count = 1;
     stream.getVideoTracks().forEach(videoTrack => {
-        print("printStreamInformation(): Video track: " + videoTrack.id);
+        // Printing select information
+        const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
+        const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
+
+        print("printStreamInformation(): Video track " + count + " is: " + shorten(videoTrack.id) + " from device ID: " + shorten(deviceId));
+        print("printStreamInformation(): Video track " + count + " is set to use: " + settingWidth + " x " + settingHeight + " at " + frameRate + " fps");
+        print("printStreamInformation(): Video track " + count + " is capable of: " + capabilityWidth.max + " x " + capabilityHeight.max + " at " + capabilityFrameRate.max + " fps");
+
+        // To print a full formatted output with all information:
         // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
         // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
     });
 
 }
 
+function shorten(id) {
+    return `${id.slice(0, 4)}:${id.slice(-4)}`;
+}
 function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
     let interval = setInterval(() => {
         if (debugModeVisual === false) {clearInterval(interval);}
@@ -1243,4 +1250,56 @@ function debugShowRunSpeed() {
 function calculateRunTime() {
 
     // Store time for calculation in a non-displayed HTML element, not global variable
+}
+
+function testThemeDark() {
+    const colorBackground        = '#2f2f2f';
+    const colorIsland            = '#474747';
+    const colorBottomBar         = '#212121';
+    const colorFeedSelector      = '#171717';
+
+    const colorText              = '#ffffff';
+
+    const dev = document.getElementById('buttonDev');
+    const background = document.body;
+    const island = document.getElementById('island_controlBar');
+    const bottomBar = document.getElementById('controlBar');
+    const selector = document.getElementById('selectorDevice');
+    const zoomControls = document.getElementById('zoomControls');
+    const textControls = document.getElementById('textControls');
+
+    dev.style.backgroundColor = colorBackground;
+    dev.style.color = colorText;
+
+    background.style.backgroundColor = colorBackground;
+    background.style.color = colorText;
+
+    island.style.backgroundColor = colorIsland;
+    island.style.color = colorText;
+
+    bottomBar.style.backgroundColor = colorBottomBar;
+    bottomBar.style.color = colorText;
+
+    selector.style.backgroundColor = colorFeedSelector;
+    selector.style.color = colorText;
+
+    zoomControls.style.color = colorText;
+
+    textControls.style.color = colorText;
+
+    // Button color inversion
+    document.getElementById('buttonRotate').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonFlip').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonFreeze').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonSaveImage').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonOverlay').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonAddText').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonFullScreen').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonCollapse').style.filter = 'invert(1) grayscale(100%)';
+
+    document.getElementById('zoomOutButton').style.color = colorText;
+    document.getElementById('zoomInButton').style.color = colorText;
+    document.getElementById('buttonSmallerFont').style.color = colorText;
+    document.getElementById('buttonBiggerFont').style.color = colorText;
+
 }
