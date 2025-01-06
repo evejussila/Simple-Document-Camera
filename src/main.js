@@ -44,7 +44,10 @@ function start() {
 
     // Find video devices first, then start a video feed (required due to asynchronous functions)
     findMediaDevices().then(() => {
-        videoStart().then(() => {});
+        // Handle errors safely
+        videoStart().then(() => {
+            // Handle errors safely
+        });
     });
     // TODO: Need handling for thrown errors in promises
 
@@ -53,6 +56,14 @@ function start() {
     if (urlParameters.has('debug')) {
         debugMode = true;
         print("start(): Found URL parameter for debug");
+    }
+    if (urlParameters.has('privacyAgree')) {
+        debugMode = true;
+        print("start(): Found URL parameter for agreement to privacy notice");
+    }
+    if (urlParameters.has('cookieAgree')) {
+        debugMode = true;
+        print("start(): Found URL parameter for agreement to cookie use");
     }
 
     // Development
@@ -144,7 +155,7 @@ async function findMediaDevices() {
                     selector.appendChild(option);                                                       // Add new option to dropdown
                     foundVideoInputs++;
 
-                    print("findMediaDevices(): Added video input device to menu: " + devices[i].label + " " + shorten(devices[i].deviceId));
+                    print("findMediaDevices(): Added video input device " + shorten(devices[i].deviceId) + " to menu: " + devices[i].label);
 
                     if (devices[i].deviceId === "") {
                         // An invalid value with no deviceId may be accepted and it may have object reference (JSON: [object Object]), will be empty value in selector
@@ -173,7 +184,7 @@ async function findMediaDevices() {
 
         if (failedCount >= retryAttempts) {
             console.error("findMediaDevices(): No video sources found, retries: " + failedCount)
-            throw Error("No video inputs");
+            throw Error("findMediaDevices(): No video inputs");
             // TODO: Need to deal with persistent failure. Custom prompt with retry options?
         }
         failedCount++;                                                                                  // Failure(s)
@@ -210,9 +221,9 @@ async function videoStart() {
         } catch (error) {                                                                          // Failure
             console.error("videoStart(): Camera could not be accessed (retry " + failedCount + "): " + error);
             if (failedCount >= retryAttempts) {
-                alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`);
+                // alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`); // Alert too intrusive and triggers browser safeguards if repetitive
                 console.error("videoStart(): Could not select camera, retries: " + failedCount);
-                throw Error("Could not select camera");
+                throw Error("videoStart(): Could not select camera");
                 // TODO: Need to deal with persistent failure. Custom prompt with retry options?
             }
             failedCount++;
@@ -240,7 +251,7 @@ function dragIsland (e) {
 
     isIslandDragging = true;
 
-    //Get current coordinates
+    // Get current coordinates
     mouseX = e.clientX;
     mouseY = e.clientY;
     islandX = parseInt(island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
@@ -314,13 +325,13 @@ function switchToFullscreen(fullScreenIcon) {
         });
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
-            print("switchToFullscreen(): Full screen mode successfully closed");
+            print("switchToFullscreen(): Full screen mode closed successfully");
             fullScreenIcon.title = 'Full screen';
             fullScreenIcon.src = "./images/fullscreen.png";
             island.style.top = '';                                       // UI island to starting position
             island.style.left = '';
         }).catch(error => {
-            console.error(`Error attempting to exit full screen mode: ${error.message}`);
+            console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });
     }
 }
@@ -363,7 +374,7 @@ function saveImage() {
 
     const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
     canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);        // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
-    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);            // TODO: Same JSDoc typecast
+    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);             // TODO: Same JSDoc typecast
     canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);       // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
 
     const dataURL = canvasToSave.toDataURL('image/jpeg');                   // Converts canvas element to image encoding string
@@ -380,7 +391,8 @@ function saveImage() {
 }
 
 /**
- * Rotate video. Calculate rotation 0 -> 90 -> 180 -> 270 -> 0
+ * Rotates video.
+ * Calculates rotation in quarter increments: 0 -> 90 -> 180 -> 270 -> 0.
  */
 function videoRotate() {
     rotation = (rotation + 90) % 360;
@@ -388,7 +400,8 @@ function videoRotate() {
 }
 
 /**
- * Flip video horizontally. Toggle between 1 (no flip) and -1 (flip).
+ * Flip video horizontally.
+ * Toggle between 1 (no flip) and -1 (flip).
  */
 function videoFlip() {
     flip *= -1;
@@ -435,8 +448,8 @@ function listenerToElement(elementId, eventType, action) {
 }
 
 /**
- * Returns date and time in format: YYMMDD_hhmmss
- * @returns {string} Date and time
+ * Returns date and time.
+ * @returns {string} Date and time in YYMMDD_hhmmss
  */
 function getDateTime() {
     const now = new Date();
@@ -485,11 +498,12 @@ function updateVideoTransform() {
 
 /**
  * Removes an element.
+ * Applies a fade out.
  * @param element Element to remove
  * @param fadeTime Fade duration s (optional)
  */
 function removeElement(element, fadeTime = 0.2) {
-    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.transition = `opacity ${fadeTime}s`;                     // TODO: Use hideElement()
     element.style.opacity = '0';
 
     setTimeout(() => element.remove(), fadeTime*1000);      // Asynchronous
@@ -498,20 +512,23 @@ function removeElement(element, fadeTime = 0.2) {
 }
 
 /**
- * Hides an element
+ * Hides an element.
+ * Applies a fade out.
  * @param element Element to hide
  * @param fadeTime Fade duration s (optional)
  */
 function hideElement(element, fadeTime = 0.3) {
     element.style.transition = `opacity ${fadeTime}s`;
     element.style.opacity = '0';
+    // TODO: Add interaction prevention (no click)
     setTimeout(() => {
         element.style.display = 'none';
     }, fadeTime * 1000);
 }
 
 /**
- * Shows a hidden element by fading in
+ * Shows a hidden element.
+ * Applies a fade in.
  * @param element Element to hide
  * @param fadeTime Fade duration in s (optional)
  * @param displayStyle Display style (optional)
@@ -538,27 +555,30 @@ function getElementCenter(element) {
 
     return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
 
-    // TODO: May not give real coordinates for some objects (like very large video inputs) that have been resized due to browser window resizing
-
+    // TODO: Must test if gives real coordinates for some objects (like very large video inputs) that have been resized improperly due to browser window resizing beyond expected bounds
 }
 
 
 // Simple caller methods
 
 /**
- * Adds new overlay
+ * Adds new overlay.
  */
 function addOverlay() {
     new Overlay();
 }
 
 /**
- * Adds new text area
+ * Adds new text area.
  */
 function addText() {
     new TextArea();
 }
 
+/**
+ * Changes font size.
+ * @param size
+ */
 function changeFontSize(size) {
     TextArea.changeFontSize(size);
 }
@@ -981,8 +1001,7 @@ class TextArea extends MovableElement {
 // Developer functions
 
 /**
- * Method to enable debug mode while using application.
- * Can be called from console with: debug();
+ * Function to enable debug mode.
  */
 function debug() {
     debugMode = true;
@@ -1007,6 +1026,9 @@ function debug() {
 
 }
 
+/**
+ * Function to enable visual debug features.
+ */
 function debugVisual() {
     debugModeVisual = !debugModeVisual;
     if (debugModeVisual) {
@@ -1021,6 +1043,9 @@ function debugVisual() {
     }
 }
 
+/**
+ * Function to create and toggle developer options -menu.
+ */
 function developerMenu() {
     print("Developer button pressed");
 
@@ -1144,9 +1169,23 @@ function printStreamInformation(stream) {
 
 }
 
+/**
+ * Shortens a long string.
+ * Used for long hex device ids.
+ * @param id
+ * @returns {string}
+ */
 function shorten(id) {
     return `${id.slice(0, 4)}:${id.slice(-4)}`;
 }
+
+/**
+ * Creates center tracking indicator on HTML element.
+ * @param element
+ * @param size
+ * @param color
+ * @param opacity
+ */
 function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
     let interval = setInterval(() => {
         if (debugModeVisual === false) {clearInterval(interval);}
@@ -1158,6 +1197,15 @@ function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
     }, 300);
 }
 
+/**
+ * Creates an indicator for the center of an HTML element.
+ * @param element
+ * @param size
+ * @param color
+ * @param opacity
+ * @param zindex
+ * @returns {{ball: HTMLDivElement, label: HTMLDivElement}}
+ */
 function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
     let horizontalOffset = size / 2 * 1.05 + 10;
     let {x: centerX, y: centerY} = getElementCenter(element);
@@ -1252,13 +1300,17 @@ function calculateRunTime() {
     // Store time for calculation in a non-displayed HTML element, not global variable
 }
 
-function testThemeDark() {
-    const colorBackground        = '#2f2f2f';
-    const colorIsland            = '#474747';
-    const colorBottomBar         = '#212121';
-    const colorFeedSelector      = '#171717';
-
-    const colorText              = '#ffffff';
+/**
+ * Function to apply UI coloration.
+ * Dark in testing phase, dark defaults.
+ * @param colorBackground
+ * @param colorIsland
+ * @param colorBottomBar
+ * @param colorFeedSelector
+ * @param colorText
+ * @param buttonStyleFilter
+ */
+function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', colorBottomBar = '#212121', colorFeedSelector = '#171717', colorText = '#ffffff', buttonStyleFilter = 'invert(1) grayscale(100%)') {
 
     const dev = document.getElementById('buttonDev');
     const background = document.body;
@@ -1288,18 +1340,18 @@ function testThemeDark() {
     textControls.style.color = colorText;
 
     // Button color inversion
-    document.getElementById('buttonRotate').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonFlip').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonFreeze').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonSaveImage').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonOverlay').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonAddText').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonFullScreen').style.filter = 'invert(1) grayscale(100%)';
-    document.getElementById('buttonCollapse').style.filter = 'invert(1) grayscale(100%)';
+    document.getElementById('buttonRotate').style.filter        = buttonStyleFilter;
+    document.getElementById('buttonFlip').style.filter          = buttonStyleFilter;
+    document.getElementById('buttonFreeze').style.filter        = buttonStyleFilter;
+    document.getElementById('buttonSaveImage').style.filter     = buttonStyleFilter;
+    document.getElementById('buttonOverlay').style.filter       = buttonStyleFilter;
+    document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
+    document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
+    document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
 
-    document.getElementById('zoomOutButton').style.color = colorText;
-    document.getElementById('zoomInButton').style.color = colorText;
-    document.getElementById('buttonSmallerFont').style.color = colorText;
-    document.getElementById('buttonBiggerFont').style.color = colorText;
+    document.getElementById('zoomOutButton').style.color        = colorText;
+    document.getElementById('zoomInButton').style.color         = colorText;
+    document.getElementById('buttonSmallerFont').style.color    = colorText;
+    document.getElementById('buttonBiggerFont').style.color     = colorText;
 
 }
