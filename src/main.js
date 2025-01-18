@@ -252,14 +252,13 @@ async function videoStart() {
             let input = updateInputList(inputs);
             let promise = setVideoInput(input);
             resetVideoState();
-            // prompt("OK", "OK", "OK", "OK");
             return promise;
         }).catch(e => {
-            // prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
+            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
             console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
         });
     } else {
-        // prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
+        prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
         console.error("videoStart(): No media permission");
         // TODO: Handle generic retry, alert and user options
     }});
@@ -389,11 +388,17 @@ function toggleControlCollapse(collapseIcon) {
     }
 }
 
-function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], dismissEvent = null) {
+/**
+ * Creates a prompt with text and buttons.
+ *
+ * @param title Title text for prompt
+ * @param text Body text for prompt
+ * @param options Array with text and code to run for buttons
+ * @param position
+ */
+function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null) {
 
     // TODO: Handle concurrent prompts
-
-    // let options1 = [["Option 1 A", () => { print("Option 1 pressed"); }], ["Option 2 A", () => { print("Option 2 pressed"); }]];
 
     // Create prompt element
     const prompt = document.createElement('div');
@@ -428,7 +433,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
         button.style.padding = '10px';
 
         button.addEventListener('click', () => {
-            dismiss();
+            dismiss();                                                                                              // Buttons should always dismiss prompt
             buttonCore[1]();
         });
 
