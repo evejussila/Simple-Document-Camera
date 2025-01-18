@@ -255,11 +255,11 @@ async function videoStart() {
             prompt("OK", "OK", "OK", "OK");
             return promise;
         }).catch(e => {
-            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
+            // prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
             console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
         });
     } else {
-        prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
+        // prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
         console.error("videoStart(): No media permission");
         // TODO: Handle generic retry, alert and user options
     }});
@@ -389,9 +389,11 @@ function toggleControlCollapse(collapseIcon) {
     }
 }
 
-function prompt(title, text, options, dismissEvent = null) {
+function prompt(title= "Title", text = "Text", options = [["Option 1", {  }], ["Option 2", {  }]], dismissEvent = null) {
 
     // TODO: Handle concurrent prompts
+
+    let options1 = [["Option 1 A", {  }], ["Option 2 A", {  }]];
 
     const prompt = document.createElement('div');
     prompt.id = '_randomName';
@@ -409,36 +411,53 @@ function prompt(title, text, options, dismissEvent = null) {
     prompt.style.bottom = `0px`;                                          // Initial position before animation
 
     // Create buttons
-    const numberOfButtons = 3;
-    let buttons = [];
-    for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
-        const btn = document.createElement('button');
-        btn.textContent = `Button ${i + 1}`;
-        btn.style.width = '100%';
-        btn.style.margin = '5px 0';
-        btn.style.color = '#fff';
-        btn.style.background = '#555';
-        btn.style.border = 'none';
-        btn.style.padding = '10px';
-        prompt.appendChild(btn);
-        buttons.push(btn);                                                                  // Store button
-    }
+    options1.forEach((buttonCore) => {
+        const button = document.createElement('button');
+        button.textContent = `${buttonCore[0]}`;
+        button.style.width = '100%';
+        button.style.margin = '5px 0';
+        button.style.color = '#fff';
+        button.style.background = '#555';
+        button.style.border = 'none';
+        button.style.padding = '10px';
+
+        prompt.addEventListener('click', () => {
+            dismiss();
+            buttonCore[1]();
+        });
+
+        prompt.appendChild(button);
+    });
+
+    // const numberOfButtons = 3;
+    // for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
+    //     const btn = document.createElement('button');
+    //     btn.textContent = `Button ${i + 1}`;
+    //     btn.style.width = '100%';
+    //     btn.style.margin = '5px 0';
+    //     btn.style.color = '#fff';
+    //     btn.style.background = '#555';
+    //     btn.style.border = 'none';
+    //     btn.style.padding = '10px';
+    //     prompt.appendChild(btn);
+    //     buttons.push(btn);                                                                  // Store button
+    // }
 
     // Customize individually
-    buttons[0].textContent = "Dismiss 1";
-    buttons[0].addEventListener('click', () => { dismiss(); });
-
-    buttons[1].textContent = "Dismiss 2";
-    buttons[1].addEventListener('click', () => { dismiss() });
-
-    buttons[2].textContent = "Dismiss 3";
-    buttons[2].addEventListener('click', () => { dismiss() });
-
+    // buttons[0].textContent = "Dismiss 1";
+    // buttons[0].addEventListener('click', () => { dismiss(); });
+//
+    // buttons[1].textContent = "Dismiss 2";
+    // buttons[1].addEventListener('click', () => { dismiss() });
+//
+    // buttons[2].textContent = "Dismiss 3";
+    // buttons[2].addEventListener('click', () => { dismiss() });
+//
     document.body.appendChild(prompt);
 
     // Fade in
     requestAnimationFrame(() => {
-        prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation
+        prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
         prompt.style.opacity = '1';
     });
 
