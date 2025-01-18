@@ -1,14 +1,14 @@
 // Development tools
 let debugMode = true;                                                                    // Sets default level of console output
 let debugModeVisual = false;                                                              // Enables visual debug tools
-const version = ("2025-01-05-alpha-beta");
+const version = ("2025-01-18-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');             // Camera feed
 const canvasElement         = document.getElementById('canvasMain');             // Main canvas
-const selector              = document.querySelector('select#selectorDevice');    // Camera feed selector
+const selector                  = document.querySelector('select#selectorDevice');    // Camera feed selector
 const island                = document.getElementById('island_controlBar');      // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');         // Video container
 const controlBar            = document.getElementById('controlBar');             // Fixed control bar
@@ -119,6 +119,33 @@ function addCoreListeners() {
 
 // Camera control functions
 
+/**
+ * Performs all necessary steps to start video feed.
+ *
+ * @returns {Promise<void>} Used video input identifier (forwarded)
+ */
+async function videoStart() {
+    getMediaPermission().then(permission => {if (permission) {
+        getVideoInputs().then (inputs => {
+            let input = updateInputList(inputs);
+            let promise = setVideoInput(input);
+            resetVideoState();
+            return promise;
+        }).catch(e => {
+            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
+            console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
+        });
+    } else {
+        prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
+        console.error("videoStart(): No media permission");
+    }});
+}
+
+/**
+ * Accesses browser media interface to request generic permission for camera use.
+ *
+ * @returns {Promise<boolean>} Result of permission request attempt
+ */
 async function getMediaPermission() {
     try {
         await navigator.mediaDevices.getUserMedia({ video: true });                 // Ask for video device permission (return/promise ignored)
@@ -130,6 +157,11 @@ async function getMediaPermission() {
     }
 }
 
+/**
+ * Enumerates available video input devices.
+ *
+ * @returns {Promise<*[]>} Array of video inputs with their device id and label
+ */
 async function getVideoInputs() {
 
     // A reliably complete input enumeration requires already existing media permissions:
@@ -174,6 +206,12 @@ async function getVideoInputs() {
     }
 }
 
+/**
+ * Updates input selector's list with an array of inputs.
+ *
+ * @param inputs Array of inputs with their device id and label
+ * @returns {*} Device set as the selector choice
+ */
 function updateInputList(inputs) {
 
     // TODO: Mismatch prevention: of original selection device no longer exists, should use some empty value in dropdown. If it does exist, must select the original one after list update! Current feed and selected feed must always match! Also handle case where nothing selected.
@@ -208,6 +246,12 @@ function updateInputList(inputs) {
     return selector.value;
 }
 
+/**
+ * Accesses a camera feed.
+ *
+ * @param input Identifier of video input to access
+ * @returns {Promise<string>}
+ */
 async function setVideoInput(input = selector.value) {
     const retryAttempts = 3;                                                                     // Amount of retries before giving up
     let failedCount = 0;
@@ -242,26 +286,8 @@ async function setVideoInput(input = selector.value) {
         }
     }
 
-    return "stream";
+    return "stream";                                                                            // TODO: Choose useful return value
 
-}
-
-async function videoStart() {
-    getMediaPermission().then(permission => {if (permission) {
-        getVideoInputs().then (inputs => {
-            let input = updateInputList(inputs);
-            let promise = setVideoInput(input);
-            resetVideoState();
-            return promise;
-        }).catch(e => {
-            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
-            console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
-        });
-    } else {
-        prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
-        console.error("videoStart(): No media permission");
-        // TODO: Handle generic retry, alert and user options
-    }});
 }
 
 /**
@@ -394,9 +420,10 @@ function toggleControlCollapse(collapseIcon) {
  * @param title Title text for prompt
  * @param text Body text for prompt
  * @param options Array with text and code to run for buttons
- * @param position
+ * @param position Position of prompt
+ * @param size Size of prompt
  */
-function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null) {
+function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
 
     // TODO: Handle concurrent prompts
 
@@ -416,10 +443,19 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
     prompt.style.bottom = `0px`;                                          // Initial position before animation
 
     // Create text
+    const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
-    prompt.appendChild(textTitle);
+    textTitleElement.style.color = 'white';
+    textTitleElement.style.fontSize = '20px';
+    textTitleElement.style.marginBottom = '10px';
+    textTitleElement.appendChild(textTitle);
+    prompt.appendChild(textTitleElement);
+
+    const textBodyElement = document.createElement('div');
     const textBody = document.createTextNode(text);
-    prompt.appendChild(textBody);
+    textBodyElement.style.color = 'white';
+    textBodyElement.appendChild(textBody);
+    prompt.appendChild(textBodyElement);
 
     // Create buttons
     options.forEach((buttonCore) => {
