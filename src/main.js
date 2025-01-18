@@ -389,11 +389,11 @@ function toggleControlCollapse(collapseIcon) {
     }
 }
 
-function prompt(title= "Title", text = "Text", options = [["Option 1", {  }], ["Option 2", {  }]], dismissEvent = null) {
+function prompt(title= "Title", text = "Text", options = [["Dismiss", {  }]], dismissEvent = null) {
 
     // TODO: Handle concurrent prompts
 
-    let options1 = [["Option 1 A", {  }], ["Option 2 A", {  }]];
+    let options1 = [["Option 1 A", () => { print("Option 1 pressed"); }], ["Option 2 A", () => { print("Option 2 pressed"); }]];
 
     const prompt = document.createElement('div');
     prompt.id = '_randomName';
@@ -421,7 +421,7 @@ function prompt(title= "Title", text = "Text", options = [["Option 1", {  }], ["
         button.style.border = 'none';
         button.style.padding = '10px';
 
-        prompt.addEventListener('click', () => {
+        button.addEventListener('click', () => {
             dismiss();
             buttonCore[1]();
         });
@@ -429,30 +429,6 @@ function prompt(title= "Title", text = "Text", options = [["Option 1", {  }], ["
         prompt.appendChild(button);
     });
 
-    // const numberOfButtons = 3;
-    // for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
-    //     const btn = document.createElement('button');
-    //     btn.textContent = `Button ${i + 1}`;
-    //     btn.style.width = '100%';
-    //     btn.style.margin = '5px 0';
-    //     btn.style.color = '#fff';
-    //     btn.style.background = '#555';
-    //     btn.style.border = 'none';
-    //     btn.style.padding = '10px';
-    //     prompt.appendChild(btn);
-    //     buttons.push(btn);                                                                  // Store button
-    // }
-
-    // Customize individually
-    // buttons[0].textContent = "Dismiss 1";
-    // buttons[0].addEventListener('click', () => { dismiss(); });
-//
-    // buttons[1].textContent = "Dismiss 2";
-    // buttons[1].addEventListener('click', () => { dismiss() });
-//
-    // buttons[2].textContent = "Dismiss 3";
-    // buttons[2].addEventListener('click', () => { dismiss() });
-//
     document.body.appendChild(prompt);
 
     // Fade in
