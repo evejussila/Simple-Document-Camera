@@ -252,7 +252,7 @@ async function videoStart() {
             let input = updateInputList(inputs);
             let promise = setVideoInput(input);
             resetVideoState();
-            prompt("OK", "OK", "OK", "OK");
+            // prompt("OK", "OK", "OK", "OK");
             return promise;
         }).catch(e => {
             // prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
@@ -389,14 +389,14 @@ function toggleControlCollapse(collapseIcon) {
     }
 }
 
-function prompt(title= "Title", text = "Text", options = [["Dismiss", {  }]], dismissEvent = null) {
+function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], dismissEvent = null) {
 
     // TODO: Handle concurrent prompts
 
     let options1 = [["Option 1 A", () => { print("Option 1 pressed"); }], ["Option 2 A", () => { print("Option 2 pressed"); }]];
 
     const prompt = document.createElement('div');
-    prompt.id = '_randomName';
+    prompt.id = '_randomName';                                          // TODO: Ideally would have random name to avoid any chance of id collision
 
     prompt.style.position = 'fixed';
     prompt.style.left = '50%';
@@ -411,7 +411,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", {  }]], di
     prompt.style.bottom = `0px`;                                          // Initial position before animation
 
     // Create buttons
-    options1.forEach((buttonCore) => {
+    options.forEach((buttonCore) => {
         const button = document.createElement('button');
         button.textContent = `${buttonCore[0]}`;
         button.style.width = '100%';
@@ -446,6 +446,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", {  }]], di
         prompt.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
         prompt.style.bottom = '-100px';
         prompt.style.opacity = '0';
+        prompt.remove();
     }
 
 }
@@ -1140,89 +1141,13 @@ function debugVisual() {
  * Function to create and toggle developer options -menu.
  */
 function developerMenu() {
-    print("Developer button pressed");
+    print("developerMenu(): Developer menu button pressed");
 
-    // Menu
-    const controlBar = document.getElementById('controlBar');
-    const controlBarHeight = controlBar.offsetHeight;                   // Total height of bottom bar
-    let menu = null;
-    menu = document.getElementById('developerMenu');
-    if (menu === null) {                                                // If does not exist
-        // console.error("Null");
-
-        menu = document.createElement('div');                   // Then create
-        menu.id = 'developerMenu';
-
-        menu.style.position = 'fixed';
-        menu.style.bottom = `0px`;                                          // Initial position before animation
-        menu.style.left = '50%';
-        menu.style.transform = 'translateX(-50%)';
-        menu.style.width = '200px';
-        menu.style.background = '#454545';
-        menu.style.borderRadius = '10px';
-        menu.style.padding = '10px';
-        menu.style.opacity = '0';
-        menu.style.transition = 'bottom 0.5s ease-out, opacity 0.5s ease-out';
-        menu.style.zIndex = '9999';
-
-        // Create buttons
-        const numberOfButtons = 3;
-        const buttons = [];
-        for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
-            const btn = document.createElement('button');
-            btn.textContent = `Button ${i + 1}`;
-            btn.style.width = '100%';
-            btn.style.margin = '5px 0';
-            btn.style.color = '#fff';
-            btn.style.background = '#555';
-            btn.style.border = 'none';
-            btn.style.padding = '10px';
-            menu.appendChild(btn);
-            buttons.push(btn);                                              // Store button
-        }
-
-        // Customize individually
-        buttons[0].textContent = 'Toggle visual debug';
-        buttons[0].addEventListener('click', () => { debugVisual(); });
-
-        buttons[1].textContent = 'Test dark theme';
-        buttons[1].addEventListener('click', () => { testThemeDark(); });
-
-        buttons[2].textContent = 'No function';
-        buttons[2].addEventListener('click', () => { console.error("Button has no function yet"); }); // TODO: Add developer function calls here and update numberOfButtons above to use them through the menu
-
-        menu.setAttribute("visible", "false");
-        document.body.appendChild(menu);
-
-    }
-
-
-
-    if (menu.getAttribute("visible") === "true") {      // Visible
-        // console.error("Fading out");
-
-        // Fade out
-        menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
-        menu.style.bottom = '-100px';
-        menu.style.opacity = '0';
-        menu.setAttribute("visible", "false");
-    } else {                                                        // Not visible
-        // console.error("Fading in");
-
-        // Fade in
-        requestAnimationFrame(() => {
-            menu.style.bottom = `${controlBarHeight + 10}px`;               // Position after animation
-            menu.style.opacity = '1';
-        });
-        menu.setAttribute("visible", "true");
-
-    }
-
-    // setTimeout(() => {
-    //     menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
-    //     menu.style.bottom = '-100px';
-    //     menu.style.opacity = '0';
-    // }, 5000);
+    prompt("Developer menu", "Options for developers", [
+        ["Toggle visual debug", () => { debugVisual(); }],
+        ["Test dark theme", () => { testThemeDark(); }],
+        ["No function", () => { console.error("Button has no function yet"); }]
+    ]);
 
 }
 
