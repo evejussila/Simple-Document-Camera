@@ -43,8 +43,8 @@ function start() {
     addCoreListeners();
 
     videoStart();
-    // TODO: Handle retry, alert and user options
-    // TODO: Handle periodic update
+    // TODO: Ensure INITIAL retry, alert and user options are handled especially well
+    // TODO: Set up periodic update
 
     // Handle URL parameters
     const urlParameters = new URLSearchParams(window.location.search);
@@ -247,25 +247,22 @@ async function setVideoInput(input = selector.value) {
 }
 
 async function videoStart() {
-
     getMediaPermission().then(permission => {if (permission) {
         getVideoInputs().then (inputs => {
-            // Do something with inputs
-            console.error("1 : OK");
-            // print(JSON.stringify(inputs));
-            let promise = setVideoInput(updateInputList(inputs));
+            let input = updateInputList(inputs);
+            let promise = setVideoInput(input);
             resetVideoState();
+            prompt("OK", "OK", "OK", "OK");
             return promise;
         }).catch(e => {
-            // No valid inputs, do something.
-            console.error("2 : No inputs: " + e.name + " : " + e.message);
+            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
+            console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
         });
     } else {
-        // No permission, try again.
-        console.error("3 : No permission");
-        // TODO: Handle retry, alert and user options
+        prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["text1", "action1"], ["text2", "action2"]]);
+        console.error("videoStart(): No media permission");
+        // TODO: Handle generic retry, alert and user options
     }});
-
 }
 
 /**
@@ -390,6 +387,72 @@ function toggleControlCollapse(collapseIcon) {
         showElement(controlBar, undefined, 'inline-flex');
         showElement(island, undefined, 'flex');
     }
+}
+
+function prompt(title, text, options, dismissEvent = null) {
+
+    // TODO: Handle concurrent prompts
+
+    const prompt = document.createElement('div');
+    prompt.id = '_randomName';
+
+    prompt.style.position = 'fixed';
+    prompt.style.left = '50%';
+    prompt.style.transform = 'translateX(-50%)';
+    prompt.style.width = '200px';
+    prompt.style.background = '#454545';
+    prompt.style.borderRadius = '10px';
+    prompt.style.padding = '10px';
+    prompt.style.opacity = '0';
+    prompt.style.transition = 'bottom 0.5s ease-out, opacity 0.5s ease-out';
+    prompt.style.zIndex = '9999';
+    prompt.style.bottom = `0px`;                                          // Initial position before animation
+
+    // Create buttons
+    const numberOfButtons = 3;
+    let buttons = [];
+    for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
+        const btn = document.createElement('button');
+        btn.textContent = `Button ${i + 1}`;
+        btn.style.width = '100%';
+        btn.style.margin = '5px 0';
+        btn.style.color = '#fff';
+        btn.style.background = '#555';
+        btn.style.border = 'none';
+        btn.style.padding = '10px';
+        prompt.appendChild(btn);
+        buttons.push(btn);                                                                  // Store button
+    }
+
+    // Customize individually
+    buttons[0].textContent = "Dismiss 1";
+    buttons[0].addEventListener('click', () => { dismiss(); });
+
+    buttons[1].textContent = "Dismiss 2";
+    buttons[1].addEventListener('click', () => { dismiss() });
+
+    buttons[2].textContent = "Dismiss 3";
+    buttons[2].addEventListener('click', () => { dismiss() });
+
+    document.body.appendChild(prompt);
+
+    // Fade in
+    requestAnimationFrame(() => {
+        prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation
+        prompt.style.opacity = '1';
+    });
+
+    // setTimeout(() => {
+    //     dismiss();
+    // }, 1000);}
+
+    function dismiss() {
+        // Fade out
+        prompt.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
+        prompt.style.bottom = '-100px';
+        prompt.style.opacity = '0';
+    }
+
 }
 
 
