@@ -42,31 +42,9 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    getMediaPermission().then(permission => {if (permission) {
-        getVideoInputs().then (inputs => {
-            // Do something with inputs
-            console.error("1 : OK");
-            print(JSON.stringify(inputs));
-            updateInputList(inputs);
-        }).catch(e => {
-            // No valid inputs, do something.
-            console.error("2 : No inputs: " + e.name + " : " + e.message);
-        });
-    } else {
-        // No permission, try again.
-        console.error("3 : No permission");
-    }});
-
+    videoStart();
+    // TODO: Handle retry, alert and user options
     // TODO: Handle periodic update
-
-    // Find video devices first, then start a video feed (required due to asynchronous functions)
-//    findMediaDevices().then(() => {
-//        // Handle errors safely
-//        videoStart().then(() => {
-//            // Handle errors safely
-//        });
-//    });
-    // TODO: Need handling for thrown errors in promises
 
     // Handle URL parameters
     const urlParameters = new URLSearchParams(window.location.search);
@@ -133,13 +111,13 @@ function addCoreListeners() {
     });
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
-    selector.addEventListener('change', () => {
-        videoStart().then(() => {});                                   // Can also forward camera deviceId: changeCamera(event.target.value);
+    selector.addEventListener('change', (e) => {
+        setVideoInput(e.target.value).then(() => {});
     })
 }
 
 
-// Current
+// Camera control functions
 
 async function getMediaPermission() {
     try {
@@ -230,99 +208,16 @@ function updateInputList(inputs) {
     return selector.value;
 }
 
-function setVideoInput() {
-
-}
-
-function videoChange(choice = selector.value) {
-
-}
-
-
-
-
-// Camera control functions
-
-/**
- * Finds all video media devices and lists them to feed selector dropdown.
- * @returns {Promise<void>}
- */
-async function findMediaDevices() {
-
-    // Handle selector background update
-    // TODO: Make check run periodically to update device list without need to refresh page
-    // DEV: Mismatch between choice and current feed must always be prevented (definitely causes selection bugs), but would eventually be caused by only updating list
-    // Check current video feed (either directly or from current selector choice, should be same if no errors)
-    // Enumerate devices to a temporary array
-    // Check current choice is in temporary array
-    // If is not, do not update selector dropdown
-    // Is is, update selector dropdown and set the current video feed as the selected option (programmatic setting will not trigger change event for selector listener)
-
-    const retryAttempts = 3;                                                                             // Amount of retries before giving up
-    let failedCount = 0;
-    while (true) {                                                                                      // Run until a device is found
-        let foundVideoInputs = 0;
-        selector.innerHTML = '';                                                                        // Clear dropdown first
-        await navigator.mediaDevices.enumerateDevices().then(devices => {                                // Find all media sources
-            for (let i = 0; i < devices.length; i++) {
-                if (devices[i].kind === 'videoinput') {                                                 // Only accept video sources
-                    let option = document.createElement('option');                              // Create new option for dropdown
-                    option.value = devices[i].deviceId;
-                    option.text = devices[i].label;
-                    selector.appendChild(option);                                                       // Add new option to dropdown
-                    foundVideoInputs++;
-
-                    print("findMediaDevices(): Added video input device " + shorten(devices[i].deviceId) + " to menu: " + devices[i].label);
-
-                    if (devices[i].deviceId === "") {
-                        // An invalid value with no deviceId may be accepted and it may have object reference (JSON: [object Object]), will be empty value in selector
-                        console.error("findMediaDevices(): Added invalid input device to menu: " + devices[i].label + " " + devices[i].deviceId + devices[i].toJSON() + " " + devices[i].toString());
-                    }
-                }
-            }
-        })
-
-        if (foundVideoInputs > 0) {                                                                     // Success
-            // Select camera
-            selector.selectedIndex = 0;                                                                // Select an initial camera in dropdown to prevent mismatch between choice and used feed
-            print("findMediaDevices(): Selecting initial video source: " + shorten(selector.value))
-
-            // Check selection is valid (trying to use empty value camera throws OverconstrainedError)
-            let errorValue = "valid";
-            if (selector.value === "") errorValue = "empty";
-            if (selector.value === undefined) errorValue = "undefined";
-            if (selector.value === null) errorValue = "null";
-            if (errorValue !== "valid") {
-                console.error("findMediaDevices(): Failed to select valid initial video source, selection: " + errorValue + " value: " + selector.value);
-            } else {                                                                                    // Only break if check explicitly did not fail
-                break;
-            }
-        }
-
-        if (failedCount >= retryAttempts) {
-            console.error("findMediaDevices(): No video sources found, retries: " + failedCount)
-            throw Error("findMediaDevices(): No video inputs");
-            // TODO: Need to deal with persistent failure. Custom prompt with retry options?
-        }
-        failedCount++;                                                                                  // Failure(s)
-    }
-}
-
-/**
- * Assigns currently selected camera to HTML element for camera feed.
- * Requests media device access.
- * @returns {Promise<void>}
- */
-async function videoStart() {
+async function setVideoInput(input = selector.value) {
     const retryAttempts = 3;                                                                     // Amount of retries before giving up
     let failedCount = 0;
 
     while (true) {
         try {
-            print("videoStart(): Accessing a camera feed: " + shorten(selector.value));
+            print("videoStart(): Accessing a camera feed: " + shorten(input));
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
-                    deviceId: {exact: selector.value},
+                    deviceId: {exact: input},
                     facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
                     width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
                     height: {ideal: 1080},                                                       // Ideal values are not constraints
@@ -347,14 +242,37 @@ async function videoStart() {
         }
     }
 
-    resetVideoState();
+    return "stream";
+
+}
+
+async function videoStart() {
+
+    getMediaPermission().then(permission => {if (permission) {
+        getVideoInputs().then (inputs => {
+            // Do something with inputs
+            console.error("1 : OK");
+            // print(JSON.stringify(inputs));
+            let promise = setVideoInput(updateInputList(inputs));
+            resetVideoState();
+            return promise;
+        }).catch(e => {
+            // No valid inputs, do something.
+            console.error("2 : No inputs: " + e.name + " : " + e.message);
+        });
+    } else {
+        // No permission, try again.
+        console.error("3 : No permission");
+        // TODO: Handle retry, alert and user options
+    }});
+
 }
 
 /**
  * Reset video feed back to its default state.
  */
 function resetVideoState() {
-    // TODO: Reset video feed back to its default state (rotation, zoom, etc.)
+    // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
 }
 
 
