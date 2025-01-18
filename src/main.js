@@ -1,17 +1,17 @@
 // Development tools
-let debugMode = false;                                                                     // Sets default level of console output
-let debugModeVisual = false;                                                               // Enables visual debug tools
+let debugMode = false;                                                                    // Sets default level of console output
+let debugModeVisual = false;                                                              // Enables visual debug tools
 const version = ("2025-01-05-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
 
 // Fetch core HTML elements
-const videoElement      = document.getElementById('cameraFeed');             // Camera feed
-const canvasElement     = document.getElementById('canvasMain');             // Main canvas
+const videoElement          = document.getElementById('cameraFeed');             // Camera feed
+const canvasElement         = document.getElementById('canvasMain');             // Main canvas
 const selector              = document.querySelector('select#selectorDevice');    // Camera feed selector
-const island            = document.getElementById('island_controlBar');      // Floating island control bar
-const videoContainer    = document.getElementById('videoContainer');         // Video container
-const controlBar        = document.getElementById('controlBar');             // Fixed control bar
+const island                = document.getElementById('island_controlBar');      // Floating island control bar
+const videoContainer        = document.getElementById('videoContainer');         // Video container
+const controlBar            = document.getElementById('controlBar');             // Fixed control bar
 
 // Video feed state
 let rotation = 0;                                                                          // Store rotation state
@@ -22,22 +22,22 @@ let isFreeze = false;                                                           
 // UI state
 let isIslandDragging = false                                                               // Shows if dragging of an island control bar is allowed
 let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
-let islandX, islandY;                                                                              // Initial position of the control island
+let islandX, islandY;                                                                      // Initial position of the control island
 
 // Other
-let mouseX;                                                                                        // Initial position of the mouse
+let mouseX;                                                                                // Initial position of the mouse
 let mouseY;
-let createdElements;                                                                               // Handles created elements
+let createdElements;                                                                       // Handles created elements
 
 
 // Initialization
 
-document.addEventListener('DOMContentLoaded', start);                                         // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                 // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
 
     // Instantiate class for created elements
-    createdElements = new CreatedElements();                                                       // Handles created elements
+    createdElements = new CreatedElements();                                                // Handles created elements
 
     // Add core listeners for interface elements
     addCoreListeners();
@@ -124,6 +124,53 @@ function addCoreListeners() {
 }
 
 
+// Current
+
+async function getMediaPermission() {
+    try {
+        await navigator.mediaDevices.getUserMedia({ video: true });                 // Ask for video device permission (return/promise ignored)
+        print("getMediaPermission(): Media permission granted");
+        return true;
+    } catch (e) {
+        print("getMediaPermission(): Media permission denied: " + e.name + " : " + e.message);
+        return false;
+    }
+}
+
+async function getVideoInputs() {
+
+    // A reliably complete input enumeration requires already existing media permissions:
+    // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices
+    // " The returned list will omit any devices that are blocked by the document Permission Policy:
+    // microphone, camera, speaker-selection (for output devices), and so on.
+    // Access to particular non-default devices is also gated by the Permissions API,
+    // and the list will omit devices for which the user has not granted explicit permission. "
+
+}
+
+function populateInputList(array) {
+
+}
+
+function setVideoInput() {
+
+}
+
+function updateInputList() {
+
+}
+
+function videoStart() {
+
+}
+
+function videoChange(choice = selector.value) {
+
+}
+
+
+
+
 // Camera control functions
 
 /**
@@ -141,15 +188,15 @@ async function findMediaDevices() {
     // If is not, do not update selector dropdown
     // Is is, update selector dropdown and set the current video feed as the selected option (programmatic setting will not trigger change event for selector listener)
 
-    const retryAttempts = 3;                                                                     // Amount of retries before giving up
+    const retryAttempts = 3;                                                                             // Amount of retries before giving up
     let failedCount = 0;
     while (true) {                                                                                      // Run until a device is found
         let foundVideoInputs = 0;
         selector.innerHTML = '';                                                                        // Clear dropdown first
-        await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
+        await navigator.mediaDevices.enumerateDevices().then(devices => {                                // Find all media sources
             for (let i = 0; i < devices.length; i++) {
                 if (devices[i].kind === 'videoinput') {                                                 // Only accept video sources
-                    let option = document.createElement('option');            // Create new option for dropdown
+                    let option = document.createElement('option');                              // Create new option for dropdown
                     option.value = devices[i].deviceId;
                     option.text = devices[i].label;
                     selector.appendChild(option);                                                       // Add new option to dropdown
