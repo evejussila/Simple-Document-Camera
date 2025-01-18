@@ -42,8 +42,8 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    videoStart();
-    // TODO: Ensure INITIAL retry, alert and user options are handled especially well
+    videoStart().then( () => {} );
+
     // TODO: Set up periodic update
 
     // Handle URL parameters
@@ -121,40 +121,64 @@ function addCoreListeners() {
 
 /**
  * Performs all necessary steps to start video feed.
+ * Handles prompt and retry logics.
  *
- * @returns {Promise<void>} Used video input identifier (forwarded)
+ * @returns {Promise<void>}
  */
 async function videoStart() {
-    getMediaPermission().then(permission => {if (permission) {
-        getVideoInputs().then (inputs => {
-            let input = updateInputList(inputs);
-            let promise = setVideoInput(input);
-            resetVideoState();
-            return promise;
-        }).catch(e => {
-            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Ensure you do not have SDC open on other tabs. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
-            console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
-            // Typical when camera already in use: AbortError: Starting videoinput failed
+
+    // Error prompt default content
+    let genericPromptTitle = "No valid cameras could be accessed";
+    let genericPromptText =
+        "Make sure your devices are connected and not being used by other software. " +
+        "Ensure you do not have SDC open on other tabs. " +
+        "Check you have allowed camera access in your browser. " +
+        "You may also try a hard reload by pressing Ctrl + F5 ";
+    let genericPromptActions = [
+        ["Retry",       () =>       { videoStart(); } ],
+        ["Dismiss",     () =>       {               } ]
+    ];
+
+    getMediaPermission().then( () =>        {                                                       // Get permission
+        getVideoInputs().then( inputs =>    {                                                       // Get inputs
+            let input = updateInputList(inputs);                                                    // Update selector list, select some input
+            setVideoInput(input);                                                                   // Use the selected input
+            resetVideoState();                                                                      // Reset video view
+
+            // TODO: Errors in this block are unlikely but are not caught
+
+        }).catch(e => {                                                                             // Catch errors from getVideoInputs()
+            prompt(genericPromptTitle, genericPromptText, genericPromptActions);                    // Prompt user
+            console.error("videoStart(): No valid inputs could be accessed: " + e.name + " : " + e.message);
+        }).catch(e=> {                                                                              // Catch errors from getMediaPermission()
+            prompt(genericPromptTitle, genericPromptText, genericPromptActions);                    // Prompt user
+            console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
         });
-    } else {
-        prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
-        console.error("videoStart(): No media permission");
-    }});
+    });
+
 }
 
 /**
  * Accesses browser media interface to request generic permission for camera use.
  *
- * @returns {Promise<boolean>} Result of permission request attempt
+ * @returns {Promise<void>}
  */
 async function getMediaPermission() {
     try {
         await navigator.mediaDevices.getUserMedia({ video: true });                 // Ask for video device permission (return/promise ignored)
         print("getMediaPermission(): Media permission granted");
-        return true;
-    } catch (e) {
-        print("getMediaPermission(): Media permission denied: " + e.name + " : " + e.message);
-        return false;
+    } catch (e) {                                                                             // Handle errors
+
+        // Handling known errors
+        let errorKnown = "unknown";
+        if (e.name === "AbortError" && e.message === "Starting videoinput failed") {
+            errorKnown = "known"
+            // This error is typically encountered when the video inputs are already in use elsewhere through mediaDevices
+        }
+
+        print("getMediaPermission(): Failure, " + errorKnown + " error: " + e.name + " : " + e.message);
+
+        throw("getMediaPermission(): Failure");
     }
 }
 
@@ -174,12 +198,12 @@ async function getVideoInputs() {
 
     let videoInputs = [];
 
-    const retryAttempts = 3;                                                                      // Amount of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
+    const retryAttempts = 3;                                                                         // Amount of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
     let failedCount = 0;
 
-    while (true) {                                                                                        // Retry until a device is found
+    while (true) {                                                                                    // Retry until a device is found
 
-        let devices = await navigator.mediaDevices.enumerateDevices();                                    // Find all media sources
+        let devices = await navigator.mediaDevices.enumerateDevices();                                // Find all media sources
 
         devices.forEach(device => {
             if (device.kind === 'videoinput') {                                                       // Only accept video sources
@@ -425,9 +449,11 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
 
     // TODO: Handle concurrent prompts
 
+    // TODO: Add support for setting position and size
+
     // Create prompt element
     const prompt = document.createElement('div');
-    prompt.id = '_randomName';                                          // TODO: Ideally would have random name to avoid any chance of id collision
+    prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
     prompt.style.position = 'fixed';
     prompt.style.left = '50%';
     prompt.style.transform = 'translateX(-50%)';
@@ -443,15 +469,18 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
     // Create text
     const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
-    textTitleElement.style.color = 'white';
-    textTitleElement.style.fontSize = '20px';
-    textTitleElement.style.marginBottom = '10px';
+    textTitleElement.style.color = 'white';                                                 // Text color
+    textTitleElement.style.fontSize = '20px';                                               // Text size
+    textTitleElement.style.marginBottom = '10px';                                           // Margin under title
+    textTitleElement.style.textAlign = 'justify';                                           // Text fills element area fully horizontally
     textTitleElement.appendChild(textTitle);
     prompt.appendChild(textTitleElement);
 
     const textBodyElement = document.createElement('div');
     const textBody = document.createTextNode(text);
     textBodyElement.style.color = 'white';
+    textBodyElement.style.textAlign = 'justify';
+    textTitleElement.style.marginBottom = '10px';
     textBodyElement.appendChild(textBody);
     prompt.appendChild(textBodyElement);
 
@@ -474,6 +503,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
         prompt.appendChild(button);
     });
 
+    print("prompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
 
     // Animation: fade in
@@ -489,6 +519,8 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
 
     // Nested function to dismiss prompt
     function dismiss() {
+        print("prompt(): Dismissing prompt " + prompt.id);
+
         // Animation: fade out
         prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
         prompt.style.bottom = '-100px';
