@@ -47,6 +47,7 @@ function start() {
             // Do something with inputs
             console.error("1 : OK");
             print(JSON.stringify(inputs));
+            updateInputList(inputs);
         }).catch(e => {
             // No valid inputs, do something.
             console.error("2 : No inputs: " + e.name + " : " + e.message);
@@ -55,6 +56,8 @@ function start() {
         // No permission, try again.
         console.error("3 : No permission");
     }});
+
+    // TODO: Handle periodic update
 
     // Find video devices first, then start a video feed (required due to asynchronous functions)
 //    findMediaDevices().then(() => {
@@ -158,7 +161,7 @@ async function getVideoInputs() {
     // Access to particular non-default devices is also gated by the Permissions API,
     // and the list will omit devices for which the user has not granted explicit permission. "
 
-    let videoInputs = [[]];
+    let videoInputs = [];
 
     const retryAttempts = 3;                                                                      // Amount of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
     let failedCount = 0;
@@ -193,17 +196,41 @@ async function getVideoInputs() {
     }
 }
 
-function populateInputList(array) {
-    for (let i = 0; i < array.length; i++) {
+function updateInputList(inputs) {
 
+    // TODO: Mismatch prevention: of original selection device no longer exists, should use some empty value in dropdown. If it does exist, must select the original one after list update! Current feed and selected feed must always match! Also handle case where nothing selected.
+    let originalSelection = selector.value;
+
+    // Clear and populate list
+    selector.innerHTML = '';                                                                        // Clear dropdown first
+    for (let i = 0; i < inputs.length; i++) {
+        let option = document.createElement('option');                    // Create new option for dropdown
+        option.value    = inputs[i][0];
+        option.text     = inputs[i][1];
+        selector.appendChild(option);                                                               // Add new option to dropdown
+        print(i + " = " + inputs[i][0] + " : " + inputs[i][1])
     }
+
+    // Handle selection
+    selector.selectedIndex = 0;                                                                     // Select a camera in dropdown
+    print("updateInputList(): Selecting a video source: " + shorten(selector.value))
+
+    // Check selection is valid
+    let errorValue = "valid";
+    if (selector.value === "") errorValue = "empty";
+    if (selector.value === undefined) errorValue = "undefined";
+    if (selector.value === null) errorValue = "null";
+    if (selector.value === "undefined") errorValue = "undefined (string)";                          // Typical for option value set of undefined array values
+    if (errorValue !== "valid") {
+        console.error("updateInputList(): Failed to select valid initial video source, selection: " + errorValue + " value: " + selector.value);
+    } else {
+        // Fine
+    }
+
+    return selector.value;
 }
 
 function setVideoInput() {
-
-}
-
-function updateInputList() {
 
 }
 
