@@ -1,5 +1,5 @@
 // Development tools
-let debugMode = true;                                                                    // Sets default level of console output
+let debugMode = false;                                                                    // Sets default level of console output
 let debugModeVisual = false;                                                              // Enables visual debug tools
 const version = ("2025-01-18-alpha-beta");
 console.log("Version: " + version);
@@ -195,7 +195,7 @@ async function getVideoInputs() {
         });
 
         if (videoInputs.length > 0) {                                                                     // Success
-            print("getVideoInputs(): Found video input device(s): " + (videoInputs.length - 1));
+            print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
         }
 
@@ -225,7 +225,7 @@ function updateInputList(inputs) {
         option.value    = inputs[i][0];
         option.text     = inputs[i][1];
         selector.appendChild(option);                                                               // Add new option to dropdown
-        print(i + " = " + inputs[i][0] + " : " + inputs[i][1])
+        // print(i + " = " + inputs[i][0] + " : " + inputs[i][1])
     }
 
     // Handle selection
@@ -240,8 +240,7 @@ function updateInputList(inputs) {
     if (selector.value === "undefined") errorValue = "undefined (string)";                          // Typical for option value set of undefined array values
     if (errorValue !== "valid") {
         console.error("updateInputList(): Failed to select valid initial video source, selection: " + errorValue + " value: " + selector.value);
-    } else {
-        // Fine
+        // TODO: Do something
     }
 
     return selector.value;
