@@ -393,11 +393,11 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
 
     // TODO: Handle concurrent prompts
 
-    let options1 = [["Option 1 A", () => { print("Option 1 pressed"); }], ["Option 2 A", () => { print("Option 2 pressed"); }]];
+    // let options1 = [["Option 1 A", () => { print("Option 1 pressed"); }], ["Option 2 A", () => { print("Option 2 pressed"); }]];
 
+    // Create prompt element
     const prompt = document.createElement('div');
     prompt.id = '_randomName';                                          // TODO: Ideally would have random name to avoid any chance of id collision
-
     prompt.style.position = 'fixed';
     prompt.style.left = '50%';
     prompt.style.transform = 'translateX(-50%)';
@@ -406,9 +406,15 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
     prompt.style.borderRadius = '10px';
     prompt.style.padding = '10px';
     prompt.style.opacity = '0';
-    prompt.style.transition = 'bottom 0.5s ease-out, opacity 0.5s ease-out';
+    prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
     prompt.style.zIndex = '9999';
     prompt.style.bottom = `0px`;                                          // Initial position before animation
+
+    // Create text
+    const textTitle = document.createTextNode(title);
+    prompt.appendChild(textTitle);
+    const textBody = document.createTextNode(text);
+    prompt.appendChild(textBody);
 
     // Create buttons
     options.forEach((buttonCore) => {
@@ -431,22 +437,28 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
 
     document.body.appendChild(prompt);
 
-    // Fade in
+    // Animation: fade in
     requestAnimationFrame(() => {
         prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
         prompt.style.opacity = '1';
     });
 
+    // Dismiss prompt after timeout
     // setTimeout(() => {
     //     dismiss();
     // }, 1000);}
 
+    // Nested function to dismiss prompt
     function dismiss() {
-        // Fade out
-        prompt.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
+        // Animation: fade out
+        prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
         prompt.style.bottom = '-100px';
         prompt.style.opacity = '0';
-        prompt.remove();
+        setTimeout(() => {
+            prompt.style.display = 'none';
+            prompt.remove();
+        }, 300);
+
     }
 
 }
