@@ -1,5 +1,5 @@
 // Development tools
-let debugMode = false;                                                                    // Sets default level of console output
+let debugMode = true;                                                                    // Sets default level of console output
 let debugModeVisual = false;                                                              // Enables visual debug tools
 const version = ("2025-01-05-alpha-beta");
 console.log("Version: " + version);
@@ -42,13 +42,26 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Find video devices first, then start a video feed (required due to asynchronous functions)
-    findMediaDevices().then(() => {
-        // Handle errors safely
-        videoStart().then(() => {
-            // Handle errors safely
+    getMediaPermission().then(permission => {if (permission) {
+        getVideoInputs().then (inputs => {
+            // Do something with inputs
+            console.error("1 : ");
+        }).catch(e => {
+            // No valid inputs, do something.
+            console.error("2 : " + e.name + " : " + e.message);
         });
-    });
+    } else {
+        // No permission, try again.
+        console.error("3 : ");
+    }});
+
+    // Find video devices first, then start a video feed (required due to asynchronous functions)
+//    findMediaDevices().then(() => {
+//        // Handle errors safely
+//        videoStart().then(() => {
+//            // Handle errors safely
+//        });
+//    });
     // TODO: Need handling for thrown errors in promises
 
     // Handle URL parameters
@@ -146,6 +159,43 @@ async function getVideoInputs() {
     // Access to particular non-default devices is also gated by the Permissions API,
     // and the list will omit devices for which the user has not granted explicit permission. "
 
+    let videoInputs = [[]];
+
+    const retryAttempts = 3;                                                                      // Amount of retries before throwing error
+    let failedCount = 0;
+
+    while (true) {                                                                                        // Retry until a device is found
+        let foundVideoInputs = 0;                                                                 // TODO: Replace with array.length if no issues pushing to two-layer array
+        await navigator.mediaDevices.enumerateDevices().then(devices => {                 // Find all media sources TODO: .then redundant when await used?
+            for (let i = 0; i < devices.length; i++) {                                            // TODO: Process array with foreach, as enumeration returns array
+                if (devices[i].kind === 'videoinput') {                                                   // Only accept video sources
+                    if (devices[i].deviceId === "") {                                                     // Detect and filter invalid values
+                        // In some cases (like missing permissions) empty values may be returned.
+                        // These values will be objects of the right kind but do not have device Ids and can not be used.
+                        console.error("getVideoInputs(): Encountered invalid video input device: " + devices[i].deviceId + " : " + devices[i].label + devices[i].toJSON() + " " + devices[i].toString());
+                    } else {
+                        print("getVideoInputs(): Found video input device: " + shorten(devices[i].deviceId) + " : " + devices[i].label);
+                        videoInputs[foundVideoInputs][0] = devices[i].deviceId;
+                        videoInputs[foundVideoInputs][1] = devices[i].label;
+                        // videoInputs.push([devices[i].deviceId, devices[i].label]);                     // TODO: Should work as replacement in eliminating explicit index and foundVideoInputs
+                        foundVideoInputs++;
+                    }
+                }
+            }
+        })
+
+        if (foundVideoInputs > 0) {                                                                     // Success
+            print("getVideoInputs(): Found video input device(s): " + foundVideoInputs + " = " + videoInputs.length);
+            return videoInputs;
+        }
+
+        if (failedCount >= retryAttempts) {
+            console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
+            throw Error("getVideoInputs(): No video inputs");
+            // TODO: Need to deal with persistent failure. Custom prompt with retry options?
+        }
+        failedCount++;                                                                                  // Failure(s)
+    }
 }
 
 function populateInputList(array) {
@@ -157,10 +207,6 @@ function setVideoInput() {
 }
 
 function updateInputList() {
-
-}
-
-function videoStart() {
 
 }
 
