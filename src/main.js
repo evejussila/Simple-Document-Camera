@@ -132,8 +132,9 @@ async function videoStart() {
             resetVideoState();
             return promise;
         }).catch(e => {
-            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
+            prompt("Error", "No valid cameras could be accessed. Make sure your devices are connected and not used by other software. Ensure you do not have SDC open on other tabs. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
             console.error("videoStart(): No valid inputs: " + e.name + " : " + e.message);
+            // Typical when camera already in use: AbortError: Starting videoinput failed
         });
     } else {
         prompt("Error", "No permission to use camera. Check you have allowed camera access in your browser. You may also try a hard reload by pressing Ctrl + F5", [["Retry", () => { videoStart(); } ], ["Dismiss", () => {}]]);
@@ -202,7 +203,7 @@ async function getVideoInputs() {
             console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
             throw Error("No video inputs");
         }
-        failedCount++;                                                                                  // Failure(s)
+        failedCount++;                                                                                   // Failure(s)
     }
 }
 
@@ -271,16 +272,14 @@ async function setVideoInput(input = selector.value) {
             videoElement.srcObject = stream;
 
             // TODO: Debug low video quality
-            printStreamInformation(stream);
+            // printStreamInformation(stream);
 
             break;
         } catch (error) {                                                                          // Failure
             console.error("videoStart(): Camera could not be accessed (retry " + failedCount + "): " + error);
             if (failedCount >= retryAttempts) {
-                // alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`); // Alert too intrusive and triggers browser safeguards if repetitive
                 console.error("videoStart(): Could not select camera, retries: " + failedCount);
                 throw Error("videoStart(): Could not select camera");
-                // TODO: Need to deal with persistent failure. Custom prompt with retry options?
             }
             failedCount++;
         }
@@ -1221,6 +1220,9 @@ function print(string) {
  */
 function printStreamInformation(stream) {
     // const videoTrack = stream.getVideoTracks()[0];
+
+    // Typical error: TypeError: videoTrack.getCapabilities is not a function
+    // getCapabilities() may not be supported by all browsers, such as those based on FF ESR (Floorp, for example). FF supports function since 2024 v.132
 
     print ("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
     let count = 1;
