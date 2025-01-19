@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                       // Sets default level of console output
 let debugModeVisual = false;                                                                 // Enables visual debug tools
-const version = ("2025-01-18-alpha-beta");
+const version = ("2025-01-19-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
 
@@ -176,11 +176,32 @@ async function getMediaPermission() {
         print("getMediaPermission(): Media permission granted");
     } catch (e) {                                                                             // Handle errors
 
-        // Handling known errors
-        let errorKnown = "unknown";
-        if (e.name === "AbortError" && e.message === "Starting videoinput failed") {
-            errorKnown = "known"
-            // This error is typically encountered when the video inputs are already in use elsewhere through mediaDevices
+        // Handling known exceptions
+        // General descriptions based on https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+        let errorKnown = "known";
+        switch (e.name) {
+            case "AbortError":
+                // Although the user and operating system both granted access to the hardware device,
+                // and no hardware issues occurred that would cause a NotReadableError DOMException,
+                // throw if some problem occurred which prevented the device from being used.
+
+                if ( e.message === "Starting videoinput failed") {
+                    // This error is typically encountered by Firefox when the video inputs are already in use elsewhere through mediaDevices
+                    // To reproduce: open (hosted) page in chrome, leave open, open (hosted) page in Firefox
+                }
+                break;
+            case "NotReadableError":
+                // Thrown if, although the user granted permission to use the matching devices,
+                // a hardware error occurred at the operating system, browser, or Web page
+                // level which prevented access to the device.
+
+                if ( e.message === "Device in use") {
+                    // This error is typically encountered by Chrome when the video inputs are already in use elsewhere through mediaDevices
+                    // To reproduce: open (hosted) page in Firefox, leave open, open (hosted) page in Chrome
+                }
+                break;
+            default:
+                errorKnown = "unknown";
         }
 
         print("getMediaPermission(): Failure, " + errorKnown + " error: " + e.name + " : " + e.message);
@@ -1236,10 +1257,10 @@ function developerMenu() {
     print("developerMenu(): Developer menu button pressed");
 
     prompt("Developer menu", "Options for developers", [
-        ["Toggle visual debug",         () => { debugVisual();                                      }],
-        ["Test dark theme",             () => { testThemeDark();                                    }],
-        ["Update video input list",     () => { testListUpdate()                                    }],
-        ["No function",                 () => { console.error("Button has no function yet");        }]
+        ["Toggle visual debug",             () => { debugVisual();                                      }],
+        ["Test dark theme",                 () => { testThemeDark();                                    }],
+        ["Test update video inputs",        () => { testListUpdate()                                    }],
+        ["Dismiss",                         () => {                                                     }]
     ]);
 
     function testListUpdate()  {
