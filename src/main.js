@@ -47,7 +47,6 @@ function start() {
 
     // Update video input list periodically
     setInterval(backgroundInputListUpdate, 10000);
-    // TODO: Also set up conditional update once there is a refresh button, listener should be set in addCoreListeners()
 
     // Handle URL parameters
     const urlParameters = new URLSearchParams(window.location.search);
@@ -95,7 +94,7 @@ function addCoreListeners() {
     // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
     const collapseIcon = document.getElementById("iconCollapse");
     const collapseButton = document.getElementById('buttonCollapse');
-    collapseButton.addEventListener('click', ()=> toggleControlCollapse(collapseIcon));
+    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon));
 
     // Fetch HTML element for freeze button and it's icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -115,8 +114,13 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', (e) => {
-        setVideoInput(e.target.value).then(() => {});
+        setVideoInput(e.target.value).then( () => {} );
     })
+
+    // Add event listener to trigger input list update when new media device is plugged in
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+        backgroundInputListUpdate().then( () => {} );
+    });
 }
 
 
