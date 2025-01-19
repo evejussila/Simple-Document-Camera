@@ -274,14 +274,14 @@ async function getVideoInputs() {
                     // These values will be objects of the right kind but do not have device Ids and can not be used.
                     console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
-                    print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
+                    // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
                     videoInputs.push([device.deviceId, device.label]);
                     }
                 }
         });
 
         if (videoInputs.length > 0) {                                                                     // Success
-            print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
+            // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
         }
 
@@ -295,37 +295,44 @@ async function getVideoInputs() {
 
 /**
  * Updates input selector's list with an array of inputs.
+ * Attempts to choose original option that was used.
  *
  * @param inputs Array of inputs with their device id and label
  * @returns {*} Device set as the selector choice
  */
 function updateInputList(inputs) {
 
-    // TODO: Mismatch prevention: of original selection device no longer exists, should use some empty value in dropdown. If it does exist, must select the original one after list update! Current feed and selected feed must always match! Also handle case where nothing selected.
     let originalSelection = selector.value;
 
-    // Clear and populate list
+    // Renew list
     selector.innerHTML = '';                                                                        // Clear dropdown first
     for (let i = 0; i < inputs.length; i++) {
-        let option = document.createElement('option');                    // Create new option for dropdown
+        let option = document.createElement('option');                                     // Create new option for dropdown
         option.value    = inputs[i][0];
         option.text     = inputs[i][1];
         selector.appendChild(option);                                                               // Add new option to dropdown
         // print(i + " = " + inputs[i][0] + " : " + inputs[i][1])
     }
 
-    // Handle selection
-    selector.selectedIndex = 0;                                                                     // Select a camera in dropdown
-    print("updateInputList(): Selecting a video source: " + shorten(selector.value))
+    // Select a camera in dropdown
+    if (inputs.some(input => input[0] === originalSelection)) {                                     // TODO: Check selector, not array
+        selector.value = originalSelection;                                                         // Select original value
+        print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
+    } else {                                                                                        // Original value invalid or not available
+        selector.selectedIndex = 0;
+        console.error("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
+    }
 
-    // Check selection is valid
+
+
+    // Check selection is valid (debug)
     let errorValue = "valid";
     if (selector.value === "") errorValue = "empty";
     if (selector.value === undefined) errorValue = "undefined";
     if (selector.value === null) errorValue = "null";
     if (selector.value === "undefined") errorValue = "undefined (string)";                          // Typical for option value set of undefined array values
     if (errorValue !== "valid") {
-        console.error("updateInputList(): Failed to select valid initial video source, selection: " + errorValue + " value: " + selector.value);
+        console.error("updateInputList(): Selected video input option is invalid, selection: " + errorValue + " value: " + selector.value);
         // TODO: Do something
     }
 
