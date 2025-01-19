@@ -1,6 +1,6 @@
 // Development tools
-let debugMode = false;                                                                       // Sets default level of console output
-let debugModeVisual = false;                                                                 // Enables visual debug tools
+let debugMode = false;                                                                        // Sets default level of console output
+let debugModeVisual = false;                                                                  // Enables visual debug tools
 const version = ("2025-01-19-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
@@ -1303,10 +1303,11 @@ function developerMenu() {
 
     prompt("Developer menu", "Options for developers", [
         ["Toggle visual debug",             () => { debugVisual();                                      }],
-        ["Test dark theme",                 () => { testThemeDark();                                    }],
         ["Update video inputs",             () => { backgroundInputListUpdate()                         }],
         ["Release video stream",            () => { releaseVideoStream()                                }],
         ["Start video",                     () => { videoStart()                                        }],
+        ["Test dark theme",                 () => { testThemeDark();                                    }],
+        ["Test another UI style",           () => { testUserInterfaceVersion();                          }],
         ["Dismiss",                         () => {                                                     }]
     ]);
 
@@ -1487,6 +1488,106 @@ function calculateRunTime() {
 }
 
 /**
+ * Applies another testing version of UI
+ */
+function testUserInterfaceVersion() {
+
+    // Vision:
+    // Bottom control bar visibility toggle button always visible, full screen mode has button always visible.
+
+    // Main control island visibility is controlled from within bottom bar.
+    // Every menu has a button on bottom bar. Only main control island is visible by default.
+    // Menus have buttons that detach or reattach them to positions above their buttons on bottom control bar.
+
+    // Remove current collapse button
+    document.getElementById("buttonCollapse").style.display = 'none';
+
+    // Give fullscreen button a background
+    let buttonFullscreen = document.getElementById("buttonFullScreen");
+
+    let iconFullscreen = document.getElementById("iconFullScreen");
+
+    buttonFullscreen.style.position = "absolute";
+    buttonFullscreen.style.margin = "0";
+    buttonFullscreen.style.padding = "0";
+    buttonFullscreen.style.border = "none";
+    buttonFullscreen.style.zIndex = "101";
+    buttonFullscreen.style.bottom = "6px";
+    buttonFullscreen.style.right = "13px";
+    buttonFullscreen.style.width = "40px";
+    buttonFullscreen.style.height = "40px";
+    buttonFullscreen.style.backgroundSize = "40px 40px";
+    buttonFullscreen.style.backgroundPosition = "center";
+    buttonFullscreen.style.background = "rgba(128, 128, 128, 0.5)";
+    buttonFullscreen.style.borderRadius = "5px";
+
+    iconFullscreen.style.width = "30px";
+    iconFullscreen.style.height = "30px";
+    iconFullscreen.style.objectFit = "contain";
+
+    // Create bar visibility button element and icon
+    let buttonCollapseBar = document.createElement("button");
+    buttonCollapseBar.id = "buttonCollapseBar";
+    buttonCollapseBar.title = "Hide Control Bar";
+
+    let iconCollapseBar = document.createElement("img");
+    iconCollapseBar.id = "iconCollapseBar";
+    iconCollapseBar.classList.add("icon");
+    iconCollapseBar.src = "./images/hideControls.png";
+    iconCollapseBar.alt = "Hide Controls";
+    iconCollapseBar.style.transform = "rotate(-90deg)";
+
+    buttonCollapseBar.appendChild(iconCollapseBar);
+
+    buttonCollapseBar.style.position = "absolute";
+    buttonCollapseBar.style.margin = "0";
+    buttonCollapseBar.style.padding = "0";
+    buttonCollapseBar.style.border = "none";
+    buttonCollapseBar.style.zIndex = "101";
+    buttonCollapseBar.style.bottom = "6px";
+    buttonCollapseBar.style.right = "58px";                 // Manual position, 13px (border + margin) + 40 px (button size) + margin
+    buttonCollapseBar.style.width = "40px";
+    buttonCollapseBar.style.height = "40px";
+    buttonCollapseBar.style.backgroundSize = "40px 40px";
+    buttonCollapseBar.style.backgroundPosition = "center";
+    buttonCollapseBar.style.background = "rgba(128, 128, 128, 0.5)";
+    buttonCollapseBar.style.borderRadius = "5px";
+
+    iconCollapseBar.style.width = "30px";
+    iconCollapseBar.style.height = "30px";
+    iconCollapseBar.style.objectFit = "contain";
+
+    document.body.appendChild(buttonCollapseBar);
+
+    // Handle control bar collapse and expand
+    let controlBar = document.getElementById("controlBar");
+    let isCollapsed = false;
+
+    controlBar.style.transition = "transform 0.3s ease-in-out, opacity 0.1s ease-in-out";
+
+    buttonCollapseBar.addEventListener("click", () => {
+        if (isCollapsed) {
+            controlBar.style.transform = "translateX(0)";
+            controlBar.style.opacity = "1";
+            isCollapsed = false;
+
+            // Force reflow
+            controlBar.offsetHeight; // Accessing this forces a reflow
+
+        } else {
+            controlBar.style.transform = "translateX(100%)";
+            controlBar.style.opacity = "0.5";
+            isCollapsed = true;
+
+            // Force reflow
+            controlBar.offsetHeight; // Accessing this forces a reflow
+        }
+        iconCollapseBar.style.transition = "transform 0.3s ease-in-out";  // Add transition for the icon flip
+        iconCollapseBar.style.transform += " scaleY(-1)";
+    });
+}
+
+/**
  * Function to apply UI coloration.
  * Dark in testing phase, dark defaults.
  * @param colorBackground
@@ -1534,6 +1635,7 @@ function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', col
     document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
     document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
     document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
+    document.getElementById('buttonCollapseBar').style.filter      = buttonStyleFilter;
 
     document.getElementById('zoomOutButton').style.color        = colorText;
     document.getElementById('zoomInButton').style.color         = colorText;
