@@ -3,7 +3,7 @@ let debugMode = false;                                                          
 let debugModeVisual = false;                                                                  // Enables visual debug tools
 const version = ("2025-01-19-alpha-beta");
 console.log("Version: " + version);
-console.log("To activate debug mode, type to console: debug()");
+console.log("To activate debug mode, append ?debug to URL or type to console: debug()");
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -503,7 +503,7 @@ function toggleControlCollapse(collapseIcon) {
     }
     else {
         collapseIcon.title = 'Hide controls';
-        collapseIcon.src = "./images/hideControls.png";
+        collapseIcon.src = "./images/hideControls.png";                             // TODO: Use same image, transform Y -1 to flip
         showElement(controlBar, undefined, 'inline-flex');
         showElement(island, undefined, 'flex');
     }
@@ -770,9 +770,9 @@ function removeElement(element, fadeTime = 0.2) {
  * @param fadeTime Fade duration s (optional)
  */
 function hideElement(element, fadeTime = 0.3) {
-    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
     element.style.opacity = '0';
-    // TODO: Add interaction prevention (no click)
+    // TODO: Add interaction prevention (no click during animations)
     setTimeout(() => {
         element.style.display = 'none';
     }, fadeTime * 1000);
@@ -786,13 +786,16 @@ function hideElement(element, fadeTime = 0.3) {
  * @param displayStyle Display style (optional)
  */
 function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
-    element.style.opacity = '0';                                // Ensures not visible
-    element.style.display = displayStyle;                       // Renders element display
-    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.opacity = '0';                                    // Ensures not visible
+    element.style.display = displayStyle;                           // Renders element display
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
 
-    requestAnimationFrame(() => {                               // Runs code after display is rendered
+    requestAnimationFrame(() => {                           // Runs code after display is rendered
         element.style.opacity = '1';
     });
+
+    // TODO: Animation not working
+
 }
 
 /**
@@ -1269,7 +1272,8 @@ function debug() {
     developerButton.textContent = 'Developer Options';
     developerButton.addEventListener('click', developerMenu);
     developerButton.style.zIndex = '9999';
-    developerButton.style.border = '2px solid black';
+    developerButton.style.border = "2px solid darkgray";
+    developerButton.style.borderRadius = "5px";
     developerButton.style.height = '40px';
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
@@ -1489,6 +1493,7 @@ function calculateRunTime() {
 
 /**
  * Applies another testing version of UI
+ * Dirty testing code
  */
 function testUserInterfaceVersion() {
 
@@ -1499,8 +1504,13 @@ function testUserInterfaceVersion() {
     // Every menu has a button on bottom bar. Only main control island is visible by default.
     // Menus have buttons that detach or reattach them to positions above their buttons on bottom control bar.
 
+    // Remove standalone label
+    document.getElementById("textSizeLabel").style.display = "none";
+
     // Remove current collapse button
-    document.getElementById("buttonCollapse").style.display = 'none';
+    let label = document.getElementById("buttonCollapse");
+    label.style.display = "none";
+    label.style.width = '0px';
 
     // Give fullscreen button a background
     let buttonFullscreen = document.getElementById("buttonFullScreen");
@@ -1512,7 +1522,7 @@ function testUserInterfaceVersion() {
     buttonFullscreen.style.padding = "0";
     buttonFullscreen.style.border = "none";
     buttonFullscreen.style.zIndex = "101";
-    buttonFullscreen.style.bottom = "6px";
+    buttonFullscreen.style.bottom = "5px";
     buttonFullscreen.style.right = "13px";
     buttonFullscreen.style.width = "40px";
     buttonFullscreen.style.height = "40px";
@@ -1544,7 +1554,7 @@ function testUserInterfaceVersion() {
     buttonCollapseBar.style.padding = "0";
     buttonCollapseBar.style.border = "none";
     buttonCollapseBar.style.zIndex = "101";
-    buttonCollapseBar.style.bottom = "6px";
+    buttonCollapseBar.style.bottom = "5px";
     buttonCollapseBar.style.right = "58px";                 // Manual position, 13px (border + margin) + 40 px (button size) + margin
     buttonCollapseBar.style.width = "40px";
     buttonCollapseBar.style.height = "40px";
@@ -1563,10 +1573,12 @@ function testUserInterfaceVersion() {
     let controlBar = document.getElementById("controlBar");
     let isCollapsed = false;
 
-    controlBar.style.transition = "transform 0.3s ease-in-out, opacity 0.1s ease-in-out";
+    iconCollapseBar.style.transition = "transform 0.3s ease-in-out";  // Add transition for the icon flip
 
     buttonCollapseBar.addEventListener("click", () => {
         if (isCollapsed) {
+            controlBar.style.transition = "transform 0.4s ease-in-out, opacity 0.5s ease-in-out";
+
             controlBar.style.transform = "translateX(0)";
             controlBar.style.opacity = "1";
             isCollapsed = false;
@@ -1575,16 +1587,71 @@ function testUserInterfaceVersion() {
             controlBar.offsetHeight; // Accessing this forces a reflow
 
         } else {
+            controlBar.style.transition = "transform 0.3s ease-in-out, opacity 0.2s ease-in-out";
+
             controlBar.style.transform = "translateX(100%)";
-            controlBar.style.opacity = "0.5";
+            controlBar.style.opacity = "0";
             isCollapsed = true;
 
             // Force reflow
             controlBar.offsetHeight; // Accessing this forces a reflow
         }
-        iconCollapseBar.style.transition = "transform 0.3s ease-in-out";  // Add transition for the icon flip
         iconCollapseBar.style.transform += " scaleY(-1)";
     });
+
+    // Create menu buttons as examples (AUTOMATICALLY GENERATED FOR ILLUSTRATION EXAMPLES, modified)
+
+    const buttonStyle = {
+        width: "40px",
+        height: "40px",
+        backgroundColor: '171717FF',
+        borderRadius: "5px",
+        border: "2px solid darkgray",
+        padding: "0",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        margin: "5px"
+    };
+
+    // Create menuButtons div
+    const menuButtons = document.createElement("div");
+    menuButtons.id = "menuButtons";
+    menuButtons.style.position = "absolute";
+    menuButtons.style.right = "180px";
+    menuButtons.style.display = "flex";
+    menuButtons.style.flexDirection = "row";
+    menuButtons.style.justifyContent = "center";
+    menuButtons.style.height = "100%";
+
+    // Create buttons
+    const createButton = () => {
+        const button = document.createElement("button");
+        Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
+
+        const icon = document.createElement("img");
+        icon.src = "./images/draw.png";
+        icon.alt = "Draw";
+        icon.className = "icon";
+
+        icon.style.filter = 'invert(1) grayscale(100%)';
+
+        button.appendChild(icon);
+        return button;
+    };
+
+    // Create and append buttons
+    menuButtons.appendChild(createButton());
+    menuButtons.appendChild(createButton());
+    menuButtons.appendChild(createButton());
+
+    // Append menuButtons to controlBar
+    controlBar.appendChild(menuButtons);
+
+
+    testThemeDark();
+
+
 }
 
 /**
@@ -1635,7 +1702,7 @@ function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', col
     document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
     document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
     document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
-    document.getElementById('buttonCollapseBar').style.filter      = buttonStyleFilter;
+    document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
 
     document.getElementById('zoomOutButton').style.color        = colorText;
     document.getElementById('zoomInButton').style.color         = colorText;
