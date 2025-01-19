@@ -176,21 +176,39 @@ async function getMediaPermission() {
         print("getMediaPermission(): Media permission granted");
     } catch (e) {                                                                             // Handle errors
 
-        // Handling known exceptions
-        // General descriptions based on https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-        let errorKnown = "known";
+        // Detect and handle known, expected exceptions
+        // General descriptions from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+        let errorExpected = "expected";
         switch (e.name) {
+            case "NotAllowedError":
+                // Thrown if one or more of the requested source devices cannot be used at this time.
+                // This will happen if the browsing context is insecure (that is, the page was loaded using
+                // HTTP rather than HTTPS). It also happens if the user has specified that the current browsing
+                // instance is not permitted access to the device, the user has denied access for the current
+                // session, or the user has denied all access to user media devices globally. On browsers that
+                // support managing media permissions with Permissions Policy, this error is returned if
+                // Permissions Policy is not configured to allow access to the input source(s).
+
+                if ( e.message === "Permission denied") {
+                    // This error is typically encountered on Chrome (2025).
+                    // Encountered when camera permissions have been denied by user now or by persistent setting.
+                }
+                if ( e.message === "The request is not allowed by the user agent or the platform in the current context.") {
+                    // This error is typically encountered on Firefox (2025).
+                    // Encountered when camera permissions have been denied by user now or by persistent setting.
+                }
+
+                break;
             case "AbortError":
                 // Although the user and operating system both granted access to the hardware device,
                 // and no hardware issues occurred that would cause a NotReadableError DOMException,
-                // throw if some problem occurred which prevented the device from being used.
+                // thrown if some problem occurred which prevented the device from being used.
 
                 if ( e.message === "Starting videoinput failed") {
-                    // This error is typically encountered by Firefox when any video inputs are already in use elsewhere through mediaDevices
-                    // To reproduce: open page in chrome, leave open, open page in Firefox
-
-                    // This error is typically encountered by Firefox when the specific video input is already in use by Zoom (Windows)
+                    // This error is typically encountered on Firefox (2025).
+                    // Encountered when the specific video input is already in use elsewhere through mediaDevices or W10 WMF (used by Zoom).
                 }
+
                 break;
             case "NotReadableError":
                 // Thrown if, although the user granted permission to use the matching devices,
@@ -198,17 +216,16 @@ async function getMediaPermission() {
                 // level which prevented access to the device.
 
                 if ( e.message === "Device in use") {
-                    // This error is typically encountered by Chrome when any video inputs are already in use elsewhere through mediaDevices
-                    // To reproduce: open page in Firefox, leave open, open page in Chrome
-
-                    // This error is typically encountered by Chrome when the specific video input is already in use by Zoom (Windows)
+                    // This error is typically encountered on Chrome (2025).
+                    // Encountered when the specific video input is already in use elsewhere through mediaDevices or W10 WMF (used by Zoom).
                 }
+
                 break;
             default:
-                errorKnown = "unknown";
+                errorExpected = "unexpected";
         }
 
-        print("getMediaPermission(): Failure, " + errorKnown + " error: " + e.name + " : " + e.message);
+        print("getMediaPermission(): Failure, " + errorExpected + " error: " + e.name + " : " + e.message);
 
         throw new Error("getMediaPermission(): Failure");
     }
