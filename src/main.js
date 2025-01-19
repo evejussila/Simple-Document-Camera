@@ -1,17 +1,17 @@
 // Development tools
-let debugMode = false;                                                                    // Sets default level of console output
-let debugModeVisual = false;                                                              // Enables visual debug tools
+let debugMode = false;                                                                       // Sets default level of console output
+let debugModeVisual = false;                                                                 // Enables visual debug tools
 const version = ("2025-01-18-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, type to console: debug()");
 
 // Fetch core HTML elements
-const videoElement          = document.getElementById('cameraFeed');             // Camera feed
-const canvasElement         = document.getElementById('canvasMain');             // Main canvas
-const selector                  = document.querySelector('select#selectorDevice');    // Camera feed selector
-const island                = document.getElementById('island_controlBar');      // Floating island control bar
-const videoContainer        = document.getElementById('videoContainer');         // Video container
-const controlBar            = document.getElementById('controlBar');             // Fixed control bar
+const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
+const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
+const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector
+const island                = document.getElementById('island_controlBar');          // Floating island control bar
+const videoContainer        = document.getElementById('videoContainer');             // Video container
+const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
 
 // Video feed state
 let rotation = 0;                                                                          // Store rotation state
@@ -32,7 +32,7 @@ let createdElements;                                                            
 
 // Initialization
 
-document.addEventListener('DOMContentLoaded', start);                                 // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                  // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
 
@@ -42,9 +42,14 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
+    // Start video feed
     videoStart().then( () => {} );
 
+    // Update video input list periodically
     // TODO: Set up periodic update
+    // TODO: Also set up conditional update once there is a refresh button, listener should be set in addCoreListeners()
+
+
 
     // Handle URL parameters
     const urlParameters = new URLSearchParams(window.location.search);
@@ -139,8 +144,8 @@ async function videoStart() {
         ["Dismiss",     () =>       {               } ]
     ];
 
-    getMediaPermission().then( () =>        {                                                       // Get permission
-        getVideoInputs().then( inputs =>    {                                                       // Get inputs
+    getMediaPermission().then( ()       =>    {                                                     // Get permission
+        getVideoInputs().then( inputs   =>    {                                                     // Get inputs
             let input = updateInputList(inputs);                                                    // Update selector list, select some input
             setVideoInput(input);                                                                   // Use the selected input
             resetVideoState();                                                                      // Reset video view
@@ -150,11 +155,13 @@ async function videoStart() {
         }).catch(e => {                                                                             // Catch errors from getVideoInputs()
             prompt(genericPromptTitle, genericPromptText, genericPromptActions);                    // Prompt user
             console.error("videoStart(): No valid inputs could be accessed: " + e.name + " : " + e.message);
-        }).catch(e=> {                                                                              // Catch errors from getMediaPermission()
-            prompt(genericPromptTitle, genericPromptText, genericPromptActions);                    // Prompt user
-            console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
-        });
-    });
+        });                                                                                         // End catch for getVideoInputs()
+
+    }).catch(e => {                                                                                  // Catch errors from getMediaPermission()
+        prompt(genericPromptTitle, genericPromptText, genericPromptActions);                        // Prompt user
+        console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
+    });                                                                                             // End catch for getMediaPermission()
+
 
 }
 
@@ -178,7 +185,7 @@ async function getMediaPermission() {
 
         print("getMediaPermission(): Failure, " + errorKnown + " error: " + e.name + " : " + e.message);
 
-        throw("getMediaPermission(): Failure");
+        throw new Error("getMediaPermission(): Failure");
     }
 }
 
@@ -225,7 +232,7 @@ async function getVideoInputs() {
 
         if (failedCount >= retryAttempts) {
             console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
-            throw Error("No video inputs");
+            throw new Error("getVideoInputs(): No valid video inputs");
         }
         failedCount++;                                                                                   // Failure(s)
     }
@@ -302,7 +309,7 @@ async function setVideoInput(input = selector.value) {
             console.error("videoStart(): Camera could not be accessed (retry " + failedCount + "): " + error);
             if (failedCount >= retryAttempts) {
                 console.error("videoStart(): Could not select camera, retries: " + failedCount);
-                throw Error("videoStart(): Could not select camera");
+                throw new Error("videoStart(): Could not select camera");
             }
             failedCount++;
         }
@@ -438,6 +445,7 @@ function toggleControlCollapse(collapseIcon) {
 
 /**
  * Creates a prompt with text and buttons.
+ * Every button will dismiss prompt.
  *
  * @param title Title text for prompt
  * @param text Body text for prompt
@@ -466,20 +474,21 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
     prompt.style.zIndex = '9999';
     prompt.style.bottom = `0px`;                                          // Initial position before animation
 
-    // Create text
+    // Create title text
     const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
     textTitleElement.style.color = 'white';                                                 // Text color
     textTitleElement.style.fontSize = '20px';                                               // Text size
+    textTitleElement.style.textAlign = 'center';                                            // Center text
     textTitleElement.style.marginBottom = '10px';                                           // Margin under title
-    textTitleElement.style.textAlign = 'justify';                                           // Text fills element area fully horizontally
     textTitleElement.appendChild(textTitle);
     prompt.appendChild(textTitleElement);
 
+    // Create body text
     const textBodyElement = document.createElement('div');
     const textBody = document.createTextNode(text);
     textBodyElement.style.color = 'white';
-    textBodyElement.style.textAlign = 'justify';
+    textBodyElement.style.textAlign = 'justify';                                              // Text fills element area fully horizontally
     textTitleElement.style.marginBottom = '10px';
     textBodyElement.appendChild(textBody);
     prompt.appendChild(textBodyElement);
@@ -1227,11 +1236,20 @@ function developerMenu() {
     print("developerMenu(): Developer menu button pressed");
 
     prompt("Developer menu", "Options for developers", [
-        ["Toggle visual debug", () => { debugVisual(); }],
-        ["Test dark theme", () => { testThemeDark(); }],
-        ["No function", () => { console.error("Button has no function yet"); }]
+        ["Toggle visual debug",         () => { debugVisual();                                      }],
+        ["Test dark theme",             () => { testThemeDark();                                    }],
+        ["Update video input list",     () => { testListUpdate()                                    }],
+        ["No function",                 () => { console.error("Button has no function yet");        }]
     ]);
 
+    function testListUpdate()  {
+        let inputs = getVideoInputs();
+        // print("Anonymous: Failed to update video input at getVideoInputs(): " + e)
+        updateInputList(inputs);
+        // print("Anonymous: Failed to update video input list at updateInputList(): " + e)
+
+
+    }
 }
 
 /**
