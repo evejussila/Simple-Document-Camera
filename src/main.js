@@ -46,10 +46,8 @@ function start() {
     videoStart().then( () => {} );
 
     // Update video input list periodically
-    // TODO: Set up periodic update
+    setInterval(backgroundInputListUpdate, 10000);
     // TODO: Also set up conditional update once there is a refresh button, listener should be set in addCoreListeners()
-
-
 
     // Handle URL parameters
     const urlParameters = new URLSearchParams(window.location.search);
@@ -161,6 +159,21 @@ async function videoStart() {
         prompt(genericPromptTitle, genericPromptText, genericPromptActions);                        // Prompt user
         console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
     });                                                                                             // End catch for getMediaPermission()
+}
+
+/**
+ * Silently updates video input list.
+ * Safe to call at any time.
+ *
+ * @returns {Promise<void>}
+ */
+async function backgroundInputListUpdate() {
+    try {
+        let inputs = await getVideoInputs();
+        updateInputList(inputs);
+    } catch (e) {
+        print("backgroundInputListUpdate(): Background update failed: " + e);
+    }
 
 
 }
@@ -1280,20 +1293,11 @@ function developerMenu() {
     prompt("Developer menu", "Options for developers", [
         ["Toggle visual debug",             () => { debugVisual();                                      }],
         ["Test dark theme",                 () => { testThemeDark();                                    }],
-        ["Test update video inputs",        () => { testListUpdate()                                    }],
+        ["Update video inputs",             () => { backgroundInputListUpdate()                         }],
         ["Release video stream",            () => { releaseVideoStream()                                }],
         ["Start video",                     () => { videoStart()                                        }],
         ["Dismiss",                         () => {                                                     }]
     ]);
-
-    function testListUpdate()  {
-        let inputs = getVideoInputs();
-        // print("Anonymous: Failed to update video input at getVideoInputs(): " + e)
-        updateInputList(inputs);
-        // print("Anonymous: Failed to update video input list at updateInputList(): " + e)
-
-
-    }
 
     function releaseVideoStream() {
         videoElement.srcObject.getTracks().forEach(track => track.stop());
