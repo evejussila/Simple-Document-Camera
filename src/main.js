@@ -794,7 +794,7 @@ function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
         element.style.opacity = '1';
     });
 
-    // TODO: Animation not working
+    // TODO: Animation not working on FF
 
 }
 
@@ -804,14 +804,16 @@ function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
  * @returns {{x: number, y: number}} Object with x, y coordinates
  */
 function getElementCenter(element) {
+    // Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
+
     const rect = element.getBoundingClientRect();
     const x = rect.left + window.scrollX + rect.width / 2; // Rounding with Math.round() should not be necessary
     const y = rect.top + window.scrollY + rect.height / 2;
 
     return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
-
-    // TODO: Must test if gives real coordinates for some objects (like very large video inputs) that have been resized improperly due to browser window resizing beyond expected bounds
 }
+
+
 
 
 // Simple caller methods
@@ -1291,9 +1293,9 @@ function debugVisual() {
         print("Visual debug enabled!");
 
         // Indicate element centers
-        debugVisualDrawCenterTrackingIndicator(videoElement, 20, 'red', '0.8');
-        debugVisualDrawCenterTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-        debugVisualDrawCenterTrackingIndicator(canvasElement, 60, 'green', '0.4');
+        debugVisualDrawElementTrackingIndicator(videoElement, 20, 'red', '0.9');
+        debugVisualDrawElementTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
+        debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
     } else {
         print("Visual debug disabled!");
     }
@@ -1377,13 +1379,27 @@ function shorten(id) {
  * @param color
  * @param opacity
  */
-function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
+function debugVisualDrawElementTrackingIndicator(element, size, color, opacity) {
+
     let interval = setInterval(() => {
         if (debugModeVisual === false) {clearInterval(interval);}
+
         const {ball: ball, label: label} = drawCenterIndicator(element, size, color, opacity);
+        const {canvas: cross, labelTopLeft: l1, labelTopRight: l2, labelBottomLeft: l3, labelBottomRight: l4} = drawCrossingLines(element, size/10, color, opacity);
+        const {t:t, b:b, r:r, l:l} = drawViewPortEdges();
+
         setTimeout(() => {
             ball.remove();
             label.remove();
+            cross.remove();
+            l1.remove();
+            l2.remove();
+            l3.remove();
+            l4.remove();
+            t.remove();
+            b.remove();
+            r.remove();
+            l.remove();
         }, 300);
     }, 300);
 }
@@ -1398,7 +1414,7 @@ function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
  * @returns {{ball: HTMLDivElement, label: HTMLDivElement}}
  */
 function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
-    let horizontalOffset = size / 2 * 1.05 + 10;
+    let horizontalOffset = size / 2 * 1.05 + 10;                // Offset for label to place it next to indicator
     let {x: centerX, y: centerY} = getElementCenter(element);
     let text = centerX + " " + centerX  + " " + " is center of: " + (element.getAttribute('id') || 'id_undefined') + " " + (element.getAttribute('class') || '');
 
@@ -1440,6 +1456,119 @@ function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity =
     return ball;
 }
 
+
+
+function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '150') {
+    const {top: top, right: right, bottom: bottom, left: left} = getViewportEdges();
+
+    const t = drawBall(right/2, top, size, color, opacity, zindex);
+    const b = drawBall(right/2, bottom, size, color, opacity, zindex);
+
+    const r = drawBall(right, bottom/2, size, color, opacity, zindex);
+    const l = drawBall(left, bottom/2, size, color, opacity, zindex);
+
+    return {t, b, r, l};
+
+}
+
+
+
+function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '100') {
+
+
+    const canvas = document.createElement('canvas');
+    let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+    canvas.width = elementWidth;
+    canvas.height = elementHeight;
+    canvas.style.zIndex = zindex;
+    canvas.style.opacity = opacity;
+    canvas.style.position = 'absolute';
+    canvas.style.pointerEvents = 'none';                    // Make not clickable
+
+    const rect = element.getBoundingClientRect();
+    canvas.style.left = rect.left + 'px';
+    canvas.style.top = rect.top + 'px';
+
+    const context = canvas.getContext('2d');
+    context.lineWidth = lineWidth;
+    context.strokeStyle = color;
+    let { bottomLeft: bottomLeft, topRight: topRight, topLeft: topLeft, bottomRight: bottomRight } = getElementCorners(element);
+    drawLine(context, bottomLeft.x, bottomLeft.y, topRight.x, topRight.y);
+    drawLine(context, topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
+
+    document.body.appendChild(canvas);
+
+
+
+    // Draw labels at rect for troubleshooting coordinate mismatches between rect coordinates and actual view coordinates
+    const rect1 = element.getBoundingClientRect();
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    const horizontalOffset = 100;
+    const verticalOffset = 100;
+    const labelTopLeft =        drawLabel(rect1.left + horizontalOffset, rect1.top + verticalOffset, 35, color, opacity, zindex,           "TL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.top + " + " +        scrollY);
+    const labelBottomLeft =     drawLabel(rect1.left + horizontalOffset, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,      "BL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
+    const labelTopRight =       drawLabel(rect1.right - horizontalOffset*3, rect1.top + verticalOffset, 35, color, opacity, zindex,        "TR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.top + " + " +        scrollY);
+    const labelBottomRight =    drawLabel(rect1.right - horizontalOffset*3, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,   "BR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
+
+    return {canvas, labelTopLeft, labelTopRight, labelBottomLeft, labelBottomRight};
+}
+
+
+function drawLine(context, x1, y1, x2, y2) {
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+}
+
+function getElementCorners(element) {
+    const rect = element.getBoundingClientRect();
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    return {
+        topLeft:        { x: rect.left + scrollX,   y: rect.top + scrollY       },
+        topRight:       { x: rect.right + scrollX,  y: rect.top + scrollY       },
+        bottomLeft:     { x: rect.left + scrollX,   y: rect.bottom + scrollY    },
+        bottomRight:    { x: rect.right + scrollX,  y: rect.bottom + scrollY    }
+    };
+
+}
+
+function getElementDimensions(element) {
+    const rect = element.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+
+}
+
+function getViewportCorners() {
+    const topLeft = { x: window.scrollX, y: window.scrollY };
+    const topRight = { x: window.scrollX + window.innerWidth, y: window.scrollY };
+    const bottomLeft = { x: window.scrollX, y: window.scrollY + window.innerHeight };
+    const bottomRight = { x: window.scrollX + window.innerWidth, y: window.scrollY + window.innerHeight };
+
+    return { topLeft, topRight, bottomLeft, bottomRight };
+
+    // X axis right is positive left is negative
+    // Y axis up is NEGATIVE down is POSITIVE
+    // 0, 0 is TOP left corner, opposite bottom right is most extreme in positive
+}
+
+function getViewportEdges() {
+    const top = window.scrollY;
+    const right = window.scrollX + window.innerWidth;
+    const bottom = window.scrollY + window.innerHeight;
+    const left = window.scrollX;
+
+    return { top, right, bottom, left };
+}
+
+
 /**
  * Draws a label (with the middle of its left edge) at the coordinates
  * HTML/CSS implementation.
@@ -1474,22 +1603,6 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
     return label;
 }
 
-/**
- * Calculates and visualizes how many times an action is run per second.
- * Used in assessment of listener performance.
- */
-function debugShowRunSpeed() {
-
-}
-
-/**
- * Calculates the time between the current and last instance of running this function.
- * Used to determine latencies.
- */
-function calculateRunTime() {
-
-    // Store time for calculation in a non-displayed HTML element, not global variable
-}
 
 /**
  * Applies another testing version of UI
