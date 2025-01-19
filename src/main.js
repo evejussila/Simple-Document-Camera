@@ -641,12 +641,12 @@ function videoFlip() {
  * @param freezeIcon Icon for freeze button
  */
 function videoFreeze(freezeIcon) {
-    const stream = videoElement.srcObject;                                                     // Get the current video stream
+    const stream = videoElement.srcObject;                                                        // Get the current video stream
 
     if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
-            stream.getTracks().forEach(track => track.enabled = false);             // Disable all tracks to freeze the video
+            stream.getTracks().forEach(track => track.enabled = false);                            // Disable all tracks to freeze the video
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
@@ -1281,6 +1281,8 @@ function developerMenu() {
         ["Toggle visual debug",             () => { debugVisual();                                      }],
         ["Test dark theme",                 () => { testThemeDark();                                    }],
         ["Test update video inputs",        () => { testListUpdate()                                    }],
+        ["Release video stream",            () => { releaseVideoStream()                                }],
+        ["Start video",                     () => { videoStart()                                        }],
         ["Dismiss",                         () => {                                                     }]
     ]);
 
@@ -1291,6 +1293,11 @@ function developerMenu() {
         // print("Anonymous: Failed to update video input list at updateInputList(): " + e)
 
 
+    }
+
+    function releaseVideoStream() {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+        videoElement.srcObject = null;
     }
 }
 
