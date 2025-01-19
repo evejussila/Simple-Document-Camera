@@ -132,3 +132,7 @@ button {
 #buttonFullScreen {
     right: 6px;
 }
+
+#selectorDevice {
+    width: 200px;
+}

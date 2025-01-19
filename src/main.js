@@ -186,8 +186,10 @@ async function getMediaPermission() {
                 // throw if some problem occurred which prevented the device from being used.
 
                 if ( e.message === "Starting videoinput failed") {
-                    // This error is typically encountered by Firefox when the video inputs are already in use elsewhere through mediaDevices
-                    // To reproduce: open (hosted) page in chrome, leave open, open (hosted) page in Firefox
+                    // This error is typically encountered by Firefox when any video inputs are already in use elsewhere through mediaDevices
+                    // To reproduce: open page in chrome, leave open, open page in Firefox
+
+                    // This error is typically encountered by Firefox when the specific video input is already in use by Zoom (Windows)
                 }
                 break;
             case "NotReadableError":
@@ -196,8 +198,10 @@ async function getMediaPermission() {
                 // level which prevented access to the device.
 
                 if ( e.message === "Device in use") {
-                    // This error is typically encountered by Chrome when the video inputs are already in use elsewhere through mediaDevices
-                    // To reproduce: open (hosted) page in Firefox, leave open, open (hosted) page in Chrome
+                    // This error is typically encountered by Chrome when any video inputs are already in use elsewhere through mediaDevices
+                    // To reproduce: open page in Firefox, leave open, open page in Chrome
+
+                    // This error is typically encountered by Chrome when the specific video input is already in use by Zoom (Windows)
                 }
                 break;
             default:
