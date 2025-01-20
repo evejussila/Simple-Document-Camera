@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', start);                           
 function start() {
 
     // Instantiate class for created elements
-    createdElements = new CreatedElements();                                                // Handles created elements
+    createdElements = new CreatedElements();
 
     // Add core listeners for interface elements
     addCoreListeners();
@@ -49,20 +49,25 @@ function start() {
     setInterval(backgroundInputListUpdate, 10000);
 
     // Handle URL parameters
-    const urlParameters = new URLSearchParams(window.location.search);
-    if (urlParameters.has('debug')) {
-        debugMode = true;
-        print("start(): Found URL parameter for debug");
-    }
-    if (urlParameters.has('privacyAgree')) {
-        print("start(): Found URL parameter for agreement to privacy notice");
-    }
-    if (urlParameters.has('cookieAgree')) {
+    const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
+
+    // if (urlParameters.has('privacyAgree')) {                                              // Check for privacy parameter
+    //     print("start(): Found URL parameter for agreement to privacy notice");
+    // } else { privacyNotice(); }                                                           // Display privacy notice if needed
+
+    if (urlParameters.has('cookieAgree')) {                                            // Check for cookie agree parameter
         print("start(): Found URL parameter for agreement to cookie use");
     }
 
+    // Check if cookie exists
+    // TODO: Check cookie
+
     // Development
-    if (debugMode) debug();
+    if (urlParameters.has('debug')) {                                                   // Check for debug/developer parameter
+        debugMode = true;
+        print("start(): Found URL parameter for debug");
+    }
+    if (debugMode) debug();                                                                   // Activate developer features
 
 }
 
@@ -123,6 +128,26 @@ function addCoreListeners() {
     });
 }
 
+/**
+ * Displays a privacy notice.
+ *
+ */
+function privacyNotice() {
+    prompt("Privacy notice", "This service...", [                       // Display prompt
+        [   "Agree to terms"                , () => {  }                     ],          // Prompt options
+        [   "Agree to terms and cookie"     , () => { handleCookie(); }      ],
+        [   "Disagree to all"               , () => {  }                     ]
+    ]);
+}
+
+/**
+ * Creates or reads a cookie.
+ * Performs related actions to apply settings.
+ */
+function handleCookie() {
+    // TODO: Create cookie if does not exist, read settings if does exist
+}
+
 
 // Camera control functions
 
@@ -160,9 +185,9 @@ async function videoStart() {
         });                                                                                         // End catch for getVideoInputs()
 
     }).catch(e => {                                                                                  // Catch errors from getMediaPermission()
-        prompt(genericPromptTitle, genericPromptText, genericPromptActions);                        // Prompt user
+        prompt(genericPromptTitle, genericPromptText, genericPromptActions);                         // Prompt user
         console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
-    });                                                                                             // End catch for getMediaPermission()
+    });                                                                                              // End catch for getMediaPermission()
 }
 
 /**
@@ -178,7 +203,6 @@ async function backgroundInputListUpdate() {
     } catch (e) {
         print("backgroundInputListUpdate(): Background update failed: " + e);
     }
-
 
 }
 
@@ -255,16 +279,16 @@ async function getMediaPermission() {
  */
 async function getVideoInputs() {
 
-    // A reliably complete input enumeration requires already existing media permissions:
+    // Reliable and complete input enumeration requires already existing media permissions:
     // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices
-    // " The returned list will omit any devices that are blocked by the document Permission Policy:
+    // The returned list will omit any devices that are blocked by the document Permission Policy:
     // microphone, camera, speaker-selection (for output devices), and so on.
     // Access to particular non-default devices is also gated by the Permissions API,
-    // and the list will omit devices for which the user has not granted explicit permission. "
+    // and the list will omit devices for which the user has not granted explicit permission.
 
     let videoInputs = [];
 
-    const retryAttempts = 3;                                                                         // Amount of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
+    const retryAttempts = 3;                                                                          // Number of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
     let failedCount = 0;
 
     while (true) {                                                                                    // Retry until a device is found
@@ -279,21 +303,21 @@ async function getVideoInputs() {
                     console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
                     // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
-                    videoInputs.push([device.deviceId, device.label]);
+                    videoInputs.push([device.deviceId, device.label]);                                  // Assign device id to index 0 of inner array, label to index 1 of inner array, push inner array to outer array as one row
                     }
                 }
         });
 
-        if (videoInputs.length > 0) {                                                                     // Success
+        if (videoInputs.length > 0) {                                                                    // Success
             // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
         }
 
-        if (failedCount >= retryAttempts) {
+        if (failedCount >= retryAttempts) {                                                              // Check if too many retries
             console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
             throw new Error("getVideoInputs(): No valid video inputs");
         }
-        failedCount++;                                                                                   // Failure(s)
+        failedCount++;                                                                                   // Failure(s), will retry
     }
 }
 
@@ -311,23 +335,23 @@ function updateInputList(inputs) {
     // Renew list
     selector.innerHTML = '';                                                                        // Clear dropdown first
     for (let i = 0; i < inputs.length; i++) {
-        let option = document.createElement('option');                                     // Create new option for dropdown
-        option.value    = inputs[i][0];
-        option.text     = inputs[i][1];
+        let option = document.createElement('option');                                      // Create new option for dropdown
+        option.value    = inputs[i][0];                                                             // Assign device id (at index 0 of inner array) as value
+        option.text     = inputs[i][1];                                                             // Assign device label (at index 1 of inner array) as value
         selector.appendChild(option);                                                               // Add new option to dropdown
         // print(i + " = " + inputs[i][0] + " : " + inputs[i][1])
     }
 
     // Select a camera in dropdown
-    if (inputs.some(input => input[0] === originalSelection)) {                                     // TODO: Check selector, not array
+    if (inputs.some(input => input[0] === originalSelection)) {                                     // TODO: Should check selector, not array, if readily possible
         selector.value = originalSelection;                                                         // Select original value
         print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
     } else {                                                                                        // Original value invalid or not available
-        selector.selectedIndex = 0;
+        selector.selectedIndex = 0;                                                                 // Select first option
         console.error("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
+        // TODO: At startup, this triggers once, could be handled differently
+        // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
     }
-
-
 
     // Check selection is valid (debug)
     let errorValue = "valid";
@@ -350,7 +374,7 @@ function updateInputList(inputs) {
  * @returns {Promise<string>}
  */
 async function setVideoInput(input = selector.value) {
-    const retryAttempts = 3;                                                                     // Amount of retries before giving up
+    const retryAttempts = 3;                                                                     // Number of retries before giving up
     let failedCount = 0;
 
     while (true) {
@@ -359,7 +383,7 @@ async function setVideoInput(input = selector.value) {
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
                     deviceId: {exact: input},
-                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
+                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
                     width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
                     height: {ideal: 1080},                                                       // Ideal values are not constraints
                     frameRate: {ideal: 60}
@@ -377,6 +401,9 @@ async function setVideoInput(input = selector.value) {
                 console.error("videoStart(): Could not select camera, retries: " + failedCount);
                 throw new Error("videoStart(): Could not select camera");
             }
+
+            // Most likely error is OverconstrainedError, but should only occur if device with used deviceId is not available
+
             failedCount++;
         }
     }
@@ -794,7 +821,7 @@ function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
         element.style.opacity = '1';
     });
 
-    // TODO: Animation not working on FF
+    // TODO: Animation not working on FF even when it works on Chrome
 
 }
 
@@ -1255,7 +1282,7 @@ class TextArea extends MovableElement {
 }
 
 
-// Developer functions
+// Developer functions (safe to delete)
 
 /**
  * Function to enable debug mode.
@@ -1309,11 +1336,11 @@ function developerMenu() {
 
     prompt("Developer menu", "Options for developers", [
         ["Toggle visual debug",             () => { debugVisual();                                      }],
-        ["Update video inputs",             () => { backgroundInputListUpdate()                         }],
-        ["Release video stream",            () => { releaseVideoStream()                                }],
-        ["Start video",                     () => { videoStart()                                        }],
+        ["Update video inputs",             () => { backgroundInputListUpdate();                        }],
+        ["Release video stream",            () => { releaseVideoStream();                               }],
+        ["Start video",                     () => { videoStart();                                       }],
         ["Test dark theme",                 () => { testThemeDark();                                    }],
-        ["Test another UI style",           () => { testUserInterfaceVersion();                          }],
+        ["Test another UI style",           () => { testUserInterfaceVersion();                         }],
         ["Dismiss",                         () => {                                                     }]
     ]);
 
@@ -1456,8 +1483,15 @@ function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity =
     return ball;
 }
 
-
-
+/**
+ * Draws balls centered at each viewport edge.
+ *
+ * @param size
+ * @param color
+ * @param opacity
+ * @param zindex
+ * @returns {{b: HTMLDivElement, r: HTMLDivElement, t: HTMLDivElement, l: HTMLDivElement}}
+ */
 function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '150') {
     const {top: top, right: right, bottom: bottom, left: left} = getViewportEdges();
 
@@ -1471,10 +1505,17 @@ function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex
 
 }
 
-
-
+/**
+ * Draws diagonal lines that cross from the edges of bounding rectangles.
+ *
+ * @param element
+ * @param lineWidth
+ * @param color
+ * @param opacity
+ * @param zindex
+ * @returns {{labelTopLeft: HTMLDivElement, canvas: HTMLCanvasElement, labelBottomRight: HTMLDivElement, labelTopRight: HTMLDivElement, labelBottomLeft: HTMLDivElement}}
+ */
 function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '100') {
-
 
     const canvas = document.createElement('canvas');
     let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
@@ -1515,7 +1556,15 @@ function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zin
     return {canvas, labelTopLeft, labelTopRight, labelBottomLeft, labelBottomRight};
 }
 
-
+/**
+ * Draws a line between two points.
+ *
+ * @param context Canvas 2d context to draw to
+ * @param x1
+ * @param y1
+ * @param x2
+ * @param y2
+ */
 function drawLine(context, x1, y1, x2, y2) {
     context.beginPath();
     context.moveTo(x1, y1);
@@ -1523,6 +1572,12 @@ function drawLine(context, x1, y1, x2, y2) {
     context.stroke();
 }
 
+/**
+ * Gets coordinates of element bounding rectangle corners.
+ *
+ * @param element
+ * @returns {{bottomLeft: {x: number, y: number}, bottomRight: {x: number, y: number}, topLeft: {x: number, y: number}, topRight: {x: number, y: number}}}
+ */
 function getElementCorners(element) {
     const rect = element.getBoundingClientRect();
     const scrollX = window.scrollX;
@@ -1537,6 +1592,12 @@ function getElementCorners(element) {
 
 }
 
+/**
+ * Gets dimensions of an element based on bounding rectangle.
+ *
+ * @param element
+ * @returns {{width: number, height: number}}
+ */
 function getElementDimensions(element) {
     const rect = element.getBoundingClientRect();
     const width = rect.width;
@@ -1546,19 +1607,11 @@ function getElementDimensions(element) {
 
 }
 
-function getViewportCorners() {
-    const topLeft = { x: window.scrollX, y: window.scrollY };
-    const topRight = { x: window.scrollX + window.innerWidth, y: window.scrollY };
-    const bottomLeft = { x: window.scrollX, y: window.scrollY + window.innerHeight };
-    const bottomRight = { x: window.scrollX + window.innerWidth, y: window.scrollY + window.innerHeight };
-
-    return { topLeft, topRight, bottomLeft, bottomRight };
-
-    // X axis right is positive left is negative
-    // Y axis up is NEGATIVE down is POSITIVE
-    // 0, 0 is TOP left corner, opposite bottom right is most extreme in positive
-}
-
+/**
+ * Gets coordinates of viewport edges.
+ *
+ * @returns {{top: number, left: number, bottom: number, right: number}} Relevant coordinate for each edge
+ */
 function getViewportEdges() {
     const top = window.scrollY;
     const right = window.scrollX + window.innerWidth;
@@ -1567,7 +1620,6 @@ function getViewportEdges() {
 
     return { top, right, bottom, left };
 }
-
 
 /**
  * Draws a label (with the middle of its left edge) at the coordinates
@@ -1603,10 +1655,9 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
     return label;
 }
 
-
 /**
- * Applies another testing version of UI
- * Dirty testing code
+ * Applies another testing version of UI.
+ * Dirty implementation!
  */
 function testUserInterfaceVersion() {
 
@@ -1769,7 +1820,9 @@ function testUserInterfaceVersion() {
 
 /**
  * Function to apply UI coloration.
- * Dark in testing phase, dark defaults.
+ * Default is dark.
+ * Dirty implementation!
+ *
  * @param colorBackground
  * @param colorIsland
  * @param colorBottomBar
