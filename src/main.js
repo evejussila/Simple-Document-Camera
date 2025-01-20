@@ -596,6 +596,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
         button.style.background = '#555';
         button.style.border = 'none';
         button.style.padding = '10px';
+        button.style.borderRadius = '5px';
 
         button.addEventListener('click', () => {
             dismiss();                                                                                              // Buttons should always dismiss prompt
@@ -1312,6 +1313,34 @@ function debug() {
 }
 
 /**
+ * Function to create and show developer options -menu.
+ *
+ */
+function developerMenu() {
+    print("developerMenu(): Developer menu button pressed");
+
+    // ADD NEW BUTTONS HERE
+    prompt("Developer menu", "Options for developers", [
+        [   "Toggle visual debug"              , () => { debugVisual();                                      }],
+        [   "Update video inputs"              , () => { backgroundInputListUpdate();                        }],
+        [   "Release video stream"             , () => { releaseVideoStream();                               }],
+        [   "Start video (reset)"              , () => { videoStart();                                       }],
+        [   "Test dark theme"                  , () => { testThemeDark();                                    }],
+        [   "Test another UI style"            , () => { testUserInterfaceVersion();                         }],
+        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON
+        // Template:
+        // [   "Text for button"               , () => { function_or_code_block();                           }],
+        ["Dismiss"                             , () => {                                                     }]   // Preserve as final line
+    ]);
+
+    // Fast nested functions for buttons
+    function releaseVideoStream() {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+        videoElement.srcObject = null;
+    }
+}
+
+/**
  * Function to enable visual debug features.
  */
 function debugVisual() {
@@ -1325,28 +1354,6 @@ function debugVisual() {
         debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
     } else {
         print("Visual debug disabled!");
-    }
-}
-
-/**
- * Function to create and toggle developer options -menu.
- */
-function developerMenu() {
-    print("developerMenu(): Developer menu button pressed");
-
-    prompt("Developer menu", "Options for developers", [
-        ["Toggle visual debug",             () => { debugVisual();                                      }],
-        ["Update video inputs",             () => { backgroundInputListUpdate();                        }],
-        ["Release video stream",            () => { releaseVideoStream();                               }],
-        ["Start video",                     () => { videoStart();                                       }],
-        ["Test dark theme",                 () => { testThemeDark();                                    }],
-        ["Test another UI style",           () => { testUserInterfaceVersion();                         }],
-        ["Dismiss",                         () => {                                                     }]
-    ]);
-
-    function releaseVideoStream() {
-        videoElement.srcObject.getTracks().forEach(track => track.stop());
-        videoElement.srcObject = null;
     }
 }
 
