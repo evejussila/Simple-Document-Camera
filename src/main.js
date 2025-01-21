@@ -393,6 +393,7 @@ async function setVideoInput(input = selector.value) {
 
             // TODO: Debug low video quality
             // printStreamInformation(stream);
+            // bruteForceVideoStream(input);
 
             break;
         } catch (error) {                                                                          // Failure
@@ -1303,6 +1304,8 @@ function debug() {
     developerButton.addEventListener('click', developerMenu);
     developerButton.style.zIndex = '9999';
     developerButton.style.border = "2px solid darkgray";
+    // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
+    // developerButton.color = "red";
     developerButton.style.borderRadius = "5px";
     developerButton.style.height = '40px';
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
@@ -1337,23 +1340,6 @@ function developerMenu() {
     function releaseVideoStream() {
         videoElement.srcObject.getTracks().forEach(track => track.stop());
         videoElement.srcObject = null;
-    }
-}
-
-/**
- * Function to enable visual debug features.
- */
-function debugVisual() {
-    debugModeVisual = !debugModeVisual;
-    if (debugModeVisual) {
-        print("Visual debug enabled!");
-
-        // Indicate element centers
-        debugVisualDrawElementTrackingIndicator(videoElement, 20, 'red', '0.9');
-        debugVisualDrawElementTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-        debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
-    } else {
-        print("Visual debug disabled!");
     }
 }
 
@@ -1397,6 +1383,41 @@ function printStreamInformation(stream) {
 }
 
 /**
+ * Requests various video tracks from a stream and looks for the best settings.
+ * Providing video track, good or bad, is up to the browser.
+ *
+ */
+function bruteForceBestVideoStream(input) {
+
+    // Create invisible temporary videoElement for stream
+
+    // Create dual layer array of various testable settings for video tracks, also include empty fields for results for each row
+    let trackSettings = [
+        // width        height       frameRate
+        [  1920    ,    1080    ,    60             ],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        []
+    ];
+
+    // LOOP: Apply different facing modes or other settings
+        // Nested LOOP: Test all trackSettings combinations
+
+            // getUserMedia stream and apply to temporary videoElement
+
+            // Get stream information and look for quality metrics, store to array empty fields
+
+            // Discard stream
+
+    // Parse and report results (lowest, highest, related info)
+
+}
+
+/**
  * Shortens a long string.
  * Used for long hex device ids.
  * @param id
@@ -1407,6 +1428,23 @@ function shorten(id) {
 }
 
 /**
+ * Function to enable visual debug features.
+ */
+function debugVisual() {
+    debugModeVisual = !debugModeVisual;
+    if (debugModeVisual) {
+        print("Visual debug enabled!");
+
+        // Indicate element centers
+        debugVisualDrawElementTrackingIndicator(videoElement, 20, 'red', '0.9');
+        debugVisualDrawElementTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
+        debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
+    } else {
+        print("Visual debug disabled!");
+    }
+}
+
+/**
  * Creates center tracking indicator on HTML element.
  * @param element
  * @param size
@@ -1414,6 +1452,8 @@ function shorten(id) {
  * @param opacity
  */
 function debugVisualDrawElementTrackingIndicator(element, size, color, opacity) {
+
+    // TODO: Make this flow explicitly async
 
     let interval = setInterval(() => {
         if (debugModeVisual === false) {clearInterval(interval);}
@@ -1670,13 +1710,13 @@ function testUserInterfaceVersion() {
 
     // Vision:
     // Bottom control bar visibility toggle button always visible, full screen mode has button always visible.
-
     // Main control island visibility is controlled from within bottom bar.
     // Every menu has a button on bottom bar. Only main control island is visible by default.
     // Menus have buttons that detach or reattach them to positions above their buttons on bottom control bar.
 
     // Remove standalone label
-    document.getElementById("textSizeLabel").style.display = "none";
+    // document.getElementById("textSizeLabel").style.display = "none";
+    document.getElementById("textSizeLabel").remove();
 
     // Remove current collapse button
     let label = document.getElementById("buttonCollapse");
@@ -1775,9 +1815,10 @@ function testUserInterfaceVersion() {
     const buttonStyle = {
         width: "40px",
         height: "40px",
-        backgroundColor: '171717FF',
+        backgroundColor: "rgba(128, 128, 128, 0.5)",
         borderRadius: "5px",
         border: "2px solid darkgray",
+        // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
         padding: "0",
         display: "flex",
         justifyContent: "center",
@@ -1796,25 +1837,28 @@ function testUserInterfaceVersion() {
     menuButtons.style.height = "100%";
 
     // Create buttons
-    const createButton = () => {
+    const createButton = (png = "draw.png") => {
         const button = document.createElement("button");
         Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
 
-        const icon = document.createElement("img");
-        icon.src = "./images/draw.png";
-        icon.alt = "Draw";
-        icon.className = "icon";
+        button.id = "exampleButton";
 
-        icon.style.filter = 'invert(1) grayscale(100%)';
+        const icon = document.createElement("img");
+        icon.src = "./images/" + png;
+        icon.alt = "Draw";
+        // icon.className = "icon";
+        icon.classList.add("icon");
+
+        // icon.style.filter = 'invert(1) grayscale(100%)'; // messes hover if inline here
 
         button.appendChild(icon);
         return button;
     };
 
     // Create and append buttons
-    menuButtons.appendChild(createButton());
-    menuButtons.appendChild(createButton());
-    menuButtons.appendChild(createButton());
+    menuButtons.appendChild(createButton("draw.png"));
+    menuButtons.appendChild(createButton("text.png"));
+    menuButtons.appendChild(createButton("showVideo.png"));
 
     // Append menuButtons to controlBar
     controlBar.appendChild(menuButtons);
@@ -1876,6 +1920,12 @@ function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', col
     document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
     document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
     document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
+
+    // For example buttons
+    // Very dirty, for all of same id
+    document.querySelectorAll('#exampleButton').forEach(function(button) {
+        button.style.filter = buttonStyleFilter;
+    });
 
     document.getElementById('zoomOutButton').style.color        = colorText;
     document.getElementById('zoomInButton').style.color         = colorText;
