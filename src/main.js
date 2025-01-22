@@ -1358,6 +1358,7 @@ function print(string) {
  * Prints video track settings and capabilities for all tracks associated with a stream.
  * For development.
  * @param stream The stream from navigator.mediaDevices.getUserMedia()
+ * @returns {*[]}
  */
 function printStreamInformation(stream) {
     // const videoTrack = stream.getVideoTracks()[0];
@@ -1365,8 +1366,11 @@ function printStreamInformation(stream) {
     // Typical error: TypeError: videoTrack.getCapabilities is not a function
     // getCapabilities() may not be supported by all browsers, such as those based on FF ESR (Floorp, for example). FF supports function since 2024 v.132
 
-    print ("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+    print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+    if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks, document this instance!");
+
     let count = 1;
+    let allResults = [];
     stream.getVideoTracks().forEach(videoTrack => {
         // Printing select information
         const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
@@ -1382,15 +1386,17 @@ function printStreamInformation(stream) {
         // To print a full formatted output with all information:
         // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
         // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+
+        allResults.push(results);
     });
 
-    // TODO: Print info, synthesize score
-    return null;
+    return allResults;
 
 }
 
 /**
  * Requests various video tracks from a stream and looks for the best settings.
+ * Visualizes.
  * Providing video track, good or bad, is up to the browser.
  *
  */
@@ -1424,7 +1430,7 @@ async function bruteForceBestVideoStream(input = selector.value) {
     for (let [frameRate, facingMode] of moreSettings) {
         for (let [width, height] of trackSettings) {
             try {
-                print(`Trying ideal values: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
+                print(`Trying: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         deviceId: { exact: input },
@@ -1437,13 +1443,24 @@ async function bruteForceBestVideoStream(input = selector.value) {
 
                 temporaryCameraFeed.srcObject = stream;
 
-                // Print stream information
-                printStreamInformation(stream);
+                // Print and get stream information
+                let results = printStreamInformation(stream);
+
+                // Create and visualize scores
+                let scoreUsing = results[0][2] * results[0][4]; // TODO: Only using one track at this point, could have multiple
+                let scoreCapable = results[0][3] * results[0][5];
+                // One score mark per 76800 (matches 320x240)
+                let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));
+                let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
+                scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
+                scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
+                print("Using   [ " + scoreUsingMarks + " ]");
+                print("Capable [ " + scoreCapableMarks + " ]");
 
                 // Discard stream
                 stream.getTracks().forEach(track => track.stop());
             } catch (error) {
-                console.error(`Failed to get with ideal values: width=${width}, height=${height}, frameRate=${frameRate}, facingMode=${facingMode}`, error);
+                console.error(`Failed: width=${width}, height=${height}, frameRate=${frameRate}, facingMode=${facingMode}`, error);
             }
         }
     }
