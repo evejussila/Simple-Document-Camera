@@ -1209,9 +1209,11 @@ class TextArea extends MovableElement {
      * Adds listeners for drag and resize of text area.
      */
     handleListeners() {
-        this.container.addEventListener("mousedown", (e) => this.dragStart(e));                                               // Handle mousedown action (for text area and resize handle)
-        this.container.addEventListener("mousemove", (e) => this.dragUpdater(e));                                             // Handle mousemove action (for text area and resize handle)
+        this.container.addEventListener("mousedown", (e) => this.dragStart(e));                                 // Handle mousedown action (for text area and resize handle)
+        this.container.addEventListener("mousemove", (e) => this.dragUpdater(e));                               // Handle mousemove action (for text area and resize handle)
         this.container.addEventListener("mouseup", () => this.dragStop());                                      // Stop moving or resizing when the mouse is released
+        // TODO: Revise listeners, duplicates, temporary listeners not being deleted, definite low-volume memory leak
+
         this.element.addEventListener('input', () => this.resizeToFitText(this.element, this.container));                     // Expand to fit text
     }
 
@@ -1226,7 +1228,7 @@ class TextArea extends MovableElement {
     dragStart(e) {
         print("dragStart(): Text area drag initiated");
 
-        TextArea.activeTextArea = this.element; // TODO: Deprecate, if this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
+        TextArea.activeTextArea = this.element;                         // When this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
         this.container.style.zIndex = '7';
 
         if (e.target === this.element) {                           // Check is the mouse click event is on the text area
@@ -1244,14 +1246,14 @@ class TextArea extends MovableElement {
 
         // Add temporary drag handlers
 
-        // TODO: These are duplicates of existing event handlers. Without these, however, dragging and especially resize are sluggish, though they do work. These handlers have generic naming (risky when intended to be deleted) regardless of limited intended scope.
-        // TODO: Inspect for risk of memory leaks
+        // TODO: These were and are duplicates of existing event handlers (see handleListeners() ). These are not and should not be needed. Without these, however, dragging and especially resize are more sluggish, though they do work.
+        // TODO: Revise listeners, duplicates, temporary listeners not being deleted, definite low-volume memory leak
 
-        // const mouseMoveHandler = (e) => this.dragUpdater(e);
-        // document.addEventListener("mousemove", mouseMoveHandler);           // Handles mousemove event for text area. Starts text area drag or resizing text area.
-//
-        // const mouseUpHandler = () => this.dragStop(mouseMoveHandler, mouseUpHandler);
-        // document.addEventListener("mouseup", mouseUpHandler);               // Handles mouseup event for text area. Stops text area drag.
+        const mouseMoveHandler = (e) => this.dragUpdater(e);
+        document.addEventListener("mousemove", mouseMoveHandler);           // Handles mousemove event for text area. Starts text area drag or resizing text area.
+
+        const mouseUpHandler = () => this.dragStop(mouseMoveHandler, mouseUpHandler);
+        document.addEventListener("mouseup", mouseUpHandler);               // Handles mouseup event for text area. Stops text area drag.
     }
 
     /**
@@ -1262,7 +1264,7 @@ class TextArea extends MovableElement {
     dragUpdater(e) {
         print("dragUpdater(): Mass event: Text area drag in progress");
 
-        if (this.isMoving) {                                                                              // Move the textarea when the mouse moves
+        if (this.isMoving) {                                                                      // Move the textarea when the mouse moves
             const x = e.clientX - this.offsetXText;                                               // new position x for textarea container
             const y = e.clientY - this.offsetYText;                                               // new position y
             this.container.style.left = `${x}px`;
@@ -1326,8 +1328,18 @@ class TextArea extends MovableElement {
 /**
  * Class for creating a menu programmatically.
  * Used for multiple or custom menus.
+ * Replaces static HTML definitions.
  */
 class Menu extends MovableElement {
+
+    menuDefinition = [];                    // Contains definitions for the menu contents in an array
+    // Example
+    // [
+    // [ "id"             , "title"         , "imgSrc"                       , toggleHandler     , buttonActions         ]
+    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , videoRotate           ]
+    // ]
+
+    menuDiv;                                // Division for menu contents
 
     // Initialization
 
@@ -1341,11 +1353,22 @@ class Menu extends MovableElement {
     }
 
     create() {
+        this.constructMenu();
+        this.handleListeners();
+    }
 
+    constructMenu() {
+        // Parse array, create elements, append to DOM
+
+        // Create and handle detach, reattach function
     }
 
     handleListeners() {
+        // Use listenerToElement() to attach action to button
+    }
 
+    toggleHandler() {
+        // Handle case where icon changes on button press
     }
 
     // Drag handling
