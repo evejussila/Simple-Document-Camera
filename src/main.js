@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-01-19-alpha-beta");
+const version = ("2025-01-24-alpha-beta");
 console.log("Version: " + version);
 console.log("To activate debug mode, append ?debug to URL or type to console: debug()");
 
@@ -23,10 +23,10 @@ let isFreeze = false;                                                           
 let isIslandDragging = false                                                               // Shows if dragging of an island control bar is allowed
 let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
 let islandX, islandY;                                                                      // Initial position of the control island
-
-// Other
 let mouseX;                                                                                // Initial position of the mouse
 let mouseY;
+
+// Other
 let createdElements;                                                                       // Handles created elements
 
 
@@ -89,7 +89,7 @@ function addCoreListeners() {
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
 
     // Make control island draggable.
-    island.addEventListener('mousedown', (e) => dragIsland(e));
+    island.addEventListener('mousedown', (e) => dragIsland(e));                                           // TODO: Listener is very broad compared to others
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -188,22 +188,6 @@ async function videoStart() {
         prompt(genericPromptTitle, genericPromptText, genericPromptActions);                         // Prompt user
         console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
     });                                                                                              // End catch for getMediaPermission()
-}
-
-/**
- * Silently updates video input list.
- * Safe to call at any time.
- *
- * @returns {Promise<void>}
- */
-async function backgroundInputListUpdate() {
-    try {
-        let inputs = await getVideoInputs();
-        updateInputList(inputs);
-    } catch (e) {
-        print("backgroundInputListUpdate(): Background update failed: " + e);
-    }
-
 }
 
 /**
@@ -368,6 +352,22 @@ function updateInputList(inputs) {
 }
 
 /**
+ * Silently updates video input list.
+ * Safe to call at any time.
+ *
+ * @returns {Promise<void>}
+ */
+async function backgroundInputListUpdate() {
+    try {
+        let inputs = await getVideoInputs();
+        updateInputList(inputs);
+    } catch (e) {
+        print("backgroundInputListUpdate(): Background update failed: " + e);
+    }
+
+}
+
+/**
  * Accesses a camera feed.
  *
  * @param input Identifier of video input to access
@@ -438,6 +438,8 @@ function dragIsland (e) {
     islandY = parseInt(island.style.top, 10) || 0;
 
     document.addEventListener('mousemove', (e) => startIslandDrag(e));
+    // TODO: Arrow function here above anonymizes, leading to persistent and duplicate function instances that are only invisible due to the variable check. Use of named function probably avoids this.
+
     document.addEventListener('mouseup', stopIslandDrag);
 }
 
@@ -446,6 +448,10 @@ function dragIsland (e) {
  * @param e Mouse event 'mousemove'
  */
 function startIslandDrag(e) {
+
+    // TODO: Make issue visible
+    // print("Triggered island drag handler");
+
     if (isIslandDragging) {
         // Calculates new position
         let pos1 = mouseX - e.clientX;
@@ -843,8 +849,6 @@ function getElementCenter(element) {
 }
 
 
-
-
 // Simple caller methods
 
 /**
@@ -873,70 +877,103 @@ function changeFontSize(size) {
 // Classes for created elements
 
 /**
- * Class for handling created elements.
+ * Class for managing created elements.
  */
 class CreatedElements {
 
-    elements = [[["classReference"], ["type"], ["other"]]];                 // Contains information on all created elements
+    elements = [];                                  // Contains information on all created elements: [[classReference, "type", "id"]]
 
     constructor() {
 
+    }
+
+    createOverlay() {
+        const classReference = new Overlay();
+        this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+    }
+
+    createTextArea() {
+        const classReference = new TextArea();
+        this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+    }
+
+    createMenu() {
+        const classReference = new Menu();
+        this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
     }
 
 }
 
 /**
  * Parent class for dynamically created movable elements.
- * Parent class should not be directly instantiated (use inheritors instead).
+ * This class should not be directly instantiated (use inheritors instead).
  */
 class MovableElement {
 
-    type;
+    // Generic
+    type;                                           // For fast identification of inheritor instance type
 
     // Element references
-    element;
-    container;
-    resizeHandle;
+    element;                                        // Main element reference
+    container;                                      // Container reference
+    resizeHandle;                                   // Reference for resize handle
 
-    listeners;
+    // Potential listener references that are not deleted along with element via garbage collection
+    // dragListeners = [];                          // Listeners for drag operation
+    // removeListener;                              // Listener for the remove button
+    // removeHoverListeners = [];                   // Listeners for the hover visibility of remove button
+    // resizeHandleListeners = [];                  // Listeners for resize operation through handle
+    // resizeHandleHoverListeners = [];             // Listeners for hover visibility of resize handle
 
-    constructor(type) {
+    // Switches
+    allowMove;                                      // Is drag ability enabled
+    visible;                                        // Is element visible
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
+    constructor(type, allowMove = true) {
         this.type = type;
-    }
-
-    // Setters
-
-    setElement(element) {
-        this.element = element;
+        this.allowMove = allowMove;
     }
 
     // Getters
+
+    getElementId() {
+        return this.element.getAttribute('id');               // Returns main HTML element id TODO: Use property instead, with pseudorandom id, and assign that to main element
+    }
 
     getType() {
         return this.type;
     }
 
-    getElement() {
-        return this.element;                                                            // Returns main HTML element reference
-    }
-
-    getElementId() {
-        return this.element.getAttribute('id');                                                    // Returns main HTML element id
-    }
-
     // Styling
+
     hide() {
         hideElement(this.element);
+        this.visible = false;
     }
 
     show() {
         showElement(this.element);
+        this.visible = true;
     }
 
     // Management
-    delete() {
-        this.errorUnimplemented();
+
+    remove() {
+        // TODO: Build and implement
+        // Delete all associated elements, delete all references to listeners, orphan all associated objects for garbage collection
     }
+
+    // Functionality
+
+    // TODO: Generalized drag handlers here
+
+    // TODO: Resize handle implementation here
 
     // Other
 
@@ -967,24 +1004,19 @@ class MovableElement {
         removeButton.addEventListener('click', () => removeElement(newElement));
         print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
 
-        // Remove buttons only visible when hovered over TODO: Add fast fade
+        // Remove buttons only visible when hovered over
         newElement.addEventListener('mouseover', () => (
-            removeButton.style.display = "block"
+            removeButton.style.display = "block" // TODO: Use fade with showElement()
         ));
         newElement.addEventListener('mouseout', () => (
-            removeButton.style.display = "none"
+            removeButton.style.display = "none" // TODO: Use fade with hideElement()
         ));
 
-        // Add element after island in HTML
+        // Add element to DOM
         island.after(newElement);
         newElement.appendChild(removeButton);
 
         return newElement;
-    }
-
-    // Development
-    errorUnimplemented() {
-        throw new Error("Called unimplemented method in parent class MovableElement");
     }
 
 }
@@ -1003,7 +1035,7 @@ class Overlay extends MovableElement {
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
     // Other
-    overlayX;                                                                                       // Initial position of the overlay when starting drag
+    overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
 
 
@@ -1283,6 +1315,47 @@ class TextArea extends MovableElement {
 
 }
 
+/**
+ * Class for creating a menu programmatically.
+ * Used for multiple or custom menus.
+ */
+class Menu extends MovableElement {
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
+    constructor() {
+        super('menu');
+        this.create();
+    }
+
+    create() {
+
+    }
+
+    handleListeners() {
+
+    }
+
+    // Drag handling
+
+    dragStart() {
+
+    }
+
+    dragUpdater() {
+
+    }
+
+    dragStop() {
+
+    }
+
+}
+
 
 // Developer functions (safe to delete)
 
@@ -1337,11 +1410,15 @@ function developerMenu() {
         ["Dismiss"                             , () => {                                                     }]   // Preserve as final line
     ]);
 
-    // Fast nested functions for buttons
-    function releaseVideoStream() {
-        videoElement.srcObject.getTracks().forEach(track => track.stop());
-        videoElement.srcObject = null;
-    }
+
+}
+
+/**
+ * Stops all tracks of current video srcObject
+ */
+function releaseVideoStream() {
+    videoElement.srcObject.getTracks().forEach(track => track.stop());
+    videoElement.srcObject = null;
 }
 
 /**
@@ -1379,9 +1456,9 @@ function printStreamInformation(stream) {
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
 
-        print("printStreamInformation(): Video track " + count + " is: " + results[0] + " from device ID: " + results[1]);
-        print("printStreamInformation(): Video track " + count + " is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
-        print("printStreamInformation(): Video track " + count + " is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
+        print("printStreamInformation(): Track " + count + " is: " + results[0] + " from device ID: " + results[1]);
+        print("printStreamInformation(): Track " + count + " is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
+        print("printStreamInformation(): Track " + count + " is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
 
         // To print a full formatted output with all information:
         // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
@@ -1401,12 +1478,16 @@ function printStreamInformation(stream) {
  *
  */
 async function bruteForceBestVideoStream(input = selector.value) {
+    // Note that background activities may interfere.
+
+    releaseVideoStream();
+
     // Create invisible temporary video element for stream
     const temporaryCameraFeed = document.createElement('video');
     temporaryCameraFeed.id = 'temporaryCameraFeed';
     temporaryCameraFeed.autoplay = true;
     temporaryCameraFeed.muted = true;
-    temporaryCameraFeed.style.display = 'block';
+    temporaryCameraFeed.style.display = 'none';
     document.body.appendChild(temporaryCameraFeed);
 
     // Create dual layer arrays of various testable settings for video tracks
@@ -1454,7 +1535,7 @@ async function bruteForceBestVideoStream(input = selector.value) {
                 let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
                 scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
                 scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
-                print("Using   [ " + scoreUsingMarks + " ]");
+                print("Current [ " + scoreUsingMarks   + " ]");
                 print("Capable [ " + scoreCapableMarks + " ]");
 
                 // Discard stream
@@ -1469,6 +1550,8 @@ async function bruteForceBestVideoStream(input = selector.value) {
     temporaryCameraFeed.remove();
 
     console.warn("bruteForceBestVideoStream(): Done");
+
+    videoStart();
 }
 
 /**
