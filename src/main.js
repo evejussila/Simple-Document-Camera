@@ -564,7 +564,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
     prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
     prompt.style.position = 'fixed';
     prompt.style.left = '50%';
-    prompt.style.transform = 'translateX(-50%)';
+    prompt.style.transform = 'translateX(-50%)';                         // What was the logic?, also 'translate(-50%, -50%)'?
     prompt.style.width = '200px';
     prompt.style.background = '#454545';
     prompt.style.borderRadius = '10px';
@@ -1111,7 +1111,7 @@ class Overlay extends MovableElement {
      * @param overlay Overlay element
      */
     dragUpdater(e, overlay) {
-        print("dragStart(): Mass event: Overlay drag in progress");
+        print("dragUpdater(): Mass event: Overlay drag in progress");
         if (Overlay.isOverlayDragging) {
             // Calculates new position
             const deltaX = e.clientX - mouseX;
@@ -1336,10 +1336,8 @@ class Menu extends MovableElement {
     // Example
     // [
     // [ "id"             , "title"         , "imgSrc"                       , toggleHandler     , buttonActions         ]
-    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , videoRotate           ]
-    // ]
-
-    menuDiv;                                // Division for menu contents
+    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null              , videoRotate();        ]
+    // ];
 
     // Initialization
 
@@ -1349,12 +1347,106 @@ class Menu extends MovableElement {
      */
     constructor() {
         super('menu');
-        this.create();
+
+        this.visible = false;
+
+        this.element = this.create();
+        this.testing();
+    }
+
+    /**
+     * Testing function for illustration.
+     * Temporary!
+     * Serves as a basis for developing class functionality.
+     */
+    testing() {
+        print("Testing menu construction (illustration)");
+
+        this.menuDefinition = [
+            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
+            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
+            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
+            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
+            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ]
+        ];
+
+        this.element = document.createElement('div');
+        this.element.id = String(Date.now());                                      // Assign a (pseudo) unique id
+
+        // this.menuDiv.classList.add('island_controlBar');                        // Apply generic shared style
+        const menuStyle = {
+            position: 'fixed',
+            left: '85%',
+            transform: 'translateX(-50%)',                                         // What was the logic?, also 'translate(-50%, -50%)'?
+            width: '200px',
+            background: '#454545',
+            borderRadius: '5px',
+            padding: '5px',
+            zIndex: '9999'
+        }
+        Object.assign(this.element.style, menuStyle);
+        this.element.style.bottom = '60px';                                               // Initial position before animation, while in static/attached mode
+        this.element.style.display = 'none';                                              // Initial visibility
+        this.element.style.opacity = '0';                                                 // Initial opacity before animation
+        // this.menuDiv.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';    // First animation style
+
+        // this.menuDiv.style.backgroundColor = 'rgba(186,20,20,0.5)'; // backgroundColor vs. background
+        // this.menuDiv.style.position = 'absolute';
+
+        const buttonStyle = {
+            width: "40px",
+            height: "40px",
+            backgroundColor: "rgba(128, 128, 128, 0.5)",
+            borderRadius: "5px",
+            // border: "2px solid darkgray",
+            // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
+            padding: "0",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            margin: "5px"
+        };
+
+        const createButton = (png) => {
+            const button = document.createElement("button");
+            Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
+
+            button.id = "exampleButton";
+
+            const icon = document.createElement("img");
+            // icon.src = "./images/" + png;
+            icon.src = png;
+            icon.alt = "Alt";
+            // icon.className = "icon";
+            icon.classList.add("icon");
+
+            // icon.style.filter = 'invert(1) grayscale(100%)'; // messes hover if inline here
+
+            button.appendChild(icon);
+            return button;
+        };
+
+
+        this.menuDefinition.forEach( ([id, text, img]) => {
+            const button = createButton(img);
+            // button.addEventListener('click', action);
+            this.element.appendChild(button);
+
+        });
+
+
+
+
+        document.getElementById('videoContainer').appendChild(this.element);
+
+
     }
 
     create() {
         this.constructMenu();
         this.handleListeners();
+
+        return null; // Return main element?
     }
 
     constructMenu() {
@@ -1382,6 +1474,28 @@ class Menu extends MovableElement {
     }
 
     dragStop() {
+
+    }
+
+    // Other
+
+    /**
+     * Toggles visibility of menu.
+     */
+    toggleVisibility() {
+        if (this.visible) {
+            hideElement(this.element);
+        } else {
+            showElement(this.element);
+        }
+        this.visible = !this.visible;
+    }
+
+    detach() {
+
+    }
+
+    attach() {
 
     }
 
@@ -2024,13 +2138,26 @@ function testUserInterfaceVersion() {
     };
 
     // Create and append buttons
-    menuButtons.appendChild(createButton("draw.png"));
-    menuButtons.appendChild(createButton("text.png"));
-    menuButtons.appendChild(createButton("showVideo.png"));
+
+    const testDrawMenu = new Menu();
+    const testTextMenu = new Menu();
+    const testVideoMenu = new Menu();
+
+    let buttons = [
+      ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
+      ["text.png"       , () => { testDrawMenu.toggleVisibility(); }],
+      ["showVideo.png"  , () => { testDrawMenu.toggleVisibility(); }]
+    ];
+
+    buttons.forEach( ([img, action]) => {
+        const button = createButton(img);
+        button.addEventListener('click', action);
+        menuButtons.appendChild(button);
+
+    });
 
     // Append menuButtons to controlBar
     controlBar.appendChild(menuButtons);
-
 
     testThemeDark();
 
