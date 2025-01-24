@@ -20,7 +20,7 @@ let flip = 1;                                                                   
 let isFreeze = false;                                                                      // Video freeze on or off
 
 // UI state
-let isIslandDragging = false                                                               // Shows if dragging of an island control bar is allowed
+let isIslandDragging = false                                                               // Dragging island control bar
 let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
 let islandX, islandY;                                                                      // Initial position of the control island
 let mouseX;                                                                                // Initial position of the mouse
@@ -82,14 +82,12 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
+    listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
     listenerToElement('buttonSmallerFont', 'click', () => changeFontSize(-5));          // Font size decrease button
     listenerToElement('buttonBiggerFont', 'click', () => changeFontSize(5));            // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
-
-    // Make control island draggable.
-    island.addEventListener('mousedown', (e) => dragIsland(e));                                           // TODO: Listener is very broad compared to others
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -425,39 +423,39 @@ function resetVideoState() {
 
 /**
  * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
- * @param e Mouse event 'mousedown'
+ * @param event Mouse event 'mousedown'
  */
-function dragIsland (e) {
+function islandDragStart (event) {
+
+    print("islandDragStart(): Island drag initiated" );
 
     isIslandDragging = true;
 
     // Get current coordinates
-    mouseX = e.clientX;
-    mouseY = e.clientY;
+    mouseX = event.clientX;
+    mouseY = event.clientY;
     islandX = parseInt(island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
     islandY = parseInt(island.style.top, 10) || 0;
 
-    document.addEventListener('mousemove', (e) => startIslandDrag(e));
-    // TODO: Arrow function here above anonymizes, leading to persistent and duplicate function instances that are only invisible due to the variable check. Use of named function probably avoids this.
+    document.addEventListener('mousemove', islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
+    document.addEventListener('mouseup', islandDragStop);
 
-    document.addEventListener('mouseup', stopIslandDrag);
 }
 
 /**
  * Calculate new position for island control bar. Update island style according new position.
- * @param e Mouse event 'mousemove'
+ * @param event Mouse event 'mousemove'
  */
-function startIslandDrag(e) {
+function islandDragUpdater(event) {
 
-    // TODO: Make issue visible
-    // print("Triggered island drag handler");
+    print("islandDragUpdater(): Mass event: Island drag in progress");
 
-    if (isIslandDragging) {
+    if (isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
         // Calculates new position
-        let pos1 = mouseX - e.clientX;
-        let pos2 = mouseY - e.clientY;
-        mouseX = e.clientX;
-        mouseY = e.clientY;
+        let pos1 = mouseX - event.clientX;
+        let pos2 = mouseY - event.clientY;
+        mouseX = event.clientX;
+        mouseY = event.clientY;
 
         // Updates the dragged island's position
         island.style.top = (island.offsetTop - pos2) + "px";
@@ -468,10 +466,12 @@ function startIslandDrag(e) {
 /**
  * Stop Island dragging when mouse key is lifted. Remove event listeners.
  */
-function stopIslandDrag() {
+function islandDragStop() {
     isIslandDragging = false;
-    document.removeEventListener('mousemove', startIslandDrag);
-    document.removeEventListener('mouseup', stopIslandDrag);
+    document.removeEventListener('mousemove', islandDragUpdater);
+    document.removeEventListener('mouseup', islandDragStop);
+
+    print("islandDragStop(): Island drag stopped");
 }
 
 /**
@@ -1111,6 +1111,7 @@ class Overlay extends MovableElement {
      * @param overlay Overlay element
      */
     dragUpdater(e, overlay) {
+        print("dragStart(): Mass event: Overlay drag in progress");
         if (Overlay.isOverlayDragging) {
             // Calculates new position
             const deltaX = e.clientX - mouseX;
@@ -1223,6 +1224,8 @@ class TextArea extends MovableElement {
      * @param e MouseEvent 'mousedown'
      */
     dragStart(e) {
+        print("dragStart(): Text area drag initiated");
+
         TextArea.activeTextArea = this.element; // TODO: Deprecate, if this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
         this.container.style.zIndex = '7';
 
@@ -1242,12 +1245,13 @@ class TextArea extends MovableElement {
         // Add temporary drag handlers
 
         // TODO: These are duplicates of existing event handlers. Without these, however, dragging and especially resize are sluggish, though they do work. These handlers have generic naming (risky when intended to be deleted) regardless of limited intended scope.
+        // TODO: Inspect for risk of memory leaks
 
-        const mouseMoveHandler = (e) => this.dragUpdater(e);
-        document.addEventListener("mousemove", mouseMoveHandler);           // Handles mousemove event for text area. Starts text area drag or resizing text area.
-
-        const mouseUpHandler = () => this.dragStop(mouseMoveHandler, mouseUpHandler);
-        document.addEventListener("mouseup", mouseUpHandler);               // Handles mouseup event for text area. Stops text area drag.
+        // const mouseMoveHandler = (e) => this.dragUpdater(e);
+        // document.addEventListener("mousemove", mouseMoveHandler);           // Handles mousemove event for text area. Starts text area drag or resizing text area.
+//
+        // const mouseUpHandler = () => this.dragStop(mouseMoveHandler, mouseUpHandler);
+        // document.addEventListener("mouseup", mouseUpHandler);               // Handles mouseup event for text area. Stops text area drag.
     }
 
     /**
@@ -1256,6 +1260,8 @@ class TextArea extends MovableElement {
      * @param e MouseEvent 'mousemove'
      */
     dragUpdater(e) {
+        print("dragUpdater(): Mass event: Text area drag in progress");
+
         if (this.isMoving) {                                                                              // Move the textarea when the mouse moves
             const x = e.clientX - this.offsetXText;                                               // new position x for textarea container
             const y = e.clientY - this.offsetYText;                                               // new position y
@@ -1278,6 +1284,8 @@ class TextArea extends MovableElement {
      * @param mouseUpHandler handler for mouseup
      */
     dragStop(mouseMoveHandler, mouseUpHandler) {
+        print("dragStop(): Text area drag stopped");
+
         document.removeEventListener("mousemove", mouseMoveHandler);
         document.removeEventListener("mouseup", mouseUpHandler);
         this.isMoving = false;
