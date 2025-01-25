@@ -1,17 +1,17 @@
 // Development tools
-let debugMode = false;                                                                     // Sets default level of console output
-let debugModeVisual = false;                                                               // Enables visual debug tools
-const version = ("2025-01-05-alpha-beta");
+let debugMode = false;                                                                        // Sets default level of console output
+let debugModeVisual = false;                                                                  // Enables visual debug tools
+const version = ("2025-01-24-alpha-beta");
 console.log("Version: " + version);
-console.log("To activate debug mode, type to console: debug()");
+console.log("To activate debug mode, append ?debug to URL or type to console: debug()");
 
 // Fetch core HTML elements
-const videoElement      = document.getElementById('cameraFeed');             // Camera feed
-const canvasElement     = document.getElementById('canvasMain');             // Main canvas
-const selector              = document.querySelector('select#selectorDevice');    // Camera feed selector
-const island            = document.getElementById('island_controlBar');      // Floating island control bar
-const videoContainer    = document.getElementById('videoContainer');         // Video container
-const controlBar        = document.getElementById('controlBar');             // Fixed control bar
+const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
+const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
+const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector // TODO: Why not get element by id?
+const island                = document.getElementById('island_controlBar');          // Floating island control bar
+const videoContainer        = document.getElementById('videoContainer');             // Video container
+const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
 
 // Video feed state
 let rotation = 0;                                                                          // Store rotation state
@@ -20,54 +20,54 @@ let flip = 1;                                                                   
 let isFreeze = false;                                                                      // Video freeze on or off
 
 // UI state
-let isIslandDragging = false                                                               // Shows if dragging of an island control bar is allowed
+let isIslandDragging = false                                                               // Dragging island control bar
 let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
-let islandX, islandY;                                                                              // Initial position of the control island
+let islandX, islandY;                                                                      // Initial position of the control island
+let mouseX;                                                                                // Initial position of the mouse
+let mouseY;
 
 // Other
-let mouseX;                                                                                        // Initial position of the mouse
-let mouseY;
-let createdElements;                                                                               // Handles created elements
+let createdElements;                                                                       // Handles created elements
 
 
 // Initialization
 
-document.addEventListener('DOMContentLoaded', start);                                         // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                  // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
 
     // Instantiate class for created elements
-    createdElements = new CreatedElements();                                                       // Handles created elements
+    createdElements = new CreatedElements();
 
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Find video devices first, then start a video feed (required due to asynchronous functions)
-    findMediaDevices().then(() => {
-        // Handle errors safely
-        videoStart().then(() => {
-            // Handle errors safely
-        });
-    });
-    // TODO: Need handling for thrown errors in promises
+    // Start video feed
+    videoStart().then( () => {} );
+
+    // Update video input list periodically
+    setInterval(backgroundUpdateInputList, 10000);
 
     // Handle URL parameters
-    const urlParameters = new URLSearchParams(window.location.search);
-    if (urlParameters.has('debug')) {
-        debugMode = true;
-        print("start(): Found URL parameter for debug");
-    }
-    if (urlParameters.has('privacyAgree')) {
-        debugMode = true;
-        print("start(): Found URL parameter for agreement to privacy notice");
-    }
-    if (urlParameters.has('cookieAgree')) {
-        debugMode = true;
+    const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
+
+    // if (urlParameters.has('privacyAgree')) {                                              // Check for privacy parameter
+    //     print("start(): Found URL parameter for agreement to privacy notice");
+    // } else { privacyNotice(); }                                                           // Display privacy notice if needed
+
+    if (urlParameters.has('cookieAgree')) {                                            // Check for cookie agree parameter
         print("start(): Found URL parameter for agreement to cookie use");
     }
 
+    // Check if cookie exists
+    // TODO: Check cookie
+
     // Development
-    if (debugMode) debug();
+    if (urlParameters.has('debug')) {                                                   // Check for debug/developer parameter
+        debugMode = true;
+        print("start(): Found URL parameter for debug");
+    }
+    if (debugMode) debug();                                                                   // Activate developer features
 
 }
 
@@ -82,14 +82,12 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
+    listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
     listenerToElement('buttonSmallerFont', 'click', () => changeFontSize(-5));          // Font size decrease button
     listenerToElement('buttonBiggerFont', 'click', () => changeFontSize(5));            // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
-
-    // Make control island draggable.
-    island.addEventListener('mousedown', (e) => dragIsland(e));
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -99,7 +97,7 @@ function addCoreListeners() {
     // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
     const collapseIcon = document.getElementById("iconCollapse");
     const collapseButton = document.getElementById('buttonCollapse');
-    collapseButton.addEventListener('click', ()=> toggleControlCollapse(collapseIcon));
+    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon));
 
     // Fetch HTML element for freeze button and it's icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -118,95 +116,272 @@ function addCoreListeners() {
     });
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
-    selector.addEventListener('change', () => {
-        videoStart().then(() => {});                                   // Can also forward camera deviceId: changeCamera(event.target.value);
+    selector.addEventListener('change', (e) => {
+        setVideoInput(e.target.value).then( () => {} );
     })
+
+    // Add event listener to trigger input list update when new media device is plugged in
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+        backgroundUpdateInputList().then( () => {} );
+    });
+}
+
+/**
+ * Displays a privacy notice.
+ *
+ */
+function privacyNotice() {
+    prompt("Privacy notice", "This service...", [                       // Display prompt
+        [   "Agree to terms"                , () => {  }                     ],          // Prompt options
+        [   "Agree to terms and cookie"     , () => { handleCookie(); }      ],
+        [   "Disagree to all"               , () => {  }                     ]
+    ]);
+}
+
+/**
+ * Creates or reads a cookie.
+ * Performs related actions to apply settings.
+ */
+function handleCookie() {
+    // TODO: Create cookie if does not exist, read settings if does exist
 }
 
 
 // Camera control functions
 
 /**
- * Finds all video media devices and lists them to feed selector dropdown.
+ * Performs all necessary steps to start video feed.
+ * Handles prompt and retry logics.
+ *
  * @returns {Promise<void>}
  */
-async function findMediaDevices() {
+async function videoStart() {
 
-    // Handle selector background update
-    // TODO: Make check run periodically to update device list without need to refresh page
-    // DEV: Mismatch between choice and current feed must always be prevented (definitely causes selection bugs), but would eventually be caused by only updating list
-    // Check current video feed (either directly or from current selector choice, should be same if no errors)
-    // Enumerate devices to a temporary array
-    // Check current choice is in temporary array
-    // If is not, do not update selector dropdown
-    // Is is, update selector dropdown and set the current video feed as the selected option (programmatic setting will not trigger change event for selector listener)
+    // Error prompt default content
+    let genericPromptTitle = "No valid cameras could be accessed";
+    let genericPromptText =
+        "Make sure your devices are connected and not being used by other software. " +
+        "Ensure you do not have SDC open on other tabs. " +
+        "Check you have allowed camera access in your browser. " +
+        "You may also try a hard reload by pressing Ctrl + F5 ";
+    let genericPromptActions = [
+        ["Retry",       () =>       { videoStart(); } ],
+        ["Dismiss",     () =>       {               } ]
+    ];
 
-    const retryAttempts = 3;                                                                     // Amount of retries before giving up
-    let failedCount = 0;
-    while (true) {                                                                                      // Run until a device is found
-        let foundVideoInputs = 0;
-        selector.innerHTML = '';                                                                        // Clear dropdown first
-        await navigator.mediaDevices.enumerateDevices().then(devices => {               // Find all media sources
-            for (let i = 0; i < devices.length; i++) {
-                if (devices[i].kind === 'videoinput') {                                                 // Only accept video sources
-                    let option = document.createElement('option');            // Create new option for dropdown
-                    option.value = devices[i].deviceId;
-                    option.text = devices[i].label;
-                    selector.appendChild(option);                                                       // Add new option to dropdown
-                    foundVideoInputs++;
+    getMediaPermission().then( ()       =>    {                                                     // Get permission
+        getVideoInputs().then( inputs   =>    {                                                     // Get inputs
+            let input = updateInputList(inputs);                                                    // Update selector list, select some input
+            setVideoInput(input);                                                                   // Use the selected input
+            resetVideoState();                                                                      // Reset video view
 
-                    print("findMediaDevices(): Added video input device " + shorten(devices[i].deviceId) + " to menu: " + devices[i].label);
+            // TODO: Errors in this block are unlikely but are not caught
 
-                    if (devices[i].deviceId === "") {
-                        // An invalid value with no deviceId may be accepted and it may have object reference (JSON: [object Object]), will be empty value in selector
-                        console.error("findMediaDevices(): Added invalid input device to menu: " + devices[i].label + " " + devices[i].deviceId + devices[i].toJSON() + " " + devices[i].toString());
-                    }
+        }).catch(e => {                                                                             // Catch errors from getVideoInputs()
+            prompt(genericPromptTitle, genericPromptText, genericPromptActions);                    // Prompt user
+            console.error("videoStart(): No valid inputs could be accessed: " + e.name + " : " + e.message);
+        });                                                                                         // End catch for getVideoInputs()
+
+    }).catch(e => {                                                                                  // Catch errors from getMediaPermission()
+        prompt(genericPromptTitle, genericPromptText, genericPromptActions);                         // Prompt user
+        console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
+    });                                                                                              // End catch for getMediaPermission()
+}
+
+/**
+ * Accesses browser media interface to request generic permission for camera use.
+ *
+ * @returns {Promise<void>}
+ */
+async function getMediaPermission() {
+    try {
+        await navigator.mediaDevices.getUserMedia({ video: true });                 // Ask for video device permission (return/promise ignored)
+        print("getMediaPermission(): Media permission granted");
+    } catch (e) {                                                                             // Handle errors
+
+        // Detect and handle known, expected exceptions
+        // General descriptions from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+        let errorExpected = "expected";
+        switch (e.name) {
+            case "NotAllowedError":
+                // Thrown if one or more of the requested source devices cannot be used at this time.
+                // This will happen if the browsing context is insecure (that is, the page was loaded using
+                // HTTP rather than HTTPS). It also happens if the user has specified that the current browsing
+                // instance is not permitted access to the device, the user has denied access for the current
+                // session, or the user has denied all access to user media devices globally. On browsers that
+                // support managing media permissions with Permissions Policy, this error is returned if
+                // Permissions Policy is not configured to allow access to the input source(s).
+
+                if ( e.message === "Permission denied") {
+                    // This error is typically encountered on Chrome (2025).
+                    // Encountered when camera permissions have been denied by user now or by persistent setting.
                 }
-            }
-        })
+                if ( e.message === "The request is not allowed by the user agent or the platform in the current context.") {
+                    // This error is typically encountered on Firefox (2025).
+                    // Encountered when camera permissions have been denied by user now or by persistent setting.
+                }
 
-        if (foundVideoInputs > 0) {                                                                     // Success
-            // Select camera
-            selector.selectedIndex = 0;                                                                // Select an initial camera in dropdown to prevent mismatch between choice and used feed
-            print("findMediaDevices(): Selecting initial video source: " + shorten(selector.value))
-
-            // Check selection is valid (trying to use empty value camera throws OverconstrainedError)
-            let errorValue = "valid";
-            if (selector.value === "") errorValue = "empty";
-            if (selector.value === undefined) errorValue = "undefined";
-            if (selector.value === null) errorValue = "null";
-            if (errorValue !== "valid") {
-                console.error("findMediaDevices(): Failed to select valid initial video source, selection: " + errorValue + " value: " + selector.value);
-            } else {                                                                                    // Only break if check explicitly did not fail
                 break;
-            }
+            case "AbortError":
+                // Although the user and operating system both granted access to the hardware device,
+                // and no hardware issues occurred that would cause a NotReadableError DOMException,
+                // thrown if some problem occurred which prevented the device from being used.
+
+                if ( e.message === "Starting videoinput failed") {
+                    // This error is typically encountered on Firefox (2025).
+                    // Encountered when the specific video input is already in use elsewhere through mediaDevices or W10 WMF (used by Zoom).
+                }
+
+                break;
+            case "NotReadableError":
+                // Thrown if, although the user granted permission to use the matching devices,
+                // a hardware error occurred at the operating system, browser, or Web page
+                // level which prevented access to the device.
+
+                if ( e.message === "Device in use") {
+                    // This error is typically encountered on Chrome (2025).
+                    // Encountered when the specific video input is already in use elsewhere through mediaDevices or W10 WMF (used by Zoom).
+                }
+
+                break;
+            default:
+                errorExpected = "unexpected";
         }
 
-        if (failedCount >= retryAttempts) {
-            console.error("findMediaDevices(): No video sources found, retries: " + failedCount)
-            throw Error("findMediaDevices(): No video inputs");
-            // TODO: Need to deal with persistent failure. Custom prompt with retry options?
-        }
-        failedCount++;                                                                                  // Failure(s)
+        print("getMediaPermission(): Failure, " + errorExpected + " error: " + e.name + " : " + e.message);
+
+        throw new Error("getMediaPermission(): Failure");
     }
 }
 
 /**
- * Assigns currently selected camera to HTML element for camera feed.
- * Requests media device access.
+ * Enumerates available video input devices.
+ *
+ * @returns {Promise<*[]>} Array of video inputs with their device id and label
+ */
+async function getVideoInputs() {
+
+    // Reliable and complete input enumeration requires already existing media permissions:
+    // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices
+    // The returned list will omit any devices that are blocked by the document Permission Policy:
+    // microphone, camera, speaker-selection (for output devices), and so on.
+    // Access to particular non-default devices is also gated by the Permissions API,
+    // and the list will omit devices for which the user has not granted explicit permission.
+
+    let videoInputs = [];
+
+    const retryAttempts = 3;                                                                          // Number of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
+    let failedCount = 0;
+
+    while (true) {                                                                                    // Retry until a device is found
+
+        let devices = await navigator.mediaDevices.enumerateDevices();                                // Find all media sources
+
+        devices.forEach(device => {
+            if (device.kind === 'videoinput') {                                                       // Only accept video sources
+                if (device.deviceId === "") {                                                         // Detect and filter invalid values
+                    // In some cases (like missing permissions) empty values may be returned.
+                    // These values will be objects of the right kind but do not have device Ids and can not be used.
+                    console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
+                } else {
+                    // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
+                    videoInputs.push([device.deviceId, device.label]);                                  // Assign device id to index 0 of inner array, label to index 1 of inner array, push inner array to outer array as one row
+                    }
+                }
+        });
+
+        if (videoInputs.length > 0) {                                                                    // Success
+            // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
+            return videoInputs;
+        }
+
+        if (failedCount >= retryAttempts) {                                                              // Check if too many retries
+            console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
+            throw new Error("getVideoInputs(): No valid video inputs");
+        }
+        failedCount++;                                                                                   // Failure(s), will retry
+    }
+}
+
+/**
+ * Updates input selector's list with an array of inputs.
+ * Attempts to choose original option that was used.
+ *
+ * @param inputs Array of inputs with their device id and label
+ * @returns {*} Device set as the selector choice
+ */
+function updateInputList(inputs) {
+
+    let originalSelection = selector.value;
+
+    // Renew list
+    selector.innerHTML = '';                                                                        // Clear dropdown first
+    for (let i = 0; i < inputs.length; i++) {
+        let option = document.createElement('option');                                      // Create new option for dropdown
+        option.value    = inputs[i][0];                                                             // Assign device id (at index 0 of inner array) as value
+        option.text     = inputs[i][1];                                                             // Assign device label (at index 1 of inner array) as value
+        selector.appendChild(option);                                                               // Add new option to dropdown
+        // print(i + " = " + inputs[i][0] + " : " + inputs[i][1])
+    }
+
+    // Select a camera in dropdown
+    if (inputs.some(input => input[0] === originalSelection)) {                                     // TODO: Should check selector, not array, if readily possible
+        selector.value = originalSelection;                                                         // Select original value
+        print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
+    } else {                                                                                        // Original value invalid or not available
+        selector.selectedIndex = 0;                                                                 // Select first option
+        console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
+        // TODO: At startup, this triggers once, could be handled differently
+        // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
+    }
+
+    // Check selection is valid (debug)
+    let errorValue = "valid";
+    if (selector.value === "") errorValue = "empty";
+    if (selector.value === undefined) errorValue = "undefined";
+    if (selector.value === null) errorValue = "null";
+    if (selector.value === "undefined") errorValue = "undefined (string)";                          // Typical for option value set of undefined array values
+    if (errorValue !== "valid") {
+        console.error("updateInputList(): Selected video input option is invalid, selection: " + errorValue + " value: " + selector.value);
+        // TODO: Do something
+    }
+
+    return selector.value;
+}
+
+/**
+ * Silently updates video input list.
+ * Safe to call at any time.
+ *
  * @returns {Promise<void>}
  */
-async function videoStart() {
-    const retryAttempts = 3;                                                                     // Amount of retries before giving up
+async function backgroundUpdateInputList() {
+    try {
+        let inputs = await getVideoInputs();
+        updateInputList(inputs);
+    } catch (e) {
+        print("backgroundUpdateInputList(): Background update failed: " + e);
+    }
+
+}
+
+/**
+ * Accesses a camera feed.
+ *
+ * @param input Identifier of video input to access
+ * @returns {Promise<string>}
+ */
+async function setVideoInput(input = selector.value) {
+    const retryAttempts = 3;                                                                     // Number of retries before giving up
     let failedCount = 0;
 
     while (true) {
         try {
-            print("videoStart(): Accessing a camera feed: " + shorten(selector.value));
+            print("videoStart(): Accessing a camera feed: " + shorten(input));
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
-                    deviceId: {exact: selector.value},
-                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user. Can also just use video: {facingMode: 'environment'}
+                    deviceId: {exact: input},
+                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
                     width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
                     height: {ideal: 1080},                                                       // Ideal values are not constraints
                     frameRate: {ideal: 60}
@@ -215,29 +390,32 @@ async function videoStart() {
             videoElement.srcObject = stream;
 
             // TODO: Debug low video quality
-            printStreamInformation(stream);
+            // printStreamInformation(stream);
+            // bruteForceVideoStream(input);
 
             break;
         } catch (error) {                                                                          // Failure
             console.error("videoStart(): Camera could not be accessed (retry " + failedCount + "): " + error);
             if (failedCount >= retryAttempts) {
-                // alert(`'Camera could not be accessed. Make sure the camera is not being used by other software. Try choosing another camera.`); // Alert too intrusive and triggers browser safeguards if repetitive
                 console.error("videoStart(): Could not select camera, retries: " + failedCount);
-                throw Error("videoStart(): Could not select camera");
-                // TODO: Need to deal with persistent failure. Custom prompt with retry options?
+                throw new Error("videoStart(): Could not select camera");
             }
+
+            // Most likely error is OverconstrainedError, but should only occur if device with used deviceId is not available
+
             failedCount++;
         }
     }
 
-    resetVideoState();
+    return "stream";                                                                            // TODO: Choose useful return value
+
 }
 
 /**
  * Reset video feed back to its default state.
  */
 function resetVideoState() {
-    // TODO: Reset video feed back to its default state (rotation, zoom, etc.)
+    // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
 }
 
 
@@ -245,33 +423,39 @@ function resetVideoState() {
 
 /**
  * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
- * @param e Mouse event 'mousedown'
+ * @param event Mouse event 'mousedown'
  */
-function dragIsland (e) {
+function islandDragStart (event) {
+
+    print("islandDragStart(): Island drag initiated" );
 
     isIslandDragging = true;
 
     // Get current coordinates
-    mouseX = e.clientX;
-    mouseY = e.clientY;
+    mouseX = event.clientX;
+    mouseY = event.clientY;
     islandX = parseInt(island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
     islandY = parseInt(island.style.top, 10) || 0;
 
-    document.addEventListener('mousemove', (e) => startIslandDrag(e));
-    document.addEventListener('mouseup', stopIslandDrag);
+    document.addEventListener('mousemove', islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
+    document.addEventListener('mouseup', islandDragStop);
+
 }
 
 /**
  * Calculate new position for island control bar. Update island style according new position.
- * @param e Mouse event 'mousemove'
+ * @param event Mouse event 'mousemove'
  */
-function startIslandDrag(e) {
-    if (isIslandDragging) {
+function islandDragUpdater(event) {
+
+    print("islandDragUpdater(): Mass event: Island drag in progress");
+
+    if (isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
         // Calculates new position
-        let pos1 = mouseX - e.clientX;
-        let pos2 = mouseY - e.clientY;
-        mouseX = e.clientX;
-        mouseY = e.clientY;
+        let pos1 = mouseX - event.clientX;
+        let pos2 = mouseY - event.clientY;
+        mouseX = event.clientX;
+        mouseY = event.clientY;
 
         // Updates the dragged island's position
         island.style.top = (island.offsetTop - pos2) + "px";
@@ -282,10 +466,12 @@ function startIslandDrag(e) {
 /**
  * Stop Island dragging when mouse key is lifted. Remove event listeners.
  */
-function stopIslandDrag() {
+function islandDragStop() {
     isIslandDragging = false;
-    document.removeEventListener('mousemove', startIslandDrag);
-    document.removeEventListener('mouseup', stopIslandDrag);
+    document.removeEventListener('mousemove', islandDragUpdater);
+    document.removeEventListener('mouseup', islandDragStop);
+
+    print("islandDragStop(): Island drag stopped");
 }
 
 /**
@@ -351,10 +537,111 @@ function toggleControlCollapse(collapseIcon) {
     }
     else {
         collapseIcon.title = 'Hide controls';
-        collapseIcon.src = "./images/hideControls.png";
+        collapseIcon.src = "./images/hideControls.png";                             // TODO: Use same image, transform Y -1 to flip
         showElement(controlBar, undefined, 'inline-flex');
         showElement(island, undefined, 'flex');
     }
+}
+
+/**
+ * Creates a prompt with text and buttons.
+ * Every button will dismiss prompt.
+ *
+ * @param title Title text for prompt
+ * @param text Body text for prompt
+ * @param options Array with text and code to run for buttons
+ * @param position Position of prompt
+ * @param size Size of prompt
+ */
+function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
+
+    // TODO: Handle concurrent prompts
+
+    // TODO: Add support for setting position and size
+
+    // Create prompt element
+    const prompt = document.createElement('div');
+    prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
+    prompt.style.position = 'fixed';
+    prompt.style.left = '50%';
+    prompt.style.transform = 'translateX(-50%)';                         // What was the logic?, also 'translate(-50%, -50%)'?
+    prompt.style.width = '200px';
+    prompt.style.background = '#454545';
+    prompt.style.borderRadius = '10px';
+    prompt.style.padding = '10px';
+    prompt.style.opacity = '0';
+    prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
+    prompt.style.zIndex = '9999';
+    prompt.style.bottom = `0px`;                                          // Initial position before animation
+
+    // Create title text
+    const textTitleElement = document.createElement('div');
+    const textTitle = document.createTextNode(title);
+    textTitleElement.style.color = 'white';                                                 // Text color
+    textTitleElement.style.fontSize = '20px';                                               // Text size
+    textTitleElement.style.textAlign = 'center';                                            // Center text
+    textTitleElement.style.marginBottom = '10px';                                           // Margin under title
+    textTitleElement.appendChild(textTitle);
+    prompt.appendChild(textTitleElement);
+
+    // Create body text
+    const textBodyElement = document.createElement('div');
+    const textBody = document.createTextNode(text);
+    textBodyElement.style.color = 'white';
+    textBodyElement.style.textAlign = 'justify';                                              // Text fills element area fully horizontally
+    textTitleElement.style.marginBottom = '10px';
+    textBodyElement.appendChild(textBody);
+    prompt.appendChild(textBodyElement);
+
+    // Create buttons
+    options.forEach((buttonCore) => {
+        const button = document.createElement('button');
+        button.textContent = `${buttonCore[0]}`;
+        button.style.width = '100%';
+        button.style.margin = '5px 0';
+        button.style.color = '#fff';
+        button.style.background = '#555';
+        button.style.border = 'none';
+        button.style.padding = '10px';
+        button.style.borderRadius = '5px';
+
+        button.addEventListener('click', () => {
+            dismiss();                                                                                              // Buttons should always dismiss prompt
+            buttonCore[1]();
+        });
+
+        prompt.appendChild(button);
+    });
+
+    print("prompt(): Creating prompt " + prompt.id + " : " + title);
+    document.body.appendChild(prompt);
+
+    // Animation: fade in
+    requestAnimationFrame(() => {
+        prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
+        prompt.style.opacity = '1';
+    });
+
+    // Dismiss prompt after timeout
+    // setTimeout(() => {
+    //     dismiss();
+    // }, 1000);}
+
+    // Nested function to dismiss prompt
+    function dismiss() {
+        print("prompt(): Dismissing prompt " + prompt.id);
+
+        // Animation: fade out
+        prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
+        prompt.style.bottom = '-100px';
+        prompt.style.opacity = '0';
+        setTimeout(() => {
+            prompt.style.display = 'none';
+            prompt.remove();
+        }, 300);
+
+    }
+
 }
 
 
@@ -413,12 +700,12 @@ function videoFlip() {
  * @param freezeIcon Icon for freeze button
  */
 function videoFreeze(freezeIcon) {
-    const stream = videoElement.srcObject;                                                     // Get the current video stream
+    const stream = videoElement.srcObject;                                                        // Get the current video stream
 
     if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
-            stream.getTracks().forEach(track => track.enabled = false);             // Disable all tracks to freeze the video
+            stream.getTracks().forEach(track => track.enabled = false);                            // Disable all tracks to freeze the video
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
@@ -518,9 +805,9 @@ function removeElement(element, fadeTime = 0.2) {
  * @param fadeTime Fade duration s (optional)
  */
 function hideElement(element, fadeTime = 0.3) {
-    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
     element.style.opacity = '0';
-    // TODO: Add interaction prevention (no click)
+    // TODO: Add interaction prevention (no click during animations)
     setTimeout(() => {
         element.style.display = 'none';
     }, fadeTime * 1000);
@@ -534,13 +821,16 @@ function hideElement(element, fadeTime = 0.3) {
  * @param displayStyle Display style (optional)
  */
 function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
-    element.style.opacity = '0';                                // Ensures not visible
-    element.style.display = displayStyle;                       // Renders element display
-    element.style.transition = `opacity ${fadeTime}s`;
+    element.style.opacity = '0';                                    // Ensures not visible
+    element.style.display = displayStyle;                           // Renders element display
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
 
-    requestAnimationFrame(() => {                               // Runs code after display is rendered
+    requestAnimationFrame(() => {                           // Runs code after display is rendered
         element.style.opacity = '1';
     });
+
+    // TODO: Animation not working on FF even when it works on Chrome
+
 }
 
 /**
@@ -549,13 +839,13 @@ function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
  * @returns {{x: number, y: number}} Object with x, y coordinates
  */
 function getElementCenter(element) {
+    // Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
+
     const rect = element.getBoundingClientRect();
     const x = rect.left + window.scrollX + rect.width / 2; // Rounding with Math.round() should not be necessary
     const y = rect.top + window.scrollY + rect.height / 2;
 
     return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
-
-    // TODO: Must test if gives real coordinates for some objects (like very large video inputs) that have been resized improperly due to browser window resizing beyond expected bounds
 }
 
 
@@ -587,70 +877,103 @@ function changeFontSize(size) {
 // Classes for created elements
 
 /**
- * Class for handling created elements.
+ * Class for managing created elements.
  */
 class CreatedElements {
 
-    elements = [[["classReference"], ["type"], ["other"]]];                 // Contains information on all created elements
+    elements = [];                                  // Contains information on all created elements: [[classReference, "type", "id"]]
 
     constructor() {
 
+    }
+
+    createOverlay() {
+        const classReference = new Overlay();
+        this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+    }
+
+    createTextArea() {
+        const classReference = new TextArea();
+        this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+    }
+
+    createMenu() {
+        const classReference = new Menu();
+        this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
     }
 
 }
 
 /**
  * Parent class for dynamically created movable elements.
- * Parent class should not be directly instantiated (use inheritors instead).
+ * This class should not be directly instantiated (use inheritors instead).
  */
 class MovableElement {
 
-    type;
+    // Generic
+    type;                                           // For fast identification of inheritor instance type
 
     // Element references
-    element;
-    container;
-    resizeHandle;
+    element;                                        // Main element reference
+    container;                                      // Container reference
+    resizeHandle;                                   // Reference for resize handle
 
-    listeners;
+    // Potential listener references that are not deleted along with element via garbage collection
+    // dragListeners = [];                          // Listeners for drag operation
+    // removeListener;                              // Listener for the remove button
+    // removeHoverListeners = [];                   // Listeners for the hover visibility of remove button
+    // resizeHandleListeners = [];                  // Listeners for resize operation through handle
+    // resizeHandleHoverListeners = [];             // Listeners for hover visibility of resize handle
 
-    constructor(type) {
+    // Switches
+    allowMove;                                      // Is drag ability enabled
+    visible;                                        // Is element visible
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
+    constructor(type, allowMove = true) {
         this.type = type;
-    }
-
-    // Setters
-
-    setElement(element) {
-        this.element = element;
+        this.allowMove = allowMove;
     }
 
     // Getters
+
+    getElementId() {
+        return this.element.getAttribute('id');               // Returns main HTML element id TODO: Use property instead, with pseudorandom id, and assign that to main element
+    }
 
     getType() {
         return this.type;
     }
 
-    getElement() {
-        return this.element;                                                            // Returns main HTML element reference
-    }
-
-    getElementId() {
-        return this.element.getAttribute('id');                                                    // Returns main HTML element id
-    }
-
     // Styling
+
     hide() {
         hideElement(this.element);
+        this.visible = false;
     }
 
     show() {
         showElement(this.element);
+        this.visible = true;
     }
 
     // Management
-    delete() {
-        this.errorUnimplemented();
+
+    remove() {
+        // TODO: Build and implement
+        // Delete all associated elements, delete all references to listeners, orphan all associated objects for garbage collection
     }
+
+    // Functionality
+
+    // TODO: Generalized drag handlers here
+
+    // TODO: Resize handle implementation here
 
     // Other
 
@@ -681,24 +1004,19 @@ class MovableElement {
         removeButton.addEventListener('click', () => removeElement(newElement));
         print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
 
-        // Remove buttons only visible when hovered over TODO: Add fast fade
+        // Remove buttons only visible when hovered over
         newElement.addEventListener('mouseover', () => (
-            removeButton.style.display = "block"
+            removeButton.style.display = "block" // TODO: Use fade with showElement()
         ));
         newElement.addEventListener('mouseout', () => (
-            removeButton.style.display = "none"
+            removeButton.style.display = "none" // TODO: Use fade with hideElement()
         ));
 
-        // Add element after island in HTML
+        // Add element to DOM
         island.after(newElement);
         newElement.appendChild(removeButton);
 
         return newElement;
-    }
-
-    // Development
-    errorUnimplemented() {
-        throw new Error("Called unimplemented method in parent class MovableElement");
     }
 
 }
@@ -717,7 +1035,7 @@ class Overlay extends MovableElement {
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
     // Other
-    overlayX;                                                                                       // Initial position of the overlay when starting drag
+    overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
 
 
@@ -793,6 +1111,7 @@ class Overlay extends MovableElement {
      * @param overlay Overlay element
      */
     dragUpdater(e, overlay) {
+        print("dragUpdater(): Mass event: Overlay drag in progress");
         if (Overlay.isOverlayDragging) {
             // Calculates new position
             const deltaX = e.clientX - mouseX;
@@ -890,9 +1209,11 @@ class TextArea extends MovableElement {
      * Adds listeners for drag and resize of text area.
      */
     handleListeners() {
-        this.container.addEventListener("mousedown", (e) => this.dragStart(e));                                               // Handle mousedown action (for text area and resize handle)
-        this.container.addEventListener("mousemove", (e) => this.dragUpdater(e));                                             // Handle mousemove action (for text area and resize handle)
+        this.container.addEventListener("mousedown", (e) => this.dragStart(e));                                 // Handle mousedown action (for text area and resize handle)
+        this.container.addEventListener("mousemove", (e) => this.dragUpdater(e));                               // Handle mousemove action (for text area and resize handle)
         this.container.addEventListener("mouseup", () => this.dragStop());                                      // Stop moving or resizing when the mouse is released
+        // TODO: Revise listeners, duplicates, temporary listeners not being deleted, definite low-volume memory leak
+
         this.element.addEventListener('input', () => this.resizeToFitText(this.element, this.container));                     // Expand to fit text
     }
 
@@ -905,7 +1226,9 @@ class TextArea extends MovableElement {
      * @param e MouseEvent 'mousedown'
      */
     dragStart(e) {
-        TextArea.activeTextArea = this.element; // TODO: Deprecate, if this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
+        print("dragStart(): Text area drag initiated");
+
+        TextArea.activeTextArea = this.element;                         // When this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
         this.container.style.zIndex = '7';
 
         if (e.target === this.element) {                           // Check is the mouse click event is on the text area
@@ -923,7 +1246,8 @@ class TextArea extends MovableElement {
 
         // Add temporary drag handlers
 
-        // TODO: These are duplicates of existing event handlers. Without these, however, dragging and especially resize are sluggish, though they do work. These handlers have generic naming (risky when intended to be deleted) regardless of limited intended scope.
+        // TODO: These were and are duplicates of existing event handlers (see handleListeners() ). These are not and should not be needed. Without these, however, dragging and especially resize are more sluggish, though they do work.
+        // TODO: Revise listeners, duplicates, temporary listeners not being deleted, definite low-volume memory leak
 
         const mouseMoveHandler = (e) => this.dragUpdater(e);
         document.addEventListener("mousemove", mouseMoveHandler);           // Handles mousemove event for text area. Starts text area drag or resizing text area.
@@ -938,7 +1262,9 @@ class TextArea extends MovableElement {
      * @param e MouseEvent 'mousemove'
      */
     dragUpdater(e) {
-        if (this.isMoving) {                                                                              // Move the textarea when the mouse moves
+        print("dragUpdater(): Mass event: Text area drag in progress");
+
+        if (this.isMoving) {                                                                      // Move the textarea when the mouse moves
             const x = e.clientX - this.offsetXText;                                               // new position x for textarea container
             const y = e.clientY - this.offsetYText;                                               // new position y
             this.container.style.left = `${x}px`;
@@ -960,6 +1286,8 @@ class TextArea extends MovableElement {
      * @param mouseUpHandler handler for mouseup
      */
     dragStop(mouseMoveHandler, mouseUpHandler) {
+        print("dragStop(): Text area drag stopped");
+
         document.removeEventListener("mousemove", mouseMoveHandler);
         document.removeEventListener("mouseup", mouseUpHandler);
         this.isMoving = false;
@@ -997,8 +1325,197 @@ class TextArea extends MovableElement {
 
 }
 
+/**
+ * Class for creating a menu programmatically.
+ * Used for multiple or custom menus.
+ * Replaces static HTML definitions.
+ */
+class Menu extends MovableElement {
 
-// Developer functions
+    menuDefinition = [];                    // Contains definitions for the menu contents in an array
+    // Example
+    // [
+    // [ "id"             , "title"         , "imgSrc"                       , buttonActions     , toggleHandler         ]
+    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , videoRotate();    , null                  ]
+    // ];
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
+    constructor() {
+        super('menu');
+
+        this.visible = false;
+
+        this.element = this.create();
+        this.testing();
+    }
+
+    /**
+     * Testing function for illustration.
+     * Temporary!
+     * Serves as a basis for developing class functionality.
+     */
+    testing() {
+        print("Testing menu construction (illustration)");
+
+        // Definition
+        this.menuDefinition = [
+            [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate          , null           ],
+            [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip            , null           ],
+            [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage            , null           ],
+            [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay           , null           ],
+            [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText              , null           ]
+        ];
+
+        // Create core div element
+        this.element = document.createElement('div');
+        this.element.id = String(Date.now());                                      // Assign a (pseudo) unique id
+
+        // Basic styling and positioning
+        const menuStyle = {
+            position: 'fixed',
+            left: '85%',                                                           // TODO: Positioning must be programmatic or relative, should be above pressed button
+            transform: 'translateX(-50%)',                                         // What was the logic?, also 'translate(-50%, -50%)'?
+            width: '60px',
+            background: '#454545',
+            borderRadius: '5px',
+            padding: '5px',
+            zIndex: '9999'
+        }
+        Object.assign(this.element.style, menuStyle);
+        this.element.style.bottom = '60px';                                                  // Initial position before animation, while in static/attached mode
+        this.element.style.display = 'none';                                                 // Initial visibility
+        this.element.style.opacity = '0';                                                    // Initial opacity before animation
+        this.element.style.display = 'flex';
+        this.element.style.flexDirection = 'column';
+        this.element.style.alignItems = 'center';
+        // this.menuDiv.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';    // First animation style, obsolete
+        // this.menuDiv.style.backgroundColor = 'rgba(186,20,20,0.5)';                       // backgroundColor vs. background
+        // this.menuDiv.classList.add('island_controlBar');                                  // TODO: Create and apply generic shared style to CSS
+
+        const buttonStyle = {                                                                // Base styling for buttons (deed object when assigning CSS from variable (assigning to CSSStyleDeclaration))
+            width: "40px",
+            height: "40px",
+            backgroundColor: "rgba(128, 128, 128, 0.5)",
+            borderRadius: "5px",
+            // border: "2px solid darkgray",
+            // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
+            padding: "0",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            margin: "5px"
+        };
+
+        // Button creation function (nested)
+        function createButton(id, text, img) {
+            // Create element
+            const button = document.createElement("button");
+            button.id = id;
+
+
+            // Apply base styling
+            Object.assign(button.style, buttonStyle);
+
+            // TODO: Add hover
+
+            // Add icon
+            const icon = document.createElement("img");
+            // icon.src = "./images/" + png;
+            icon.src = img;
+            icon.alt = "Alt";
+            icon.className = "icon";
+            icon.classList.add("icon");
+            // Dark theme application with dev function currently only works with button.id = "exampleButton";
+            icon.style.filter = 'invert(1) grayscale(100%)'; // will mess hover if dev dark mode function used
+            button.appendChild(icon);
+
+            return button;
+        }
+
+        // Parse definition array, create buttons
+        this.menuDefinition.forEach( ([id, text, img, action, toggleHandler]) => {
+            const button = createButton(id, text, img);
+            button.addEventListener('click', action); // usual is problematic: listenerToElement(id, 'click', action);
+            this.element.appendChild(button);
+        });
+
+        // Append
+        document.getElementById('videoContainer').appendChild(this.element);
+
+    }
+
+    create() {
+        this.constructMenu();
+        this.handleListeners();
+
+        return null; // Return main element?
+    }
+
+    constructMenu() {
+        // Parse array, create elements, append to DOM
+
+        // Create and handle detach, reattach function
+    }
+
+    handleListeners() {
+        // Use listenerToElement() to attach action to button
+    }
+
+    toggleHandler() {
+        // Handle case where icon changes on button press
+    }
+
+    // Drag handling
+
+    dragStart() {
+        // Use generic from MovableElement!
+    }
+
+    dragUpdater() {
+        // Use generic from MovableElement!
+    }
+
+    dragStop() {
+        // Use generic from MovableElement!
+    }
+
+    // Other
+
+    /**
+     * Toggles visibility of menu.
+     */
+    toggleVisibility() {
+        if (this.visible) {
+            hideElement(this.element, 0.2);
+        } else {
+            showElement(this.element, 0.1, "flex");
+        }
+        this.visible = !this.visible;
+    }
+
+    /**
+     * Detaches menu from static position, making it movable.
+     */
+    detach() {
+
+    }
+
+    /**
+     * Attaches menu to its static position.
+     */
+    attach() {
+
+    }
+
+}
+
+
+// Developer functions (safe to delete)
 
 /**
  * Function to enable debug mode.
@@ -1017,7 +1534,10 @@ function debug() {
     developerButton.textContent = 'Developer Options';
     developerButton.addEventListener('click', developerMenu);
     developerButton.style.zIndex = '9999';
-    developerButton.style.border = '2px solid black';
+    developerButton.style.border = "2px solid darkgray";
+    // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
+    // developerButton.color = "red";
+    developerButton.style.borderRadius = "5px";
     developerButton.style.height = '40px';
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
@@ -1027,110 +1547,36 @@ function debug() {
 }
 
 /**
- * Function to enable visual debug features.
+ * Function to create and show developer options -menu.
+ *
  */
-function debugVisual() {
-    debugModeVisual = !debugModeVisual;
-    if (debugModeVisual) {
-        print("Visual debug enabled!");
+function developerMenu() {
+    print("developerMenu(): Developer menu button pressed");
 
-        // Indicate element centers
-        debugVisualDrawCenterTrackingIndicator(videoElement, 20, 'red', '0.8');
-        debugVisualDrawCenterTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-        debugVisualDrawCenterTrackingIndicator(canvasElement, 60, 'green', '0.4');
-    } else {
-        print("Visual debug disabled!");
-    }
+    // ADD NEW BUTTONS HERE
+    prompt("Developer menu", "Options for developers", [
+        [   "Toggle visual debug"              , () => { debugVisual();                                      }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                        }],
+        [   "Release video stream"             , () => { releaseVideoStream();                               }],
+        [   "Start video (reset)"              , () => { videoStart();                                       }],
+        [   "Test dark theme"                  , () => { testThemeDark();                                    }],
+        [   "Test another UI style"            , () => { testUserInterfaceVersion();                         }],
+        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                        }],
+        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON
+        // Template:
+        // [   "Text for button"               , () => { function_or_code_block();                           }],
+        ["Dismiss"                             , () => {                                                     }]   // Preserve as final line
+    ]);
+
+
 }
 
 /**
- * Function to create and toggle developer options -menu.
+ * Stops all tracks of current video srcObject
  */
-function developerMenu() {
-    print("Developer button pressed");
-
-    // Menu
-    const controlBar = document.getElementById('controlBar');
-    const controlBarHeight = controlBar.offsetHeight;                   // Total height of bottom bar
-    let menu = null;
-    menu = document.getElementById('developerMenu');
-    if (menu === null) {                                                // If does not exist
-        // console.error("Null");
-
-        menu = document.createElement('div');                   // Then create
-        menu.id = 'developerMenu';
-
-        menu.style.position = 'fixed';
-        menu.style.bottom = `0px`;                                          // Initial position before animation
-        menu.style.left = '50%';
-        menu.style.transform = 'translateX(-50%)';
-        menu.style.width = '200px';
-        menu.style.background = '#454545';
-        menu.style.borderRadius = '10px';
-        menu.style.padding = '10px';
-        menu.style.opacity = '0';
-        menu.style.transition = 'bottom 0.5s ease-out, opacity 0.5s ease-out';
-        menu.style.zIndex = '9999';
-
-        // Create buttons
-        const numberOfButtons = 3;
-        const buttons = [];
-        for (let i = 0; i < numberOfButtons; i++) {                                       // Create placeholders
-            const btn = document.createElement('button');
-            btn.textContent = `Button ${i + 1}`;
-            btn.style.width = '100%';
-            btn.style.margin = '5px 0';
-            btn.style.color = '#fff';
-            btn.style.background = '#555';
-            btn.style.border = 'none';
-            btn.style.padding = '10px';
-            menu.appendChild(btn);
-            buttons.push(btn);                                              // Store button
-        }
-
-        // Customize individually
-        buttons[0].textContent = 'Toggle visual debug';
-        buttons[0].addEventListener('click', () => { debugVisual(); });
-
-        buttons[1].textContent = 'Test dark theme';
-        buttons[1].addEventListener('click', () => { testThemeDark(); });
-
-        buttons[2].textContent = 'No function';
-        buttons[2].addEventListener('click', () => { console.error("Button has no function yet"); }); // TODO: Add developer function calls here and update numberOfButtons above to use them through the menu
-
-        menu.setAttribute("visible", "false");
-        document.body.appendChild(menu);
-
-    }
-
-
-
-    if (menu.getAttribute("visible") === "true") {      // Visible
-        // console.error("Fading out");
-
-        // Fade out
-        menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
-        menu.style.bottom = '-100px';
-        menu.style.opacity = '0';
-        menu.setAttribute("visible", "false");
-    } else {                                                        // Not visible
-        // console.error("Fading in");
-
-        // Fade in
-        requestAnimationFrame(() => {
-            menu.style.bottom = `${controlBarHeight + 10}px`;               // Position after animation
-            menu.style.opacity = '1';
-        });
-        menu.setAttribute("visible", "true");
-
-    }
-
-    // setTimeout(() => {
-    //     menu.style.transition = 'bottom 0.5s ease-in, opacity 0.5s ease-in';
-    //     menu.style.bottom = '-100px';
-    //     menu.style.opacity = '0';
-    // }, 5000);
-
+function releaseVideoStream() {
+    videoElement.srcObject.getTracks().forEach(track => track.stop());
+    videoElement.srcObject = null;
 }
 
 /**
@@ -1147,26 +1593,123 @@ function print(string) {
  * Prints video track settings and capabilities for all tracks associated with a stream.
  * For development.
  * @param stream The stream from navigator.mediaDevices.getUserMedia()
+ * @returns {*[]}
  */
 function printStreamInformation(stream) {
     // const videoTrack = stream.getVideoTracks()[0];
 
-    print ("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+    // Typical error: TypeError: videoTrack.getCapabilities is not a function
+    // getCapabilities() may not be supported by all browsers, such as those based on FF ESR (Floorp, for example). FF supports function since 2024 v.132
+
+    print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+    if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks, document this instance!");
+
     let count = 1;
+    let allResults = [];
     stream.getVideoTracks().forEach(videoTrack => {
         // Printing select information
         const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
         const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
 
-        print("printStreamInformation(): Video track " + count + " is: " + shorten(videoTrack.id) + " from device ID: " + shorten(deviceId));
-        print("printStreamInformation(): Video track " + count + " is set to use: " + settingWidth + " x " + settingHeight + " at " + frameRate + " fps");
-        print("printStreamInformation(): Video track " + count + " is capable of: " + capabilityWidth.max + " x " + capabilityHeight.max + " at " + capabilityFrameRate.max + " fps");
+        //             0                       1                  2             3                    4              5                     6          7
+        let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
+
+        print("printStreamInformation(): Track " + count + " is: " + results[0] + " from device ID: " + results[1]);
+        print("printStreamInformation(): Track " + count + " is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
+        print("printStreamInformation(): Track " + count + " is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
 
         // To print a full formatted output with all information:
         // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
         // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+
+        allResults.push(results);
     });
 
+    return allResults;
+
+}
+
+/**
+ * Requests various video tracks from a stream and looks for the best settings.
+ * Visualizes.
+ * Providing video track, good or bad, is up to the browser.
+ *
+ */
+async function bruteForceBestVideoStream(input = selector.value) {
+    // Note that background activities may interfere.
+
+    releaseVideoStream();
+
+    // Create invisible temporary video element for stream
+    const temporaryCameraFeed = document.createElement('video');
+    temporaryCameraFeed.id = 'temporaryCameraFeed';
+    temporaryCameraFeed.autoplay = true;
+    temporaryCameraFeed.muted = true;
+    temporaryCameraFeed.style.display = 'none';
+    document.body.appendChild(temporaryCameraFeed);
+
+    // Create dual layer arrays of various testable settings for video tracks
+    let trackSettings = [
+        [1920           ,      1080         ],
+        [1280           ,       720         ],
+        [640            ,       480         ],
+        [320            ,       240         ],
+    ];
+
+    let moreSettings = [
+        [30         ,        "environment"     ],
+        [60         ,        "environment"     ],
+        [30         ,        "user"            ],
+        [60         ,        "user"            ],
+    ];
+
+    console.warn("bruteForceBestVideoStream(): Testing multiple (ideal value) setting combinations for " + shorten(input));
+
+    // Loop through all permutations
+    for (let [frameRate, facingMode] of moreSettings) {
+        for (let [width, height] of trackSettings) {
+            try {
+                print(`Trying: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: { exact: input },
+                        facingMode: { ideal: facingMode },
+                        width: { ideal: width },
+                        height: { ideal: height },
+                        frameRate: { ideal: frameRate }
+                    }
+                });
+
+                temporaryCameraFeed.srcObject = stream;
+
+                // Print and get stream information
+                let results = printStreamInformation(stream);
+
+                // Create and visualize scores
+                let scoreUsing = results[0][2] * results[0][4]; // TODO: Only using one track at this point, could have multiple
+                let scoreCapable = results[0][3] * results[0][5];
+                // One score mark per 76800 (matches 320x240)
+                let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));
+                let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
+                scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
+                scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
+                print("Current [ " + scoreUsingMarks   + " ]");
+                print("Capable [ " + scoreCapableMarks + " ]");
+
+                // Discard stream
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                console.error(`Failed: width=${width}, height=${height}, frameRate=${frameRate}, facingMode=${facingMode}`, error);
+            }
+        }
+    }
+
+    // Remove the temporary video element
+    temporaryCameraFeed.remove();
+
+    console.warn("bruteForceBestVideoStream(): Done");
+
+    videoStart();
 }
 
 /**
@@ -1180,19 +1723,52 @@ function shorten(id) {
 }
 
 /**
+ * Function to enable visual debug features.
+ */
+function debugVisual() {
+    debugModeVisual = !debugModeVisual;
+    if (debugModeVisual) {
+        print("Visual debug enabled!");
+
+        // Indicate element centers
+        debugVisualDrawElementTrackingIndicator(videoElement, 20, 'red', '0.9');
+        debugVisualDrawElementTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
+        debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
+    } else {
+        print("Visual debug disabled!");
+    }
+}
+
+/**
  * Creates center tracking indicator on HTML element.
  * @param element
  * @param size
  * @param color
  * @param opacity
  */
-function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
+function debugVisualDrawElementTrackingIndicator(element, size, color, opacity) {
+
+    // TODO: Make this flow explicitly async
+
     let interval = setInterval(() => {
         if (debugModeVisual === false) {clearInterval(interval);}
+
         const {ball: ball, label: label} = drawCenterIndicator(element, size, color, opacity);
+        const {canvas: cross, labelTopLeft: l1, labelTopRight: l2, labelBottomLeft: l3, labelBottomRight: l4} = drawCrossingLines(element, size/10, color, opacity);
+        const {t:t, b:b, r:r, l:l} = drawViewPortEdges();
+
         setTimeout(() => {
             ball.remove();
             label.remove();
+            cross.remove();
+            l1.remove();
+            l2.remove();
+            l3.remove();
+            l4.remove();
+            t.remove();
+            b.remove();
+            r.remove();
+            l.remove();
         }, 300);
     }, 300);
 }
@@ -1207,7 +1783,7 @@ function debugVisualDrawCenterTrackingIndicator(element, size, color, opacity) {
  * @returns {{ball: HTMLDivElement, label: HTMLDivElement}}
  */
 function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
-    let horizontalOffset = size / 2 * 1.05 + 10;
+    let horizontalOffset = size / 2 * 1.05 + 10;                // Offset for label to place it next to indicator
     let {x: centerX, y: centerY} = getElementCenter(element);
     let text = centerX + " " + centerX  + " " + " is center of: " + (element.getAttribute('id') || 'id_undefined') + " " + (element.getAttribute('class') || '');
 
@@ -1250,6 +1826,144 @@ function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity =
 }
 
 /**
+ * Draws balls centered at each viewport edge.
+ *
+ * @param size
+ * @param color
+ * @param opacity
+ * @param zindex
+ * @returns {{b: HTMLDivElement, r: HTMLDivElement, t: HTMLDivElement, l: HTMLDivElement}}
+ */
+function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '150') {
+    const {top: top, right: right, bottom: bottom, left: left} = getViewportEdges();
+
+    const t = drawBall(right/2, top, size, color, opacity, zindex);
+    const b = drawBall(right/2, bottom, size, color, opacity, zindex);
+
+    const r = drawBall(right, bottom/2, size, color, opacity, zindex);
+    const l = drawBall(left, bottom/2, size, color, opacity, zindex);
+
+    return {t, b, r, l};
+
+}
+
+/**
+ * Draws diagonal lines that cross from the edges of bounding rectangles.
+ *
+ * @param element
+ * @param lineWidth
+ * @param color
+ * @param opacity
+ * @param zindex
+ * @returns {{labelTopLeft: HTMLDivElement, canvas: HTMLCanvasElement, labelBottomRight: HTMLDivElement, labelTopRight: HTMLDivElement, labelBottomLeft: HTMLDivElement}}
+ */
+function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '100') {
+
+    const canvas = document.createElement('canvas');
+    let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+    canvas.width = elementWidth;
+    canvas.height = elementHeight;
+    canvas.style.zIndex = zindex;
+    canvas.style.opacity = opacity;
+    canvas.style.position = 'absolute';
+    canvas.style.pointerEvents = 'none';                    // Make not clickable
+
+    const rect = element.getBoundingClientRect();
+    canvas.style.left = rect.left + 'px';
+    canvas.style.top = rect.top + 'px';
+
+    const context = canvas.getContext('2d');
+    context.lineWidth = lineWidth;
+    context.strokeStyle = color;
+    let { bottomLeft: bottomLeft, topRight: topRight, topLeft: topLeft, bottomRight: bottomRight } = getElementCorners(element);
+    drawLine(context, bottomLeft.x, bottomLeft.y, topRight.x, topRight.y);
+    drawLine(context, topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
+
+    document.body.appendChild(canvas);
+
+
+
+    // Draw labels at rect for troubleshooting coordinate mismatches between rect coordinates and actual view coordinates
+    const rect1 = element.getBoundingClientRect();
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    const horizontalOffset = 100;
+    const verticalOffset = 100;
+    const labelTopLeft =        drawLabel(rect1.left + horizontalOffset, rect1.top + verticalOffset, 35, color, opacity, zindex,           "TL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.top + " + " +        scrollY);
+    const labelBottomLeft =     drawLabel(rect1.left + horizontalOffset, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,      "BL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
+    const labelTopRight =       drawLabel(rect1.right - horizontalOffset*3, rect1.top + verticalOffset, 35, color, opacity, zindex,        "TR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.top + " + " +        scrollY);
+    const labelBottomRight =    drawLabel(rect1.right - horizontalOffset*3, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,   "BR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
+
+    return {canvas, labelTopLeft, labelTopRight, labelBottomLeft, labelBottomRight};
+}
+
+/**
+ * Draws a line between two points.
+ *
+ * @param context Canvas 2d context to draw to
+ * @param x1
+ * @param y1
+ * @param x2
+ * @param y2
+ */
+function drawLine(context, x1, y1, x2, y2) {
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+}
+
+/**
+ * Gets coordinates of element bounding rectangle corners.
+ *
+ * @param element
+ * @returns {{bottomLeft: {x: number, y: number}, bottomRight: {x: number, y: number}, topLeft: {x: number, y: number}, topRight: {x: number, y: number}}}
+ */
+function getElementCorners(element) {
+    const rect = element.getBoundingClientRect();
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    return {
+        topLeft:        { x: rect.left + scrollX,   y: rect.top + scrollY       },
+        topRight:       { x: rect.right + scrollX,  y: rect.top + scrollY       },
+        bottomLeft:     { x: rect.left + scrollX,   y: rect.bottom + scrollY    },
+        bottomRight:    { x: rect.right + scrollX,  y: rect.bottom + scrollY    }
+    };
+
+}
+
+/**
+ * Gets dimensions of an element based on bounding rectangle.
+ *
+ * @param element
+ * @returns {{width: number, height: number}}
+ */
+function getElementDimensions(element) {
+    const rect = element.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+
+}
+
+/**
+ * Gets coordinates of viewport edges.
+ *
+ * @returns {{top: number, left: number, bottom: number, right: number}} Relevant coordinate for each edge
+ */
+function getViewportEdges() {
+    const top = window.scrollY;
+    const right = window.scrollX + window.innerWidth;
+    const bottom = window.scrollY + window.innerHeight;
+    const left = window.scrollX;
+
+    return { top, right, bottom, left };
+}
+
+/**
  * Draws a label (with the middle of its left edge) at the coordinates
  * HTML/CSS implementation.
  *
@@ -1284,25 +1998,190 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
 }
 
 /**
- * Calculates and visualizes how many times an action is run per second.
- * Used in assessment of listener performance.
+ * Applies another testing version of UI.
+ * Dirty implementation!
  */
-function debugShowRunSpeed() {
+function testUserInterfaceVersion() {
 
-}
+    // Vision:
+    // Bottom control bar visibility toggle button always visible, full screen mode has button always visible.
+    // Main control island visibility is controlled from within bottom bar.
+    // Every menu has a button on bottom bar. Only main control island is visible by default.
+    // Menus have buttons that detach or reattach them to positions above their buttons on bottom control bar.
 
-/**
- * Calculates the time between the current and last instance of running this function.
- * Used to determine latencies.
- */
-function calculateRunTime() {
+    // Remove standalone label
+    // document.getElementById("textSizeLabel").style.display = "none";
+    document.getElementById("textSizeLabel").remove();
 
-    // Store time for calculation in a non-displayed HTML element, not global variable
+    // Remove current collapse button
+    let label = document.getElementById("buttonCollapse");
+    label.style.display = "none";
+    label.style.width = '0px';
+
+    // Give fullscreen button a background
+    let buttonFullscreen = document.getElementById("buttonFullScreen");
+
+    let iconFullscreen = document.getElementById("iconFullScreen");
+
+    buttonFullscreen.style.position = "absolute";
+    buttonFullscreen.style.margin = "0";
+    buttonFullscreen.style.padding = "0";
+    buttonFullscreen.style.border = "none";
+    buttonFullscreen.style.zIndex = "101";
+    buttonFullscreen.style.bottom = "5px";
+    buttonFullscreen.style.right = "13px";
+    buttonFullscreen.style.width = "40px";
+    buttonFullscreen.style.height = "40px";
+    buttonFullscreen.style.backgroundSize = "40px 40px";
+    buttonFullscreen.style.backgroundPosition = "center";
+    buttonFullscreen.style.background = "rgba(128, 128, 128, 0.5)";
+    buttonFullscreen.style.borderRadius = "5px";
+
+    iconFullscreen.style.width = "30px";
+    iconFullscreen.style.height = "30px";
+    iconFullscreen.style.objectFit = "contain";
+
+    // Create bar visibility button element and icon
+    let buttonCollapseBar = document.createElement("button");
+    buttonCollapseBar.id = "buttonCollapseBar";
+    buttonCollapseBar.title = "Hide Control Bar";
+
+    let iconCollapseBar = document.createElement("img");
+    iconCollapseBar.id = "iconCollapseBar";
+    iconCollapseBar.classList.add("icon");
+    iconCollapseBar.src = "./images/hideControls.png";
+    iconCollapseBar.alt = "Hide Controls";
+    iconCollapseBar.style.transform = "rotate(-90deg)";
+
+    buttonCollapseBar.appendChild(iconCollapseBar);
+
+    buttonCollapseBar.style.position = "absolute";
+    buttonCollapseBar.style.margin = "0";
+    buttonCollapseBar.style.padding = "0";
+    buttonCollapseBar.style.border = "none";
+    buttonCollapseBar.style.zIndex = "101";
+    buttonCollapseBar.style.bottom = "5px";
+    buttonCollapseBar.style.right = "58px";                 // Manual position, 13px (border + margin) + 40 px (button size) + margin
+    buttonCollapseBar.style.width = "40px";
+    buttonCollapseBar.style.height = "40px";
+    buttonCollapseBar.style.backgroundSize = "40px 40px";
+    buttonCollapseBar.style.backgroundPosition = "center";
+    buttonCollapseBar.style.background = "rgba(128, 128, 128, 0.5)";
+    buttonCollapseBar.style.borderRadius = "5px";
+
+    iconCollapseBar.style.width = "30px";
+    iconCollapseBar.style.height = "30px";
+    iconCollapseBar.style.objectFit = "contain";
+
+    document.body.appendChild(buttonCollapseBar);
+
+    // Handle control bar collapse and expand
+    let controlBar = document.getElementById("controlBar");
+    let isCollapsed = false;
+
+    iconCollapseBar.style.transition = "transform 0.3s ease-in-out";  // Add transition for the icon flip
+
+    buttonCollapseBar.addEventListener("click", () => {
+        if (isCollapsed) {
+            controlBar.style.transition = "transform 0.4s ease-in-out, opacity 0.5s ease-in-out";
+
+            controlBar.style.transform = "translateX(0)";
+            controlBar.style.opacity = "1";
+            isCollapsed = false;
+
+            // Force reflow
+            controlBar.offsetHeight; // Accessing this forces a reflow
+
+        } else {
+            controlBar.style.transition = "transform 0.3s ease-in-out, opacity 0.2s ease-in-out";
+
+            controlBar.style.transform = "translateX(100%)";
+            controlBar.style.opacity = "0";
+            isCollapsed = true;
+
+            // Force reflow
+            controlBar.offsetHeight; // Accessing this forces a reflow
+        }
+        iconCollapseBar.style.transform += " scaleY(-1)";
+    });
+
+    // Create menu buttons as examples
+
+    const buttonStyle = {
+        width: "40px",
+        height: "40px",
+        backgroundColor: "rgba(128, 128, 128, 0.5)",
+        borderRadius: "5px",
+        border: "2px solid darkgray",
+        // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
+        padding: "0",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        margin: "5px"
+    };
+
+    // Create menuButtons div
+    const menuButtons = document.createElement("div");
+    menuButtons.id = "menuButtons";
+    menuButtons.style.position = "absolute";
+    menuButtons.style.right = "180px";
+    menuButtons.style.display = "flex";
+    menuButtons.style.flexDirection = "row";
+    menuButtons.style.justifyContent = "center";
+    menuButtons.style.height = "100%";
+
+    // Create buttons
+    const createButton = (png = "draw.png") => {
+        const button = document.createElement("button");
+        Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
+
+        button.id = "exampleButton";
+
+        const icon = document.createElement("img");
+        icon.src = "./images/" + png;
+        icon.alt = "Draw";
+        // icon.className = "icon";
+        icon.classList.add("icon");
+
+        // icon.style.filter = 'invert(1) grayscale(100%)'; // messes hover if inline here
+
+        button.appendChild(icon);
+        return button;
+    };
+
+    // Create and append buttons
+
+    const testDrawMenu = new Menu();
+    const testTextMenu = new Menu();
+    const testVideoMenu = new Menu();
+
+    let buttons = [
+      ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
+      ["text.png"       , () => { testDrawMenu.toggleVisibility(); }],
+      ["showVideo.png"  , () => { testDrawMenu.toggleVisibility(); }]
+    ];
+
+    buttons.forEach( ([img, action]) => {
+        const button = createButton(img);
+        button.addEventListener('click', action);
+        menuButtons.appendChild(button);
+
+    });
+
+    // Append menuButtons to controlBar
+    controlBar.appendChild(menuButtons);
+
+    testThemeDark();
+
+
 }
 
 /**
  * Function to apply UI coloration.
- * Dark in testing phase, dark defaults.
+ * Default is dark.
+ * Dirty implementation!
+ *
  * @param colorBackground
  * @param colorIsland
  * @param colorBottomBar
@@ -1348,6 +2227,13 @@ function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', col
     document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
     document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
     document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
+    document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
+
+    // For example buttons
+    // Very dirty, for all of same id
+    document.querySelectorAll('#exampleButton').forEach(function(button) {
+        button.style.filter = buttonStyleFilter;
+    });
 
     document.getElementById('zoomOutButton').style.color        = colorText;
     document.getElementById('zoomInButton').style.color         = colorText;

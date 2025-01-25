@@ -1,6 +1,10 @@
 body {
     height:100%;
     overflow: hidden;
+
+    margin: 7px;
+
+    font-family: 'Noto Sans', sans-serif;
 }
 
 button {
@@ -45,6 +49,7 @@ button {
     height: 250px;
     border-radius: 10px;
     padding-bottom: 10px;
+    padding-top: 10px;
 }
 
 #textButtons {
@@ -129,4 +134,8 @@ button {
 
 #buttonFullScreen {
     right: 6px;
+}
+
+#selectorDevice {
+    width: 200px;
 }
