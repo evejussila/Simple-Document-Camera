@@ -8,7 +8,7 @@ console.log("To activate debug mode, append ?debug to URL or type to console: de
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
-const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector
+const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector // TODO: Why not get element by id?
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
@@ -46,7 +46,7 @@ function start() {
     videoStart().then( () => {} );
 
     // Update video input list periodically
-    setInterval(backgroundInputListUpdate, 10000);
+    setInterval(backgroundUpdateInputList, 10000);
 
     // Handle URL parameters
     const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
@@ -122,7 +122,7 @@ function addCoreListeners() {
 
     // Add event listener to trigger input list update when new media device is plugged in
     navigator.mediaDevices.addEventListener('devicechange', () => {
-        backgroundInputListUpdate().then( () => {} );
+        backgroundUpdateInputList().then( () => {} );
     });
 }
 
@@ -355,12 +355,12 @@ function updateInputList(inputs) {
  *
  * @returns {Promise<void>}
  */
-async function backgroundInputListUpdate() {
+async function backgroundUpdateInputList() {
     try {
         let inputs = await getVideoInputs();
         updateInputList(inputs);
     } catch (e) {
-        print("backgroundInputListUpdate(): Background update failed: " + e);
+        print("backgroundUpdateInputList(): Background update failed: " + e);
     }
 
 }
@@ -1335,8 +1335,8 @@ class Menu extends MovableElement {
     menuDefinition = [];                    // Contains definitions for the menu contents in an array
     // Example
     // [
-    // [ "id"             , "title"         , "imgSrc"                       , toggleHandler     , buttonActions         ]
-    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null              , videoRotate();        ]
+    // [ "id"             , "title"         , "imgSrc"                       , buttonActions     , toggleHandler         ]
+    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , videoRotate();    , null                  ]
     // ];
 
     // Initialization
@@ -1362,38 +1362,42 @@ class Menu extends MovableElement {
     testing() {
         print("Testing menu construction (illustration)");
 
+        // Definition
         this.menuDefinition = [
-            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
-            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
-            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
-            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ],
-            [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , null                 , null           ]
+            [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate          , null           ],
+            [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip            , null           ],
+            [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage            , null           ],
+            [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay           , null           ],
+            [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText              , null           ]
         ];
 
+        // Create core div element
         this.element = document.createElement('div');
         this.element.id = String(Date.now());                                      // Assign a (pseudo) unique id
 
-        // this.menuDiv.classList.add('island_controlBar');                        // Apply generic shared style
+        // Basic styling and positioning
         const menuStyle = {
             position: 'fixed',
-            left: '85%',
+            left: '85%',                                                           // TODO: Positioning must be programmatic or relative, should be above pressed button
             transform: 'translateX(-50%)',                                         // What was the logic?, also 'translate(-50%, -50%)'?
-            width: '200px',
+            width: '60px',
             background: '#454545',
             borderRadius: '5px',
             padding: '5px',
             zIndex: '9999'
         }
         Object.assign(this.element.style, menuStyle);
-        this.element.style.bottom = '60px';                                               // Initial position before animation, while in static/attached mode
-        this.element.style.display = 'none';                                              // Initial visibility
-        this.element.style.opacity = '0';                                                 // Initial opacity before animation
-        // this.menuDiv.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';    // First animation style
+        this.element.style.bottom = '60px';                                                  // Initial position before animation, while in static/attached mode
+        this.element.style.display = 'none';                                                 // Initial visibility
+        this.element.style.opacity = '0';                                                    // Initial opacity before animation
+        this.element.style.display = 'flex';
+        this.element.style.flexDirection = 'column';
+        this.element.style.alignItems = 'center';
+        // this.menuDiv.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';    // First animation style, obsolete
+        // this.menuDiv.style.backgroundColor = 'rgba(186,20,20,0.5)';                       // backgroundColor vs. background
+        // this.menuDiv.classList.add('island_controlBar');                                  // TODO: Create and apply generic shared style to CSS
 
-        // this.menuDiv.style.backgroundColor = 'rgba(186,20,20,0.5)'; // backgroundColor vs. background
-        // this.menuDiv.style.position = 'absolute';
-
-        const buttonStyle = {
+        const buttonStyle = {                                                                // Base styling for buttons (deed object when assigning CSS from variable (assigning to CSSStyleDeclaration))
             width: "40px",
             height: "40px",
             backgroundColor: "rgba(128, 128, 128, 0.5)",
@@ -1407,38 +1411,41 @@ class Menu extends MovableElement {
             margin: "5px"
         };
 
-        const createButton = (png) => {
+        // Button creation function (nested)
+        function createButton(id, text, img) {
+            // Create element
             const button = document.createElement("button");
-            Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
+            button.id = id;
 
-            button.id = "exampleButton";
 
+            // Apply base styling
+            Object.assign(button.style, buttonStyle);
+
+            // TODO: Add hover
+
+            // Add icon
             const icon = document.createElement("img");
             // icon.src = "./images/" + png;
-            icon.src = png;
+            icon.src = img;
             icon.alt = "Alt";
-            // icon.className = "icon";
+            icon.className = "icon";
             icon.classList.add("icon");
-
-            // icon.style.filter = 'invert(1) grayscale(100%)'; // messes hover if inline here
-
+            // Dark theme application with dev function currently only works with button.id = "exampleButton";
+            icon.style.filter = 'invert(1) grayscale(100%)'; // will mess hover if dev dark mode function used
             button.appendChild(icon);
+
             return button;
-        };
+        }
 
-
-        this.menuDefinition.forEach( ([id, text, img]) => {
-            const button = createButton(img);
-            // button.addEventListener('click', action);
+        // Parse definition array, create buttons
+        this.menuDefinition.forEach( ([id, text, img, action, toggleHandler]) => {
+            const button = createButton(id, text, img);
+            button.addEventListener('click', action); // usual is problematic: listenerToElement(id, 'click', action);
             this.element.appendChild(button);
-
         });
 
-
-
-
+        // Append
         document.getElementById('videoContainer').appendChild(this.element);
-
 
     }
 
@@ -1466,15 +1473,15 @@ class Menu extends MovableElement {
     // Drag handling
 
     dragStart() {
-
+        // Use generic from MovableElement!
     }
 
     dragUpdater() {
-
+        // Use generic from MovableElement!
     }
 
     dragStop() {
-
+        // Use generic from MovableElement!
     }
 
     // Other
@@ -1484,17 +1491,23 @@ class Menu extends MovableElement {
      */
     toggleVisibility() {
         if (this.visible) {
-            hideElement(this.element);
+            hideElement(this.element, 0.2);
         } else {
-            showElement(this.element);
+            showElement(this.element, 0.1, "flex");
         }
         this.visible = !this.visible;
     }
 
+    /**
+     * Detaches menu from static position, making it movable.
+     */
     detach() {
 
     }
 
+    /**
+     * Attaches menu to its static position.
+     */
     attach() {
 
     }
@@ -1543,7 +1556,7 @@ function developerMenu() {
     // ADD NEW BUTTONS HERE
     prompt("Developer menu", "Options for developers", [
         [   "Toggle visual debug"              , () => { debugVisual();                                      }],
-        [   "Update video inputs"              , () => { backgroundInputListUpdate();                        }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                        }],
         [   "Release video stream"             , () => { releaseVideoStream();                               }],
         [   "Start video (reset)"              , () => { videoStart();                                       }],
         [   "Test dark theme"                  , () => { testThemeDark();                                    }],
@@ -2092,7 +2105,7 @@ function testUserInterfaceVersion() {
         iconCollapseBar.style.transform += " scaleY(-1)";
     });
 
-    // Create menu buttons as examples (AUTOMATICALLY GENERATED FOR ILLUSTRATION EXAMPLES, modified)
+    // Create menu buttons as examples
 
     const buttonStyle = {
         width: "40px",
