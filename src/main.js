@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-01-24-alpha-beta");
+const version = ("2025-02-03-alpha");
 console.log("Version: " + version);
 console.log("To activate debug mode, append ?debug to URL or type to console: debug()");
 
@@ -53,21 +53,19 @@ function start() {
 
     // if (urlParameters.has('privacyAgree')) {                                              // Check for privacy parameter
     //     print("start(): Found URL parameter for agreement to privacy notice");
-    // } else { privacyNotice(); }                                                           // Display privacy notice if needed
+    // } else { privacyNotice(); }                                                           // TODO: Display privacy notice if needed
 
-    if (urlParameters.has('cookieAgree')) {                                            // Check for cookie agree parameter
-        print("start(): Found URL parameter for agreement to cookie use");
-    }
-
-    // Check if cookie exists
-    // TODO: Check cookie
+    // if (urlParameters.has('cookieAgree')) {                                               // Check for cookie agreement parameter
+    //     print("start(): Found URL parameter for agreement to cookie use");
+    //     handleCookie();
+    // }
 
     // Development
-    if (urlParameters.has('debug')) {                                                   // Check for debug/developer parameter
+    if (urlParameters.has('debug')) {                                                  // Check for debug/developer parameter
         debugMode = true;
         print("start(): Found URL parameter for debug");
     }
-    if (debugMode) debug();                                                                   // Activate developer features
+    if (debugMode) debug();                                                                  // Activate developer features
 
 }
 
@@ -160,7 +158,7 @@ async function videoStart() {
     // Error prompt default content
     let genericPromptTitle = "No valid cameras could be accessed";
     let genericPromptText =
-        "Make sure your devices are connected and not being used by other software. " +
+        "Make sure your devices are connected and not being used by other software. " +             // TODO: When newline supported, use linebreaks
         "Ensure you do not have SDC open on other tabs. " +
         "Check you have allowed camera access in your browser. " +
         "You may also try a hard reload by pressing Ctrl + F5 ";
@@ -503,7 +501,7 @@ function switchToFullscreen(fullScreenIcon) {
 
     if(!document.fullscreenElement) {                                   // Is fullscreen active?
         videoContainer.requestFullscreen().then(() => {
-            print("switchToFullscreen(): Full screen mode active");
+            print("switchToFullscreen(): Full screen mode activated");
             fullScreenIcon.title = 'Close full screen';
             fullScreenIcon.src = "./images/closeFullScreen.png";
         }).catch(error => {
@@ -511,7 +509,7 @@ function switchToFullscreen(fullScreenIcon) {
         });
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
-            print("switchToFullscreen(): Full screen mode closed successfully");
+            print("switchToFullscreen(): Full screen mode closed");
             fullScreenIcon.title = 'Full screen';
             fullScreenIcon.src = "./images/fullscreen.png";
             island.style.top = '';                                       // UI island to starting position
@@ -588,15 +586,15 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
     const textBodyElement = document.createElement('div');
     const textBody = document.createTextNode(text);
     textBodyElement.style.color = 'white';
-    textBodyElement.style.textAlign = 'justify';                                              // Text fills element area fully horizontally
+    textBodyElement.style.textAlign = 'justify';                                            // Text fills element area fully horizontally
     textTitleElement.style.marginBottom = '10px';
     textBodyElement.appendChild(textBody);
     prompt.appendChild(textBodyElement);
 
     // Create buttons
-    options.forEach((buttonCore) => {
+    options.forEach((optionButton) => {
         const button = document.createElement('button');
-        button.textContent = `${buttonCore[0]}`;
+        button.textContent = `${optionButton[0]}`;
         button.style.width = '100%';
         button.style.margin = '5px 0';
         button.style.color = '#fff';
@@ -606,8 +604,8 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
         button.style.borderRadius = '5px';
 
         button.addEventListener('click', () => {
-            dismiss();                                                                                              // Buttons should always dismiss prompt
-            buttonCore[1]();
+            dismiss();                                                                       // Buttons always dismiss prompt
+            optionButton[1]();
         });
 
         prompt.appendChild(button);
@@ -852,25 +850,27 @@ function getElementCenter(element) {
 // Simple caller methods
 
 /**
+ * Changes font size.
+ * @param size
+ */
+function changeFontSize(size) {
+    TextArea.changeFontSize(size); // Using static method, should be deprecated
+}
+
+/**
  * Adds new overlay.
  */
 function addOverlay() {
-    new Overlay();
+    createdElements.createOverlay();
+    // new Overlay(); // Direct instantiation without management
 }
 
 /**
  * Adds new text area.
  */
 function addText() {
-    new TextArea();
-}
-
-/**
- * Changes font size.
- * @param size
- */
-function changeFontSize(size) {
-    TextArea.changeFontSize(size);
+    createdElements.createTextArea();
+    // new TextArea(); // Direct instantiation without management
 }
 
 
@@ -887,19 +887,34 @@ class CreatedElements {
 
     }
 
+    /**
+     * Creates an overlay and adds its information to manager class.
+     */
     createOverlay() {
         const classReference = new Overlay();
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+        print("createOverlay(): Created and registered " + classReference.getType() + ": " + classReference.getElementId());
+        return classReference;
     }
 
+    /**
+     * Creates a text area and adds its information to manager class.
+     */
     createTextArea() {
         const classReference = new TextArea();
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+        print("createTextArea(): Created and registered " + classReference.getType() + ": " + classReference.getElementId());
+        return classReference;
     }
 
+    /**
+     * Creates a menu and adds its information to manager class.
+     */
     createMenu() {
         const classReference = new Menu();
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
+        print("createMenu(): Created and registered " + classReference.getType() + ": " + classReference.getElementId());
+        return classReference;
     }
 
 }
@@ -943,7 +958,7 @@ class MovableElement {
     // Getters
 
     getElementId() {
-        return this.element.getAttribute('id');               // Returns main HTML element id TODO: Use property instead, with pseudorandom id, and assign that to main element
+        return this.element.getAttribute('id');               // Returns main HTML element id
     }
 
     getType() {
@@ -989,7 +1004,7 @@ class MovableElement {
 
         // Create main element
         let newElement = document.createElement(type);
-        newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken.
+        newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken (pseudorandom: String(Date.now()); ).
         newElement.class = idBase;
         newElement.style.cssText = elementCssStyle // New elements style must be edited in js
         print("createElement(): Added element: " + newElement.id);
@@ -1031,7 +1046,7 @@ class Overlay extends MovableElement {
     static closeButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
 
     // Class shared variables
-    static overlayCount = 0;                                                                // Counter for overlays
+    static overlayCount = 0;                                                                // Counter for overlays // TODO: Only used for unique id, is risky, use instead String(Date.now());
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
     // Other
@@ -1153,13 +1168,13 @@ class TextArea extends MovableElement {
     static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
 
     // Class shared variables
-    static textAreaCount = 0;                                                                // Counter for text areas
-    static activeTextArea;                                                                           // Shows which text area is currently active TODO: Deprecate, if this object class instance is called by mouse event, currently active is always this.element
+    static textAreaCount = 0;                                                               // Counter for text areas TODO: Only used for unique id, is risky, use instead String(Date.now());
+    static activeTextArea;                                                                  // Shows which text area is currently active TODO: Deprecate, if this object class _instance_ is called by mouse event, currently active is always this.element
 
     // Other
-    offsetXText;                                                                                      // Initial position of the text area when starting drag
+    offsetXText;                                                                             // Initial position of the text area when starting drag
     offsetYText;
-    startWidth;                                                                                       // Initial size of the text area when starting resize
+    startWidth;                                                                              // Initial size of the text area when starting resize
     startHeight;
     isMoving = false;                                                                        // Is text area moving
     isResizing = false;                                                                      // Textarea resizing
@@ -1305,7 +1320,7 @@ class TextArea extends MovableElement {
             textArea.style.height = `${textArea.scrollHeight}px`;
             textAreaContainer.style.height = textArea.style.height;
         }
-        // TODO: Will not work if amount of text is very low (1-4 characters) or there are no spaces (impedes word wrap)
+        // TODO: Will not work if amount of text is very low (1-4 characters) or there are no spaces (impedes word wrap), possibly browser-dependent issue
         // TODO: Should also be run when font + is pressed, see changeFontSize()
     }
 
@@ -1320,7 +1335,7 @@ class TextArea extends MovableElement {
         let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
         fontSize += size;                                                                                      // Make font size bigger or smaller
         TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
-        // TODO: Eliminate static function and add resize call for container based on text size: this.resizeToFitText(this.textAreaElement, this.element)
+        // TODO: Eliminate static function and add resize call for container, based on text size: this.resizeToFitText(this.textAreaElement, this.element)
     }
 
 }
@@ -1364,11 +1379,13 @@ class Menu extends MovableElement {
 
         // Definition
         this.menuDefinition = [
-            [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate          , null           ],
-            [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip            , null           ],
-            [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage            , null           ],
-            [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay           , null           ],
-            [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText              , null           ]
+            [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate                           , null           ],
+            [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip                             , null           ],
+            [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage                             , null           ],
+            [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay                            , null           ],
+            [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText                               , null           ]
+            // [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , createdElements.createOverlay      , null           ], // TODO: Diagnose error from these
+            // [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , createdElements.createTextArea     , null           ]
         ];
 
         // Create core div element
@@ -1709,7 +1726,7 @@ async function bruteForceBestVideoStream(input = selector.value) {
 
     console.warn("bruteForceBestVideoStream(): Done");
 
-    videoStart();
+    await videoStart();
 }
 
 /**
@@ -2152,14 +2169,14 @@ function testUserInterfaceVersion() {
 
     // Create and append buttons
 
-    const testDrawMenu = new Menu();
-    const testTextMenu = new Menu();
-    const testVideoMenu = new Menu();
+    const testDrawMenu = createdElements.createMenu();
+    const testTextMenu = createdElements.createMenu();
+    const testVideoMenu = createdElements.createMenu();
 
     let buttons = [
       ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
-      ["text.png"       , () => { testDrawMenu.toggleVisibility(); }],
-      ["showVideo.png"  , () => { testDrawMenu.toggleVisibility(); }]
+      ["text.png"       , () => { testTextMenu.toggleVisibility(); }],
+      ["showVideo.png"  , () => { testVideoMenu.toggleVisibility(); }]
     ];
 
     buttons.forEach( ([img, action]) => {
