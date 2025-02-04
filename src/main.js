@@ -1,9 +1,9 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-03-alpha");
+const version = ("2025-02-04-alpha");
 console.log("Version: " + version);
-console.log("To activate debug mode, append ?debug to URL or type to console: debug()");
+console.log("To activate debug mode, append parameter ?debug to URL or type to console: debug()");
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -32,7 +32,7 @@ let createdElements;                                                            
 
 // Initialization
 
-document.addEventListener('DOMContentLoaded', start);                                  // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                 // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
 
@@ -58,7 +58,7 @@ function start() {
         debugMode = true;
         print("start(): Found URL parameter for debug");
 
-        handlePrivacy();                                                                     // Used while developing privacy notice functionality
+        handlePrivacy();                                                                     // DEV: Used here only while developing privacy notice functionality
     }
     if (debugMode) debug();                                                                  // Activate developer features
 
@@ -110,7 +110,7 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', (e) => {
-        setVideoInput(e.target.value).then( () => {} );
+        setVideoInput(e.target.value).then( () => {} );                                                                // TODO: Add catch for error
     })
 
     // Add event listener to trigger input list update when new media device is plugged in
@@ -170,7 +170,7 @@ function handlePrivacy() {
         // Note that if cookie param in url not set to false, will prompt for cookie even if tos agreed
     }
 
-    // Cookie stuff should be non-await, just set it off as async and handle on the fly?
+    // DEV: Cookie stuff should be non-await, just set it off as async and handle on the fly?
 
     // Show privacy notices (if needed)
     // privacyNotice();
@@ -224,23 +224,44 @@ async function videoStart() {
         ["Dismiss",     () =>       {               } ]
     ];
 
-    getMediaPermission().then( ()       =>    {                                                     // Get permission
-        getVideoInputs().then( inputs   =>    {                                                     // Get inputs
-            let input = updateInputList(inputs);                                                    // Update selector list, select some input
-            setVideoInput(input);                                                                   // Use the selected input
-            resetVideoState();                                                                      // Reset video view
+    // Get permission and inputs                                                                                 // DEV: Functional code style with ().then chained is shorter, may be used again once logics are finished
+    let error = false;
+    let errorDescription = "unknown";                                                                            // Store specific error description
+    let inputs;
 
-            // TODO: Errors in this block are unlikely but are not caught
+    await getMediaPermission()                                                                                   // Get permission
+        .catch(e => {                                                                                            // Catch errors from getMediaPermission()
+            error = true;                                                                                        // Flag error
+            errorDescription = "No media permission or access"                                                   // Give specific readable error description
+            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);             // Log error
+    });                                                                                                          // End catch for getMediaPermission()
 
-        }).catch(e => {                                                                             // Catch errors from getVideoInputs()
-            prompt(genericPromptTitle, genericPromptText, genericPromptActions);                    // Prompt user
-            console.error("videoStart(): No valid inputs could be accessed: " + e.name + " : " + e.message);
-        });                                                                                         // End catch for getVideoInputs()
+    if (!error) {                                                                                                // Only run if no errors
+        inputs = await getVideoInputs()                                                                          // Get inputs
+            .catch(e => {                                                                                        // Catch errors from getVideoInputs()
+                error = true;                                                                                    // Flag error
+                errorDescription = "No valid inputs could be found"                                              // Give specific readable error description
+                console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);         // Log error
+            });                                                                                                  // End catch for getVideoInputs()
+    }
 
-    }).catch(e => {                                                                                  // Catch errors from getMediaPermission()
-        prompt(genericPromptTitle, genericPromptText, genericPromptActions);                         // Prompt user
-        console.error("videoStart(): No media permission or access: " + e.name + " : " + e.message);
-    });                                                                                              // End catch for getMediaPermission()
+    // Use input(s)
+    if (!error) {                                                                                // Only run if no errors
+        try {
+            let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
+            await setVideoInput(input);                                                          // Use the selected input
+            resetVideoState();                                                                   // Reset video view
+        } catch (e) {
+            // TODO: Catch not reliable enough
+            error = true;                                                                                 // Flag error
+            errorDescription = "Error while attempting to use video input(s)"                             // Give specific readable error description
+            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);      // Log error
+        }
+    }
+
+    if (error) { prompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
+    // TODO: Provide readable error description and conditional solutions
+
 }
 
 /**
@@ -255,8 +276,10 @@ async function getMediaPermission() {
     } catch (e) {                                                                             // Handle errors
 
         // Detect and handle known, expected exceptions
+        // TODO: Add error-specific handling, including a specific/helpful prompt
         // General descriptions from https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
         let errorExpected = "expected";
+        let errorDescription = "unknown";
         switch (e.name) {
             case "NotAllowedError":
                 // Thrown if one or more of the requested source devices cannot be used at this time.
@@ -276,6 +299,8 @@ async function getMediaPermission() {
                     // Encountered when camera permissions have been denied by user now or by persistent setting.
                 }
 
+                errorDescription = "Missing camera permissions";
+
                 break;
             case "AbortError":
                 // Although the user and operating system both granted access to the hardware device,
@@ -286,6 +311,8 @@ async function getMediaPermission() {
                     // This error is typically encountered on Firefox (2025).
                     // Encountered when the specific video input is already in use elsewhere through mediaDevices or W10 WMF (used by Zoom).
                 }
+
+                errorDescription = "Video input already in use (Firefox)";
 
                 break;
             case "NotReadableError":
@@ -298,14 +325,16 @@ async function getMediaPermission() {
                     // Encountered when the specific video input is already in use elsewhere through mediaDevices or W10 WMF (used by Zoom).
                 }
 
+                errorDescription = "Video input already in use (Chrome)";
+
                 break;
             default:
                 errorExpected = "unexpected";
         }
 
-        print("getMediaPermission(): Failure, " + errorExpected + " error: " + e.name + " : " + e.message);
+        print("getMediaPermission(): Failure, " + errorExpected + " error: " + errorDescription + " : " + e.name + " : " + e.message);
 
-        throw new Error("getMediaPermission(): Failure");
+        throw new Error("getMediaPermission(): Failure: " + errorDescription);
     }
 }
 
@@ -325,18 +354,19 @@ async function getVideoInputs() {
 
     let videoInputs = [];
 
-    const retryAttempts = 3;                                                                          // Number of retries before throwing error TODO: Retries in function possibly redundant, though enumeration is not completely reliable
+    // TODO: Retries in function may be redundant, though enumeration is not completely reliable
+    const retryAttempts = 3;                                                                          // Number of retries before throwing error
     let failedCount = 0;
 
-    while (true) {                                                                                    // Retry until a device is found
+    while (true) {                                                                                    // Retry until a device is found or retry limit reached
 
         let devices = await navigator.mediaDevices.enumerateDevices();                                // Find all media sources
 
         devices.forEach(device => {
             if (device.kind === 'videoinput') {                                                       // Only accept video sources
                 if (device.deviceId === "") {                                                         // Detect and filter invalid values
-                    // In some cases (like missing permissions) empty values may be returned.
-                    // These values will be objects of the right kind but do not have device Ids and can not be used.
+                    // DEV: In some cases (like missing permissions) empty values may be returned.
+                    // DEV: These values will be objects of the right kind but do not have device Ids and can not be used.
                     console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
                     // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
@@ -395,7 +425,7 @@ function updateInputList(inputs) {
     if (selector.value === "") errorValue = "empty";
     if (selector.value === undefined) errorValue = "undefined";
     if (selector.value === null) errorValue = "null";
-    if (selector.value === "undefined") errorValue = "undefined (string)";                          // Typical for option value set of undefined array values
+    if (selector.value === "undefined") errorValue = "undefined (string)";                          // Typical for option value set of undefined array values (incorrect use of array)
     if (errorValue !== "valid") {
         console.error("updateInputList(): Selected video input option is invalid, selection: " + errorValue + " value: " + selector.value);
         // TODO: Do something
@@ -424,15 +454,18 @@ async function backgroundUpdateInputList() {
  * Accesses a camera feed.
  *
  * @param input Identifier of video input to access
- * @returns {Promise<string>}
+ * @returns {Promise<boolean>}
  */
 async function setVideoInput(input = selector.value) {
+
+    // TODO: Retries in function may be redundant, though input setting is not completely reliable
     const retryAttempts = 3;                                                                     // Number of retries before giving up
     let failedCount = 0;
+    let failed = false;
 
-    while (true) {
+    while (true) {                                                                               // Retry until success or retry limit reached
         try {
-            print("videoStart(): Accessing a camera feed: " + shorten(input));
+            print("setVideoInput(): Accessing a camera feed: " + shorten(input));
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
                     deviceId: {exact: input},
@@ -446,24 +479,29 @@ async function setVideoInput(input = selector.value) {
 
             // TODO: Debug low video quality
             // printStreamInformation(stream);
-            // bruteForceVideoStream(input);
+            // bruteForceVideoStream(input); // Accessible from developer menu, is intensive if used here
 
             break;
         } catch (error) {                                                                          // Failure
-            console.error("videoStart(): Camera could not be accessed (retry " + failedCount + "): " + error);
-            if (failedCount >= retryAttempts) {
-                console.error("videoStart(): Could not select camera, retries: " + failedCount);
-                throw new Error("videoStart(): Could not select camera");
+            console.warn("setVideoInput(): Camera could not be accessed (retry " + failedCount + "): " + error);
+            if (failedCount >= retryAttempts) {                                                    // Break when too many retries
+                console.error("setVideoInput(): Camera access failed, total retries: " + failedCount);
+                failed = true;
+                break;
             }
 
-            // Most likely error is OverconstrainedError, but should only occur if device with used deviceId is not available
+            // DEV: Most likely error is OverconstrainedError, but should only occur if device with used deviceId is not available
 
             failedCount++;
         }
     }
 
-    return "stream";                                                                            // TODO: Choose useful return value
+    if (failed) {                                                                               // TODO: Unable to throw error that is caught within promise
+        throw new Error("setVideoInput(): Could not select camera");                            // DEV: A simple synchronous error is hard to catch from an async function by caller like videoStart(), try/catch or ().catch not catching
+        // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate
+    }
 
+    return !failed;
 }
 
 /**
@@ -1695,7 +1733,7 @@ function printStreamInformation(stream) {
     // getCapabilities() may not be supported by all browsers, such as those based on FF ESR (Floorp, for example). FF supports function since 2024 v.132
 
     print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
-    if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks, document this instance!");
+    if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
 
     let count = 1;
     let allResults = [];
@@ -1711,7 +1749,7 @@ function printStreamInformation(stream) {
         print("printStreamInformation(): Track " + count + " is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
         print("printStreamInformation(): Track " + count + " is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
 
-        // To print a full formatted output with all information:
+        // To print a FULL formatted output with all information:
         // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
         // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
 
@@ -1763,14 +1801,24 @@ async function bruteForceBestVideoStream(input = selector.value) {
         for (let [width, height] of trackSettings) {
             try {
                 print(`Trying: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
+                // noinspection JSCheckFunctionSignatures
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        deviceId: { exact: input },
-                        facingMode: { ideal: facingMode },
-                        width: { ideal: width },
-                        height: { ideal: height },
-                        frameRate: { ideal: frameRate }
-                    }
+                     video: {
+                         deviceId: { exact: String(input) },
+                         facingMode: { ideal: String(facingMode) },
+                         width: { ideal: Number(width) },
+                         height: { ideal: Number(height) },
+                         frameRate: { ideal: Number(frameRate) }
+                     }
+                     // If this function is not producing expected results, try alternative below.
+                     // Function will work with or without all types forced to correct ones.
+                     // video: {
+                     //     deviceId: { exact: input },
+                     //     facingMode: { ideal: facingMode },
+                     //     width: { ideal: width },
+                     //     height: { ideal: height },
+                     //     frameRate: { ideal: frameRate }
+                     // }
                 });
 
                 temporaryCameraFeed.srcObject = stream;
