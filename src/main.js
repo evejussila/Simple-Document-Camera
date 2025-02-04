@@ -42,28 +42,23 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
+    // Handle privacy notices and cookie
+    // let tosAgreed = handlePrivacy();
+
     // Start video feed
+    // TODO: Do not run if tosAgreed === false
     videoStart().then( () => {} );
 
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000);
 
-    // Handle URL parameters
-    const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
-
-    // if (urlParameters.has('privacyAgree')) {                                              // Check for privacy parameter
-    //     print("start(): Found URL parameter for agreement to privacy notice");
-    // } else { privacyNotice(); }                                                           // TODO: Display privacy notice if needed
-
-    // if (urlParameters.has('cookieAgree')) {                                               // Check for cookie agreement parameter
-    //     print("start(): Found URL parameter for agreement to cookie use");
-    //     handleCookie();
-    // }
-
     // Development
-    if (urlParameters.has('debug')) {                                                  // Check for debug/developer parameter
+    const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
+    if (urlParameters.has("debug")) {                                                  // Check for debug/developer parameter
         debugMode = true;
         print("start(): Found URL parameter for debug");
+
+        handlePrivacy();                                                                     // Used while developing privacy notice functionality
     }
     if (debugMode) debug();                                                                  // Activate developer features
 
@@ -122,6 +117,68 @@ function addCoreListeners() {
     navigator.mediaDevices.addEventListener('devicechange', () => {
         backgroundUpdateInputList().then( () => {} );
     });
+}
+
+function handlePrivacy() {
+
+    // Check files
+    // TODO: Check FILES
+    const cookieExists = false;                                                      // Check if cookie exists
+    const tosTextExists = true;                                                      // Check if terms of service text exists
+    const cookieTextExists = true;                                                   // Check if cookie notice text exists
+    console.log("handlePrivacy(): Privacy files: cookieExists = " + cookieExists + " & tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
+
+    // Get URL parameters
+    const urlParameters = new URLSearchParams(window.location.search);               // Get URL parameters
+    console.log("handlePrivacy(): Privacy URL parameters: cookie = " + urlParameters.get("cookie") + " & tos = " + urlParameters.get("tos"));
+
+    // Interpret ToS agreement status (URL parameter string interpretations)
+    let tosAgreed = false;
+    if (cookieExists) {tosAgreed = true}                                             // Existing cookie implies agreement to ToS and cookie
+    if (urlParameters.get("tos") === "true") {tosAgreed = true}                      // Explicit agreement
+    if (urlParameters.get("cookie") === "true") {tosAgreed = true}                   // Cookie permission implies agreement to ToS
+    if (urlParameters.get("tos") === "false") {tosAgreed = false}                    // Explicit rejection of ToS overrides all
+    print("handlePrivacy(): ToS agreement interpretation: " + tosAgreed);
+
+    // Interpret cookie agreement status (URL parameter string interpretations)
+    let cookieAgreed = false;
+    if (cookieExists) {cookieAgreed = true}                                          // Existing cookie implies agreement to ToS and cookie
+    if (urlParameters.get("cookie") === "true") {cookieAgreed = true}                // Explicit agreement
+    if (urlParameters.get("cookie") === "false") {cookieAgreed = false}              // Explicit rejection
+    if (urlParameters.get("tos") === "false") {cookieAgreed = false}                 // Explicit rejection of ToS overrides all, disallows cookie as well
+    print("handlePrivacy(): Cookie agreement interpretation: " + cookieAgreed);
+
+    // Console (debug)
+    if (urlParameters.get("cookie") === "false") {
+        console.warn("handlePrivacy(): Cookie rejected");
+    }
+    if (urlParameters.get("tos") === "false") {
+        console.error("handlePrivacy(): ToS rejected, service use forbidden");
+    }
+
+    // Interpret course of action
+    let queryTos = false;                                                            // Should ToS be queried (default behavior is uninterrupted operation)
+    if (tosTextExists && !tosAgreed) {
+        // ToS text exists, no agreement
+        // Prompt necessary
+    }
+
+    let queryCookie = false;                                                         // Should cookie be queried (default behavior is uninterrupted operation)
+    if (cookieTextExists && !cookieAgreed && urlParameters.get("cookie") !== "false" && urlParameters.get("tos") !== "false") {
+        // Cookie notice text exists, no agreement, no explicit rejections
+        // Prompt necessary
+        // Note that if cookie param in url not set to false, will prompt for cookie even if tos agreed
+    }
+
+    // Cookie stuff should be non-await, just set it off as async and handle on the fly?
+
+    // Show privacy notices (if needed)
+    // privacyNotice();
+
+    // Read or create cookie (if needed)
+    // handleCookie();
+
+    return true;
 }
 
 /**
