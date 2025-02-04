@@ -881,14 +881,20 @@ function addText() {
  */
 class CreatedElements {
 
+    // Generic
     elements = [];                                  // Contains information on all created elements: [[classReference, "type", "id"]]
 
+
+    // Initialization
     constructor() {
 
     }
 
+
+    // Creator methods
+
     /**
-     * Creates an overlay and adds its information to manager class.
+     * Creates an overlay and registers it to management.
      */
     createOverlay() {
         const classReference = new Overlay();
@@ -898,7 +904,7 @@ class CreatedElements {
     }
 
     /**
-     * Creates a text area and adds its information to manager class.
+     * Creates a text area and registers it to management.
      */
     createTextArea() {
         const classReference = new TextArea();
@@ -908,7 +914,7 @@ class CreatedElements {
     }
 
     /**
-     * Creates a menu and adds its information to manager class.
+     * Creates a menu and registers it to management.
      */
     createMenu() {
         const classReference = new Menu();
@@ -944,6 +950,7 @@ class MovableElement {
     allowMove;                                      // Is drag ability enabled
     visible;                                        // Is element visible
 
+
     // Initialization
 
     /**
@@ -955,6 +962,7 @@ class MovableElement {
         this.allowMove = allowMove;
     }
 
+
     // Getters
 
     getElementId() {
@@ -964,6 +972,7 @@ class MovableElement {
     getType() {
         return this.type;
     }
+
 
     // Styling
 
@@ -977,6 +986,7 @@ class MovableElement {
         this.visible = true;
     }
 
+
     // Management
 
     remove() {
@@ -984,11 +994,13 @@ class MovableElement {
         // Delete all associated elements, delete all references to listeners, orphan all associated objects for garbage collection
     }
 
+
     // Functionality
 
     // TODO: Generalized drag handlers here
 
     // TODO: Resize handle implementation here
+
 
     // Other
 
@@ -1045,7 +1057,7 @@ class Overlay extends MovableElement {
     static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
     static closeButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
 
-    // Class shared variables
+    // Class shared variables (TODO: Deprecate)
     static overlayCount = 0;                                                                // Counter for overlays // TODO: Only used for unique id, is risky, use instead String(Date.now());
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
@@ -1090,7 +1102,7 @@ class Overlay extends MovableElement {
     }
 
 
-    // Drag handling
+    // Drag handling (TODO: Replace with generic in MovableElement)
 
     /**
      * Handles dragging overlay elements with mouse.
@@ -1167,7 +1179,7 @@ class TextArea extends MovableElement {
     static containerStyle = "position:absolute;left:300px;top:100px;min-width:150px;min-height:40px;z-index:7;"
     static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
 
-    // Class shared variables
+    // Class shared variables (TODO: Deprecate)
     static textAreaCount = 0;                                                               // Counter for text areas TODO: Only used for unique id, is risky, use instead String(Date.now());
     static activeTextArea;                                                                  // Shows which text area is currently active TODO: Deprecate, if this object class _instance_ is called by mouse event, currently active is always this.element
 
@@ -1233,7 +1245,7 @@ class TextArea extends MovableElement {
     }
 
 
-    // Drag and sizing handling
+    // Drag handling (TODO: Replace with generic in MovableElement)
 
     /**
      * Activates the selected text area with mouse click and captures the mouse click position.
@@ -1310,6 +1322,9 @@ class TextArea extends MovableElement {
         this.container.style.cursor = "default";
     }
 
+
+    // Sizing handling
+
     /**
      * Expands textarea if content exceeds current height.
      * @param textArea TextArea element
@@ -1347,12 +1362,14 @@ class TextArea extends MovableElement {
  */
 class Menu extends MovableElement {
 
+    // Generic
     menuDefinition = [];                    // Contains definitions for the menu contents in an array
     // Example
     // [
     // [ "id"             , "title"         , "imgSrc"                       , buttonActions     , toggleHandler         ]
     // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , videoRotate();    , null                  ]
     // ];
+
 
     // Initialization
 
@@ -1487,7 +1504,8 @@ class Menu extends MovableElement {
         // Handle case where icon changes on button press
     }
 
-    // Drag handling
+
+    // Drag handling (TODO: Replace with generic in MovableElement)
 
     dragStart() {
         // Use generic from MovableElement!
@@ -1500,6 +1518,7 @@ class Menu extends MovableElement {
     dragStop() {
         // Use generic from MovableElement!
     }
+
 
     // Other
 
