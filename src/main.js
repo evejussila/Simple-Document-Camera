@@ -199,6 +199,80 @@ function privacyNotice() {
  */
 function handleCookie() {
     // TODO: Create cookie if does not exist, read settings if does exist
+
+    setCookie("agreeAll", "true", 1);
+    setCookie("test1", "true", 1);
+    setCookie("test2", "false", 1);
+
+    let t1 = getCookie("agreeAll");
+    let t2 = getCookie("test1");
+    let t3 = getCookie("test2");
+
+    console.warn(t1 + t2 + t3);
+
+    checkCookie();
+
+
+
+
+
+    // Nested temporary functions for learning and development
+
+    /**
+     * This function sets a cookie.
+     *
+     * https://www.w3schools.com/js/js_cookies.asp
+     * @param cname the name of the cookie
+     * @param cvalue the value of the cookie
+     * @param exdays number of days until the cookie should expire
+     */
+    function setCookie(cname, cvalue, exdays) {
+        const d = new Date();
+        d.setTime(d.getTime() + (exdays*24*60*60*1000));
+        let expires = "expires="+ d.toUTCString();
+        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+    }
+
+    /**
+     * This function returns the value of a specified cookie.
+     *
+     * https://www.w3schools.com/js/js_cookies.asp
+     * @param cname the cookie name
+     * @returns {string}
+     */
+    function getCookie(cname) {
+        let name = cname + "=";                                         // Create a variable (name) with the text to search for (cname + "=").
+        let decodedCookie = decodeURIComponent(document.cookie);        // Decode the cookie string, to handle cookies with special characters, e.g. '$'
+        let ca = decodedCookie.split(';');                     // Split document.cookie on semicolons into an array called ca (ca = decodedCookie.split(';')).
+        for(let i = 0; i <ca.length; i++) {                             // Loop through the ca array (i = 0; i < ca.length; i++), and read out each value c = ca[i]).
+            let c = ca[i];
+            // noinspection EqualityComparisonWithCoercionJS
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+            }
+            // noinspection EqualityComparisonWithCoercionJS
+            if (c.indexOf(name) == 0) {                                 // If the cookie is found (c.indexOf(name) == 0), return the value of the cookie (c.substring(name.length, c.length).
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";                                                      // If the cookie is not found, return "".
+    }
+
+    function checkCookie() {
+        let agreeAll = getCookie("agreeAll");
+        // noinspection EqualityComparisonWithCoercionJS
+        if (agreeAll === "true") {
+            alert("Agree to all: " + agreeAll);
+        } else {
+            // username = prompt("Please enter your name:", "");
+            // noinspection EqualityComparisonWithCoercionJS
+            // if (agreeAll != "" && agreeAll != null) {
+            //     setCookie("agreeAll", agreeAll, 1);
+            // }
+        }
+    }
+
+
 }
 
 
