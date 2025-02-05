@@ -176,7 +176,7 @@ function handlePrivacy() {
     // privacyNotice();
 
     // Read or create cookie (if needed)
-    // handleCookie();
+    handleCookie();
 
     return true;
 }
@@ -200,17 +200,48 @@ function privacyNotice() {
 function handleCookie() {
     // TODO: Create cookie if does not exist, read settings if does exist
 
+    let t0 = getCookieContents("agreeAll");
+    let t1 = getCookieContents("test1");
+    let t2 = getCookieContents("test2");
+    let t3 = getCookieContents("test3");
+    let t4 = getCookieContents("test4");
+    let t5 = getCookieContents("test5");
+    let t6 = getCookieContents("test6");
+    console.warn("Check 1: " + t0 + " - " + t1 + " - " + t2 + " - " + t3 + " - " + t4 + " - " + t5 + " - " + t6);
+
     setCookie("agreeAll", "true", 1);
-    setCookie("test1", "true", 1);
-    setCookie("test2", "false", 1);
+    setCookie("test1", "false", 1);
+    setCookie("test2", "", 1);
+    setCookie("test3", " ", 1);
+    setCookie("test4", null, 1);
+    setCookie("test5", undefined, 1);
+    setCookie("test6", "undefined", 1);
 
-    let t1 = getCookie("agreeAll");
-    let t2 = getCookie("test1");
-    let t3 = getCookie("test2");
+    t0 = getCookieContents("agreeAll");
+    t1 = getCookieContents("test1");
+    t2 = getCookieContents("test2");
+    t3 = getCookieContents("test3");
+    t4 = getCookieContents("test4");
+    t5 = getCookieContents("test5");
+    t6 = getCookieContents("test6");
+    console.warn("Check 2: " + t0 + " - " + t1 + " - " + t2 + " - " + t3 + " - " + t4 + " - " + t5 + " - " + t6);
 
-    console.warn(t1 + t2 + t3);
-
-    checkCookie();
+    console.log("0:");
+    alert(checkCookieBoolean("agreeAll")); // True
+    console.log("1:");
+    alert(checkCookieBoolean("test1")); // False
+    console.log("2:"); // With or without string forced, check: Empty
+    alert(checkCookieBoolean("test2")); // ""
+    console.log("3:"); // With or without string forced, check: Empty
+    alert(checkCookieBoolean("test3")); // " "
+    console.log("4:"); // With or without string forced, check: Unknown
+    alert(checkCookieBoolean("test4")); // null
+    console.log("5:"); // With or without string forced, check: Undefined (string)
+    alert(checkCookieBoolean("test5")); // undefined
+    console.log("6:"); // With or without string forced, check: Undefined (string)
+    alert(checkCookieBoolean("test6")); // "undefined"
+    console.log("7:"); // With or without string forced, check: Empty
+    alert(checkCookieBoolean("test7")); // Does not exist
 
 
 
@@ -233,44 +264,64 @@ function handleCookie() {
         document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
     }
 
-    /**
-     * This function returns the value of a specified cookie.
-     *
-     * https://www.w3schools.com/js/js_cookies.asp
-     * @param cname the cookie name
-     * @returns {string}
-     */
-    function getCookie(cname) {
-        let name = cname + "=";                                         // Create a variable (name) with the text to search for (cname + "=").
-        let decodedCookie = decodeURIComponent(document.cookie);        // Decode the cookie string, to handle cookies with special characters, e.g. '$'
-        let ca = decodedCookie.split(';');                     // Split document.cookie on semicolons into an array called ca (ca = decodedCookie.split(';')).
-        for(let i = 0; i <ca.length; i++) {                             // Loop through the ca array (i = 0; i < ca.length; i++), and read out each value c = ca[i]).
-            let c = ca[i];
-            // noinspection EqualityComparisonWithCoercionJS
+
+
+
+    // Check for expected cookies
+
+
+    function getCookieContents(cookieName) {
+        let name = cookieName + "=";                                         // Create a variable (name) with the text to search for (cname + "=").
+        let decodedCookie = decodeURIComponent(document.cookie);             // Decode the cookie string, to handle cookies with special characters, e.g. '$'
+        let cookieArray = decodedCookie.split(';');                 // Split document.cookie on semicolons into an array called ca (ca = decodedCookie.split(';')).
+        for(let i = 0; i <cookieArray.length; i++) {                         // Loop through the ca array , and read out each value c = ca[i]).
+            let c = cookieArray[i];
             while (c.charAt(0) == ' ') {
                 c = c.substring(1);
             }
-            // noinspection EqualityComparisonWithCoercionJS
-            if (c.indexOf(name) == 0) {                                 // If the cookie is found (c.indexOf(name) == 0), return the value of the cookie (c.substring(name.length, c.length).
+            if (c.indexOf(name) == 0) {                                      // If the cookie is found (c.indexOf(name) == 0), return the value of the cookie (c.substring(name.length, c.length).
                 return c.substring(name.length, c.length);
             }
         }
-        return "";                                                      // If the cookie is not found, return "".
+        return "";                                                           // If the cookie is not found, return "".
     }
 
-    function checkCookie() {
-        let agreeAll = getCookie("agreeAll");
-        // noinspection EqualityComparisonWithCoercionJS
-        if (agreeAll === "true") {
-            alert("Agree to all: " + agreeAll);
+
+    function checkCookieBoolean(cookieName) {
+        let cookieValue = getCookieContents(cookieName);
+        if (cookieValue === "true") {
+            return true;
         } else {
-            // username = prompt("Please enter your name:", "");
-            // noinspection EqualityComparisonWithCoercionJS
-            // if (agreeAll != "" && agreeAll != null) {
-            //     setCookie("agreeAll", agreeAll, 1);
-            // }
+
+            // Check for unexpected values (debug)
+            switch (cookieValue) {
+                case "false":
+                    break;
+                case "":
+                    console.error("Empty cookie value");
+                    break;
+                case " ":
+                    console.error("Space cookie value");
+                    break;
+                case null:
+                    console.error("Null cookie value");
+                    break;
+                case undefined:
+                    console.error("undefined cookie value");
+                    break;
+                case "undefined":
+                    console.error("undefined (string) cookie value");
+                    break;
+                default:
+                    console.error("unknown cookie value");
+            }
+
+            return false;
         }
     }
+
+
+
 
 
 }
