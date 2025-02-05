@@ -1832,22 +1832,40 @@ function developerMenu() {
 
     // ADD NEW BUTTONS HERE
     prompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                                                   }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                                                     }],
-        [   "Release video stream"             , () => { releaseVideoStream();                                                            }],
-        [   "Start video (reset)"              , () => { videoStart();                                                                    }],
-        [   "Test dark theme"                  , () => { testThemeDark();                                                                 }],
-        [   "Test another UI style"            , () => { testUserInterfaceVersion();                                                      }],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                                     }],
-        [   "Dump cookies to console"          , () => { print(document.cookie);                                                          }],
-        [   "Delete privacy cookie"            , () => { document.cookie = "privacy=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";     }],
-        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON
+        [   "Toggle visual debug"              , () => { debugVisual();                                    }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                      }],
+        [   "Release video stream"             , () => { releaseVideoStream();                             }],
+        [   "Start video (reset)"              , () => { videoStart();                                     }],
+        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                      }],
+        [   "Test dark theme"                  , () => { testThemeDark();                                  }],
+        [   "Test another UI style"            , () => { testUserInterfaceVersion();                       }],
+        [   "Dump cookies to console"          , () => { print(document.cookie);                           }],
+        [   "Delete privacy cookie"            , () => { deleteSpecificCookie("privacy");                  }],
+        [   "Delete all cookies"               , () => { deleteAllCookies();                               }],
+        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
-        // [   "Text for button"               , () => { function_or_code_block();                                                        }],
-        ["Dismiss"                             , () => {                                                                                  }]   // Preserve as final line
+        // [   "Text for button"               , () => { function_or_code_block();                         }],
+        [   "Dismiss"                          , () => {                                                   }]   // Preserve as final line
     ]);
 
 
+}
+
+/**
+ * Deletes all cookies from the document
+ */
+function deleteAllCookies() {
+    document.cookie.split(';').forEach(cookie => {
+        document.cookie = cookie.split('=')[0] + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+    });
+}
+
+/**
+ * Deletes a specific cookie from the document
+ * @param cookieName
+ */
+function deleteSpecificCookie(cookieName) {
+    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
 }
 
 /**
@@ -2008,6 +2026,9 @@ async function bruteForceBestVideoStream(input = selector.value) {
  * @returns {string}
  */
 function shorten(id) {
+    // Might want to remove {} from ends
+    // id = id.replace(/^(\{|\})|(\\{|\})$/g, '');
+    // id = id.replace(/^([{}])|(\\{|})$/g, '');
     return `${id.slice(0, 4)}:${id.slice(-4)}`;
 }
 
