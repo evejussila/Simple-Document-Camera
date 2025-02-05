@@ -121,154 +121,176 @@ function addCoreListeners() {
 
 function handlePrivacy() {
 
-    // Check files
-    // TODO: Check FILES
+    // Check cookie
     const cookieExists = false;                                                      // Check if cookie exists
-    const tosTextExists = true;                                                      // Check if terms of service text exists
-    const cookieTextExists = true;                                                   // Check if cookie notice text exists
-    console.log("handlePrivacy(): Privacy files: cookieExists = " + cookieExists + " & tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
 
-    // Get URL parameters
-    const urlParameters = new URLSearchParams(window.location.search);               // Get URL parameters
-    console.log("handlePrivacy(): Privacy URL parameters: cookie = " + urlParameters.get("cookie") + " & tos = " + urlParameters.get("tos"));
+    // Check for fast url parameter, just return out if needed
 
-    // Interpret ToS agreement status (URL parameter string interpretations)
-    let tosAgreed = false;
-    if (cookieExists) {tosAgreed = true}                                             // Existing cookie implies agreement to ToS and cookie
-    if (urlParameters.get("tos") === "true") {tosAgreed = true}                      // Explicit agreement
-    if (urlParameters.get("cookie") === "true") {tosAgreed = true}                   // Cookie permission implies agreement to ToS
-    if (urlParameters.get("tos") === "false") {tosAgreed = false}                    // Explicit rejection of ToS overrides all
-    print("handlePrivacy(): ToS agreement interpretation: " + tosAgreed);
+    if (!cookieExists) {                                                             // No existing cookie
+        console.log("handlePrivacy(): Cookie not found");
 
-    // Interpret cookie agreement status (URL parameter string interpretations)
-    let cookieAgreed = false;
-    if (cookieExists) {cookieAgreed = true}                                          // Existing cookie implies agreement to ToS and cookie
-    if (urlParameters.get("cookie") === "true") {cookieAgreed = true}                // Explicit agreement
-    if (urlParameters.get("cookie") === "false") {cookieAgreed = false}              // Explicit rejection
-    if (urlParameters.get("tos") === "false") {cookieAgreed = false}                 // Explicit rejection of ToS overrides all, disallows cookie as well
-    print("handlePrivacy(): Cookie agreement interpretation: " + cookieAgreed);
+        // Check if notice text files exist
+        const tosTextExists = true;                                                  // Check if terms of service text exists
+        const cookieTextExists = true;                                               // Check if cookie notice text exists
+        print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
 
-    // Console (debug)
-    if (urlParameters.get("cookie") === "false") {
-        console.warn("handlePrivacy(): Cookie rejected");
+        // Load texts
+        const tosTextShort = "This is a local service and your video remains only on your own device. Your data is not collected. This service is provided as is.";
+        const tosTextLong = "The terms and conditions of this service... (long)";
+        const cookieTextShort = "This service uses optional cookies to remember your settings. If you consent to the use of cookies, you will not see this prompt on your device in the future.";
+        const cookieTextLong = "This service uses optional cookies to... (long)";
+
+        // Get URL parameters
+        const urlParameters = new URLSearchParams(window.location.search);           // Get URL parameters
+        print("handlePrivacy(): URL privacy parameters: " + urlParameters.get("privacy"));
+
+        // Interpret course of action
+        switch (urlParameters.get("privacy")) {
+            case "agreeAll":                                                         // User agrees to ToS and cookie -> No prompt
+                print("handlePrivacy(): ToS agree, cookies agree, no action");
+
+                break;
+            case "agreeTosInclusive":                                                // User agrees to ToS, has not agreed to cookies
+                if (cookieTextExists) {                                              // Cookie text exists -> Cookie prompt only
+                    print("handlePrivacy(): ToS agree, cookies unknown, displaying cookie prompt");
+
+                    cookiePrompt();                                                  // Cookie prompt
+                } else {                                                             // Cookie text does not exist -> No prompt, create cookie
+                    print("handlePrivacy(): ToS agree, cookies unknown, no cookie notice text, creating cookie without prompt");
+
+                    handleCookie();                                                  // Create cookie (assume cookies can be used if notice text is not provided)
+                }
+
+                break;
+            case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden cookies -> No prompt, no action
+                print("handlePrivacy(): ToS agree, cookies rejected, no action");
+
+                break;
+            case null:                                                               // No URL privacy parameter set
+                print("handlePrivacy(): ToS unknown, cookies unknown, displaying prompts for which texts exist");
+
+                if (tosTextExists) {                                                 // ToS text exists
+                    print("handlePrivacy(): ... ToS text exists");
+
+                    if (cookieTextExists) {                                          // Cookie text exists
+                        print("handlePrivacy(): ... Cookie text exists");
+
+                        fullPrompt();                                                // Full prompt
+                    } else {
+                        print("handlePrivacy(): ... Cookie text does not exist");
+
+                        tosPrompt();                                                 // ToS prompt
+                    }
+                } else {                                                             // ToS text does not exist
+                    if (cookieTextExists) {                                          // Cookie text does not exist
+                        print("handlePrivacy(): ... Cookie text exists");
+
+                        cookiePrompt();                                              // Cookie prompt
+                    } else {                                                         // No texts exist
+                        print("handlePrivacy(): ... Cookie text does not exist");
+
+                        handleCookie();                                              // Create cookie (assume cookies can be used if notice text is not provided)
+                    }
+                }
+
+                break;
+            default:
+            // Unexpected value
+            }
+        // Nested functions for prompts
+
+        /**
+         * Displays a cookie notice.
+         */
+        function cookiePrompt() {
+            console.log("cookiePrompt(): Displaying a notice");
+
+            prompt("Cookie notice", cookieTextShort, [                                 // Display prompt
+                [   "Accept"                          , () => {  }                     ],          // Prompt options
+                [   "Reject"                          , () => {  }                     ],
+                [   "Dismiss"                         , () => {  }                     ]
+            ]);
+
+            // TODO: Also update url params
+        }
+
+        /**
+         * Displays a full privacy notice.
+         */
+        function fullPrompt() {
+            console.log("fullPrompt(): Displaying a notice");
+
+            prompt("Privacy notice", tosTextShort + " " + cookieTextShort, [     // Display prompt
+                [   "Agree to all"                   , () => {  }                     ],          // Prompt options
+                [   "Agree to terms of service"      , () => {  }                     ],
+                [   "Reject"                         , () => {  }                     ]
+            ]);
+
+            // TODO: Also update url params
+        }
+
+        /**
+         * Displays a ToS (terms of service) notice.
+         */
+        function tosPrompt() {
+            console.log("tosPrompt(): Displaying a notice");
+
+            prompt("Privacy notice", tosTextShort, [                           // Display prompt
+                [   "Agree to terms"                , () => {  }                     ],    // Prompt options
+                [   "Reject terms"                  , () => {  }                     ]
+            ]);
+
+            // TODO: Also update url params
+        }
+
+        function updateUrlParam(paramName, paramValue) {
+
+        }
+
+        function option1() {
+        }
+
+    } else {                                                                         // Existing cookie implies agreement to ToS and cookie
+        console.log("handlePrivacy(): Cookie found, reading");
+        handleCookie();                                                              // Read cookie
     }
-    if (urlParameters.get("tos") === "false") {
-        console.error("handlePrivacy(): ToS rejected, service use forbidden");
-    }
 
-    // Interpret course of action
-    let queryTos = false;                                                            // Should ToS be queried (default behavior is uninterrupted operation)
-    if (tosTextExists && !tosAgreed) {
-        // ToS text exists, no agreement
-        // Prompt necessary
-    }
 
-    let queryCookie = false;                                                         // Should cookie be queried (default behavior is uninterrupted operation)
-    if (cookieTextExists && !cookieAgreed && urlParameters.get("cookie") !== "false" && urlParameters.get("tos") !== "false") {
-        // Cookie notice text exists, no agreement, no explicit rejections
-        // Prompt necessary
-        // Note that if cookie param in url not set to false, will prompt for cookie even if tos agreed
-    }
-
-    // DEV: Cookie stuff should be non-await, just set it off as async and handle on the fly?
-
-    // Show privacy notices (if needed)
-    // privacyNotice();
-
-    // Read or create cookie (if needed)
-    handleCookie();
 
     return true;
 }
 
-/**
- * Displays a privacy notice.
- *
- */
-function privacyNotice() {
-    prompt("Privacy notice", "This service...", [                       // Display prompt
-        [   "Agree to terms"                , () => {  }                     ],          // Prompt options
-        [   "Agree to terms and cookie"     , () => { handleCookie(); }      ],
-        [   "Disagree to all"               , () => {  }                     ]
-    ]);
-}
 
 /**
  * Creates or reads a cookie.
  * Performs related actions to apply settings.
  */
 function handleCookie() {
-    // TODO: Create cookie if does not exist, read settings if does exist
-
-    let t0 = getCookieContents("agreeAll");
-    let t1 = getCookieContents("test1");
-    let t2 = getCookieContents("test2");
-    let t3 = getCookieContents("test3");
-    let t4 = getCookieContents("test4");
-    let t5 = getCookieContents("test5");
-    let t6 = getCookieContents("test6");
-    console.warn("Check 1: " + t0 + " - " + t1 + " - " + t2 + " - " + t3 + " - " + t4 + " - " + t5 + " - " + t6);
-
-    setCookie("agreeAll", "true", 1);
-    setCookie("test1", "false", 1);
-    setCookie("test2", "", 1);
-    setCookie("test3", " ", 1);
-    setCookie("test4", null, 1);
-    setCookie("test5", undefined, 1);
-    setCookie("test6", "undefined", 1);
-
-    t0 = getCookieContents("agreeAll");
-    t1 = getCookieContents("test1");
-    t2 = getCookieContents("test2");
-    t3 = getCookieContents("test3");
-    t4 = getCookieContents("test4");
-    t5 = getCookieContents("test5");
-    t6 = getCookieContents("test6");
-    console.warn("Check 2: " + t0 + " - " + t1 + " - " + t2 + " - " + t3 + " - " + t4 + " - " + t5 + " - " + t6);
-
-    console.log("0:");
-    alert(checkCookieBoolean("agreeAll")); // True
-    console.log("1:");
-    alert(checkCookieBoolean("test1")); // False
-    console.log("2:"); // With or without string forced, check: Empty
-    alert(checkCookieBoolean("test2")); // ""
-    console.log("3:"); // With or without string forced, check: Empty
-    alert(checkCookieBoolean("test3")); // " "
-    console.log("4:"); // With or without string forced, check: Unknown
-    alert(checkCookieBoolean("test4")); // null
-    console.log("5:"); // With or without string forced, check: Undefined (string)
-    alert(checkCookieBoolean("test5")); // undefined
-    console.log("6:"); // With or without string forced, check: Undefined (string)
-    alert(checkCookieBoolean("test6")); // "undefined"
-    console.log("7:"); // With or without string forced, check: Empty
-    alert(checkCookieBoolean("test7")); // Does not exist
-
-
-
-
-
-    // Nested temporary functions for learning and development
-
-    /**
-     * This function sets a cookie.
-     *
-     * https://www.w3schools.com/js/js_cookies.asp
-     * @param cname the name of the cookie
-     * @param cvalue the value of the cookie
-     * @param exdays number of days until the cookie should expire
-     */
-    function setCookie(cname, cvalue, exdays) {
-        const d = new Date();
-        d.setTime(d.getTime() + (exdays*24*60*60*1000));
-        let expires = "expires="+ d.toUTCString();
-        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
-    }
-
-
-
 
     // Check for expected cookies
 
+    let cookieExists = checkCookieExists("privacy");
+
+    if (cookieExists) {
+        let privacyCookie = getCookieContents("privacy");
+        switch (privacyCookie) {
+            case "agreeAll":
+                break;
+            case "agreeTosInclusive":
+                break;
+            case "agreeTosExclusive":
+                break;
+            default:
+                // Unexpected value
+        }
+    }
+
+
+    // Nested functions for basic cookie operations
+
+    function checkCookieExists(cookieName) {
+        return true;
+    }
 
     function getCookieContents(cookieName) {
         let name = cookieName + "=";                                         // Create a variable (name) with the text to search for (cname + "=").
@@ -286,40 +308,27 @@ function handleCookie() {
         return "";                                                           // If the cookie is not found, return "".
     }
 
-
     function checkCookieBoolean(cookieName) {
         let cookieValue = getCookieContents(cookieName);
-        if (cookieValue === "true") {
-            return true;
-        } else {
-
-            // Check for unexpected values (debug)
-            switch (cookieValue) {
-                case "false":
-                    break;
-                case "":
-                    console.error("Empty cookie value");
-                    break;
-                case " ":
-                    console.error("Space cookie value");
-                    break;
-                case null:
-                    console.error("Null cookie value");
-                    break;
-                case undefined:
-                    console.error("undefined cookie value");
-                    break;
-                case "undefined":
-                    console.error("undefined (string) cookie value");
-                    break;
-                default:
-                    console.error("unknown cookie value");
-            }
-
-            return false;
-        }
+        return (cookieValue === "true");
     }
 
+    // Not migrated
+
+    /**
+     * This function sets a cookie.
+     *
+     * https://www.w3schools.com/js/js_cookies.asp
+     * @param cname the name of the cookie
+     * @param cvalue the value of the cookie
+     * @param exdays number of days until the cookie should expire
+     */
+    function setCookie(cname, cvalue, exdays) {
+        const d = new Date();
+        d.setTime(d.getTime() + (exdays*24*60*60*1000));
+        let expires = "expires="+ d.toUTCString();
+        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+    }
 
 
 
