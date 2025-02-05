@@ -1,9 +1,9 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-04-alpha");
+const version = ("2025-02-05-alpha");
 console.log("Version: " + version);
-console.log("To activate debug mode, append parameter ?debug to URL or type to console: debug()");
+console.log("To activate debug mode, append (using ?/&) parameter ' debug ' to URL or type to console: ' debug() '");
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -121,141 +121,154 @@ function addCoreListeners() {
 
 function handlePrivacy() {
 
-    // Check cookie
-    const cookieExists = false;                                                      // Check if cookie exists
+    // TODO: Naming and titling: separate into ToS and privacy (not necessarily cookie)
 
-    // Check for fast url parameter, just return out if needed
+    // Check privacy cookie
+    // TODO: Check cookie
+    // If privacy cookie exists, this implies prior agreement to ToS and cookie -> read, set url params, return true
 
-    if (!cookieExists) {                                                             // No existing cookie
-        console.log("handlePrivacy(): Cookie not found");
+    // Check URL privacy parameter
+    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");
+    print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
 
-        // Check if notice text files exist
-        const tosTextExists = true;                                                  // Check if terms of service text exists
-        const cookieTextExists = true;                                               // Check if cookie notice text exists
-        print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
-
-        // Load texts
-        const tosTextShort = "This is a local service and your video remains only on your own device. Your data is not collected. This service is provided as is.";
-        const tosTextLong = "The terms and conditions of this service... (long)";
-        const cookieTextShort = "This service uses optional cookies to remember your settings. If you consent to the use of cookies, you will not see this prompt on your device in the future.";
-        const cookieTextLong = "This service uses optional cookies to... (long)";
-
-        // Get URL parameters
-        const urlParameters = new URLSearchParams(window.location.search);           // Get URL parameters
-        print("handlePrivacy(): URL privacy parameters: " + urlParameters.get("privacy"));
-
-        // Interpret course of action
-        switch (urlParameters.get("privacy")) {
-            case "agreeAll":                                                         // User agrees to ToS and cookie -> No prompt
-                print("handlePrivacy(): ToS agree, cookies agree, no action");
-
-                break;
-            case "agreeTosInclusive":                                                // User agrees to ToS, has not agreed to cookies
-                if (cookieTextExists) {                                              // Cookie text exists -> Cookie prompt only
-                    print("handlePrivacy(): ToS agree, cookies unknown, displaying cookie prompt");
-
-                    cookiePrompt();                                                  // Cookie prompt
-                } else {                                                             // Cookie text does not exist -> No prompt, create cookie
-                    print("handlePrivacy(): ToS agree, cookies unknown, no cookie notice text, creating cookie without prompt");
-
-                    handleCookie();                                                  // Create cookie (assume cookies can be used if notice text is not provided)
-                }
-
-                break;
-            case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden cookies -> No prompt, no action
-                print("handlePrivacy(): ToS agree, cookies rejected, no action");
-
-                break;
-            case null:                                                               // No URL privacy parameter set
-                print("handlePrivacy(): ToS unknown, cookies unknown, displaying prompts for which texts exist");
-
-                if (tosTextExists) {                                                 // ToS text exists
-                    print("handlePrivacy(): ... ToS text exists");
-
-                    if (cookieTextExists) {                                          // Cookie text exists
-                        print("handlePrivacy(): ... Cookie text exists");
-
-                        fullPrompt();                                                // Full prompt
-                    } else {
-                        print("handlePrivacy(): ... Cookie text does not exist");
-
-                        tosPrompt();                                                 // ToS prompt
-                    }
-                } else {                                                             // ToS text does not exist
-                    if (cookieTextExists) {                                          // Cookie text does not exist
-                        print("handlePrivacy(): ... Cookie text exists");
-
-                        cookiePrompt();                                              // Cookie prompt
-                    } else {                                                         // No texts exist
-                        print("handlePrivacy(): ... Cookie text does not exist");
-
-                        handleCookie();                                              // Create cookie (assume cookies can be used if notice text is not provided)
-                    }
-                }
-
-                break;
-            default:
-            // Unexpected value
-            }
-        // Nested functions for prompts
-
-        /**
-         * Displays a cookie notice.
-         */
-        function cookiePrompt() {
-            console.log("cookiePrompt(): Displaying a notice");
-
-            prompt("Cookie notice", cookieTextShort, [                                 // Display prompt
-                [   "Accept"                          , () => {  }                     ],          // Prompt options
-                [   "Reject"                          , () => {  }                     ],
-                [   "Dismiss"                         , () => {  }                     ]
-            ]);
-
-            // TODO: Also update url params
-        }
-
-        /**
-         * Displays a full privacy notice.
-         */
-        function fullPrompt() {
-            console.log("fullPrompt(): Displaying a notice");
-
-            prompt("Privacy notice", tosTextShort + " " + cookieTextShort, [     // Display prompt
-                [   "Agree to all"                   , () => {  }                     ],          // Prompt options
-                [   "Agree to terms of service"      , () => {  }                     ],
-                [   "Reject"                         , () => {  }                     ]
-            ]);
-
-            // TODO: Also update url params
-        }
-
-        /**
-         * Displays a ToS (terms of service) notice.
-         */
-        function tosPrompt() {
-            console.log("tosPrompt(): Displaying a notice");
-
-            prompt("Privacy notice", tosTextShort, [                           // Display prompt
-                [   "Agree to terms"                , () => {  }                     ],    // Prompt options
-                [   "Reject terms"                  , () => {  }                     ]
-            ]);
-
-            // TODO: Also update url params
-        }
-
-        function updateUrlParam(paramName, paramValue) {
-
-        }
-
-        function option1() {
-        }
-
-    } else {                                                                         // Existing cookie implies agreement to ToS and cookie
-        console.log("handlePrivacy(): Cookie found, reading");
-        handleCookie();                                                              // Read cookie
+    switch (privacyParameter) {
+        case "agreeAll":                                                         // User agrees to ToS and cookie -> No prompt, read/create cookie
+            handleCookie();
+            return true;
+        case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden cookies -> No prompt, no action
+            return true;
+        default:
+            print("handlePrivacy(): No fast exit");
     }
 
+    // Check if notice text files exist
+    // TODO: Check FILES
+    const tosTextExists = true;                                                  // Check if terms of service text exists
+    const cookieTextExists = true;                                               // Check if cookie notice text exists
+    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
 
+    // Load texts from files
+    // TODO: Load from FILES
+    const tosTextShort =
+        "This is a local service. " +
+        "Your video and data remain only on your own device. " +
+        "Your data is not collected or sent anywhere. " +
+        "This service is provided as is.";
+    const tosTextLong = "The terms of service for this service... " +
+        "(long)";
+    const cookieTextShort =
+        "This service uses optional cookies to remember your settings. " +
+        "Cookies are never used for tracking. " +
+        "If you consent to the use of cookies, you will not see this prompt on your device in the future.";
+    const cookieTextLong = "This service uses optional cookies to... " +
+        "(long)";
+
+    // Interpret course of action
+    switch (privacyParameter) {
+        case "agreeTosInclusive":                                                // User agrees to ToS, has not agreed to cookies
+            if (cookieTextExists) {                                              // Cookie text exists -> Cookie prompt only
+                print("handlePrivacy(): ToS agree, cookies unknown, displaying cookie prompt");
+
+                cookiePrompt();                                                  // Cookie prompt
+            } else {                                                             // Cookie text does not exist -> No prompt, create cookie
+                print("handlePrivacy(): ToS agree, cookies unknown, no cookie notice text, creating cookie without prompt");
+
+                handleCookie();                                                  // Create cookie (assume cookies can be used if notice text is not provided)
+            }
+
+            break;
+        case null:                                                               // No URL privacy parameter set
+            print("handlePrivacy(): ToS unknown, cookies unknown, displaying prompts for which texts exist");
+
+            if (tosTextExists) {                                                 // ToS text exists
+                print("handlePrivacy(): ... ToS text exists");
+
+                if (cookieTextExists) {                                          // Cookie text exists
+                    print("handlePrivacy(): ... Cookie text exists");
+
+                    fullPrompt();                                                // Full prompt
+                } else {                                                         // Cookie text does not exist
+                    print("handlePrivacy(): ... Cookie text does not exist");
+
+                    tosPrompt();                                                 // ToS prompt
+                }
+            } else {                                                             // ToS text does not exist
+                if (cookieTextExists) {                                          // Cookie text does exist
+                    print("handlePrivacy(): ... Cookie text exists");
+
+                    cookiePrompt();                                              // Cookie prompt
+                } else {                                                         // No texts exist
+                    print("handlePrivacy(): ... Cookie text does not exist");
+
+                    // TODO: Might want a switch here that completely disables persistence, if that is what the hosting party wants
+                    handleCookie();                                              // Create cookie (assume cookies can be used if notice text is not provided)
+                }
+            }
+
+            break;
+        default:                                                                 // Privacy agreement state unexpected
+            console.error("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
+            fullPrompt();                                                        // Full prompt
+    }
+
+    // Nested functions for prompts
+
+    // TODO: Add actions to prompt options
+
+    /**
+     * Displays a cookie notice.
+     */
+    function cookiePrompt() {
+        console.log("cookiePrompt(): Displaying a notice");
+
+        prompt("Cookie notice", cookieTextShort, [                                                      // Display prompt
+            [   "Accept"                          , () => { updateUrlParam("privacy", "agreeAll"); }            ],  // Prompt options
+            [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); }   ],
+            [   "Dismiss"                         , () => {  }                                                                       ]
+        ]);
+
+    }
+
+    /**
+     * Displays a full privacy notice.
+     */
+    function fullPrompt() {
+        console.log("fullPrompt(): Displaying a notice");
+
+        prompt("Privacy notice", tosTextShort + " " + cookieTextShort, [                           // Display prompt
+            [   "Agree to all"                   , () => { updateUrlParam("privacy", "agreeAll"); }             ],  // Prompt options
+            [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }    ],
+            [   "Reject"                         , () => { /* HALT SERVICE */ return false; }                                        ]
+        ]);
+
+    }
+
+    /**
+     * Displays a ToS (terms of service) notice.
+     */
+    function tosPrompt() {
+        console.log("tosPrompt(): Displaying a notice");
+
+        prompt("Privacy notice", tosTextShort, [                           // Display prompt
+            [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); }     ],  // Prompt options
+            [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                         ]
+        ]);
+
+    }
+
+    /**
+     * Modifies and updates a single parameter in the URL query string.
+     * @param paramName Parameter to modify
+     * @param paramValue New value for parameter
+     */
+    function updateUrlParam(paramName, paramValue) {
+        let allParameters = new URLSearchParams(window.location.search);                                            // Get all parameters
+        allParameters.set(paramName, paramValue);                                                                   // Change one parameter
+        window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);        // Replace url with same path and new parameters
+    }
+
+    function option1() {
+    }
 
     return true;
 }
@@ -275,10 +288,6 @@ function handleCookie() {
         let privacyCookie = getCookieContents("privacy");
         switch (privacyCookie) {
             case "agreeAll":
-                break;
-            case "agreeTosInclusive":
-                break;
-            case "agreeTosExclusive":
                 break;
             default:
                 // Unexpected value
@@ -320,14 +329,14 @@ function handleCookie() {
      *
      * https://www.w3schools.com/js/js_cookies.asp
      * @param cname the name of the cookie
-     * @param cvalue the value of the cookie
-     * @param exdays number of days until the cookie should expire
+     * @param cookieValue the value of the cookie
+     * @param cookieExpiryDays number of days until the cookie should expire
      */
-    function setCookie(cname, cvalue, exdays) {
+    function setCookie(cname, cookieValue, cookieExpiryDays) {
         const d = new Date();
-        d.setTime(d.getTime() + (exdays*24*60*60*1000));
+        d.setTime(d.getTime() + (cookieExpiryDays*24*60*60*1000));
         let expires = "expires="+ d.toUTCString();
-        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+        document.cookie = cname + "=" + cookieValue + ";" + expires + ";path=/";
     }
 
 
@@ -783,8 +792,11 @@ function toggleControlCollapse(collapseIcon) {
 function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
 
     // TODO: Handle concurrent prompts
-
     // TODO: Add support for setting position and size
+    // TODO: Add colored buttons
+    // TODO: Add link and newline support
+    // TODO: Add support for other elements with HTML definitions
+
 
     // Create prompt element
     const prompt = document.createElement('div');
@@ -1820,17 +1832,19 @@ function developerMenu() {
 
     // ADD NEW BUTTONS HERE
     prompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                      }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                        }],
-        [   "Release video stream"             , () => { releaseVideoStream();                               }],
-        [   "Start video (reset)"              , () => { videoStart();                                       }],
-        [   "Test dark theme"                  , () => { testThemeDark();                                    }],
-        [   "Test another UI style"            , () => { testUserInterfaceVersion();                         }],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                        }],
+        [   "Toggle visual debug"              , () => { debugVisual();                                                                   }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                                                     }],
+        [   "Release video stream"             , () => { releaseVideoStream();                                                            }],
+        [   "Start video (reset)"              , () => { videoStart();                                                                    }],
+        [   "Test dark theme"                  , () => { testThemeDark();                                                                 }],
+        [   "Test another UI style"            , () => { testUserInterfaceVersion();                                                      }],
+        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                                     }],
+        [   "Dump cookies to console"          , () => { print(document.cookie);                                                          }],
+        [   "Delete privacy cookie"            , () => { document.cookie = "privacy=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/";     }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON
         // Template:
-        // [   "Text for button"               , () => { function_or_code_block();                           }],
-        ["Dismiss"                             , () => {                                                     }]   // Preserve as final line
+        // [   "Text for button"               , () => { function_or_code_block();                                                        }],
+        ["Dismiss"                             , () => {                                                                                  }]   // Preserve as final line
     ]);
 
 
