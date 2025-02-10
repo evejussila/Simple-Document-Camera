@@ -42,23 +42,22 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Handle privacy notices and cookie
-    // let tosAgreed = handlePrivacy();
+    // Handle privacy notices and data storage
+    let tosAgreed = handlePrivacy();
 
     // Start video feed
-    // TODO: Do not run if tosAgreed === false
-    videoStart().then( () => {} );
+    if (tosAgreed) {
+        videoStart().then(() => {   } );
+    }
 
     // Update video input list periodically
-    setInterval(backgroundUpdateInputList, 10000);
+    setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
     // Development
     const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
     if (urlParameters.has("debug")) {                                                  // Check for debug/developer parameter
         debugMode = true;
         print("start(): Found URL parameter for debug");
-
-        handlePrivacy();                                                                     // DEV: Used here only while developing privacy notice functionality
     }
     if (debugMode) debug();                                                                  // Activate developer features
 
@@ -119,36 +118,45 @@ function addCoreListeners() {
     });
 }
 
+
+/**
+ * Handles privacy-related prompting, parameters, data storage and logical coordination
+ *
+ * @returns {boolean} True if the service can be used
+ */
 function handlePrivacy() {
 
-    // TODO: Naming and titling: separate into ToS and privacy (not necessarily cookie)
+    // Check browser local storage for privacy setting
+    const privacyKey = localStorage.getItem('privacy');
 
-    // Check privacy cookie
-    // TODO: Check cookie
-    // If privacy cookie exists, this implies prior agreement to ToS and cookie -> read, set url params, return true
+    switch (privacyKey) {
+        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+            handleLocalStorage();
+            return true;
+        default:
+            print("handlePrivacy(): No fast exit (local storage)");
+    }
 
     // Check URL privacy parameter
     const privacyParameter = new URLSearchParams(window.location.search).get("privacy");
     print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
 
     switch (privacyParameter) {
-        case "agreeAll":                                                         // User agrees to ToS and cookie -> No prompt, read/create cookie
-            handleCookie();
+        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+            handleLocalStorage();
             return true;
-        case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden cookies -> No prompt, no action
+        case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden local storage -> No prompt, no action
             return true;
         default:
-            print("handlePrivacy(): No fast exit");
+            print("handlePrivacy(): No fast exit (URL parameter)");
     }
 
-    // Check if notice text files exist
-    // TODO: Check FILES
+    // Check if notice text files exist and load texts
+    // TODO: Check FILES and load text from them to variables, use localization and file read implementation
     const tosTextExists = true;                                                  // Check if terms of service text exists
-    const cookieTextExists = true;                                               // Check if cookie notice text exists
-    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
+    const privacyTextExists = true;                                              // Check if privacy notice text exists
+    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
 
-    // Load texts from files
-    // TODO: Load from FILES
     const tosTextShort =
         "This is a local service. " +
         "Your video and data remain only on your own device. " +
@@ -156,52 +164,72 @@ function handlePrivacy() {
         "This service is provided as is.";
     const tosTextLong = "The terms of service for this service... " +
         "(long)";
-    const cookieTextShort =
-        "This service uses optional cookies to remember your settings. " +
-        "Cookies are never used for tracking. " +
-        "If you consent to the use of cookies, you will not see this prompt on your device in the future.";
-    const cookieTextLong = "This service uses optional cookies to... " +
+    const privacyTextShort =
+        "This service stores your settings locally. " +
+        "This is optional. " +
+        "If you consent to the storing of your settings, you will not see this prompt on your device in the future.";
+    const privacyTextLong = "This service can store user settings with the user's permission to... " +
         "(long)";
 
     // Interpret course of action
+
+    // Table of actions
+    // Format:
+    // Text states (does text exist)   Privacy parameters
+    // Privacy text    Tos text        Parameter
+    // ---------------------------------------------------------------------------------------------------
+    // Boolean         Boolean         Action (output)
+
+    // Table of actions
+    // Table:
+    // Privacy text    Tos text        agreeTosInclusive        null
+    // ---------------------------------------------------------------------------------------------------
+    // true            -               privacyPrompt
+    // false           -               handleLocalStorage
+    // true            true                                     fullPrompt
+    // false           true                                     tosPrompt
+    // true            false                                    privacyPrompt
+    // false           false                                    handleLocalStorage
+
+    // TODO: Minimize table, compact logic
+
     switch (privacyParameter) {
-        case "agreeTosInclusive":                                                // User agrees to ToS, has not agreed to cookies
-            if (cookieTextExists) {                                              // Cookie text exists -> Cookie prompt only
-                print("handlePrivacy(): ToS agree, cookies unknown, displaying cookie prompt");
+        case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
+            if (privacyTextExists) {                                             // Privacy text exists -> privacy prompt only
+                print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
 
-                cookiePrompt();                                                  // Cookie prompt
-            } else {                                                             // Cookie text does not exist -> No prompt, create cookie
-                print("handlePrivacy(): ToS agree, cookies unknown, no cookie notice text, creating cookie without prompt");
-
-                handleCookie();                                                  // Create cookie (assume cookies can be used if notice text is not provided)
+                privacyPrompt();                                                 // Privacy prompt
+            } else {                                                             // Privacy text does not exist -> No prompt, create local storage
+                print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
+                handleLocalStorage();                                            // Create local storage (assume local storage can be used if notice text is not provided)
             }
 
             break;
         case null:                                                               // No URL privacy parameter set
-            print("handlePrivacy(): ToS unknown, cookies unknown, displaying prompts for which texts exist");
+            print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
 
             if (tosTextExists) {                                                 // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
 
-                if (cookieTextExists) {                                          // Cookie text exists
-                    print("handlePrivacy(): ... Cookie text exists");
+                if (privacyTextExists) {                                         // Privacy text exists
+                    print("handlePrivacy(): ... privacy text exists");
 
                     fullPrompt();                                                // Full prompt
-                } else {                                                         // Cookie text does not exist
-                    print("handlePrivacy(): ... Cookie text does not exist");
+                } else {                                                         // Privacy text does not exist
+                    print("handlePrivacy(): ... privacy text does not exist");
 
                     tosPrompt();                                                 // ToS prompt
                 }
             } else {                                                             // ToS text does not exist
-                if (cookieTextExists) {                                          // Cookie text does exist
-                    print("handlePrivacy(): ... Cookie text exists");
+                if (privacyTextExists) {                                         // Privacy text does exist
+                    print("handlePrivacy(): ... privacy text exists");
 
-                    cookiePrompt();                                              // Cookie prompt
-                } else {                                                         // No texts exist
-                    print("handlePrivacy(): ... Cookie text does not exist");
+                    privacyPrompt();                                              // Privacy prompt
+                } else {                                                          // No texts exist
+                    print("handlePrivacy(): ... privacy text does not exist");
 
                     // TODO: Might want a switch here that completely disables persistence, if that is what the hosting party wants
-                    handleCookie();                                              // Create cookie (assume cookies can be used if notice text is not provided)
+                    handleLocalStorage();                                              // Create local storage (assume local storage can be used if notice text is not provided)
                 }
             }
 
@@ -213,18 +241,16 @@ function handlePrivacy() {
 
     // Nested functions for prompts
 
-    // TODO: Add actions to prompt options
-
     /**
-     * Displays a cookie notice.
+     * Displays a privacy notice.
      */
-    function cookiePrompt() {
-        console.log("cookiePrompt(): Displaying a notice");
+    function privacyPrompt() {
+        console.log("privacyPrompt(): Displaying a notice");
 
-        prompt("Cookie notice", cookieTextShort, [                                                      // Display prompt
-            [   "Accept"                          , () => { updateUrlParam("privacy", "agreeAll"); }            ],  // Prompt options
+        prompt("Cookie notice", privacyTextShort, [                                                      // Display prompt
+            [   "Accept"                          , () => { handleLocalStorage(); }                                                  ],  // Prompt options
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); }   ],
-            [   "Dismiss"                         , () => {  }                                                                       ]
+            [   "Dismiss"                         , () => { /* Implicit rejection, ask again later */ }                              ]
         ]);
 
     }
@@ -235,8 +261,8 @@ function handlePrivacy() {
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice");
 
-        prompt("Privacy notice", tosTextShort + " " + cookieTextShort, [                           // Display prompt
-            [   "Agree to all"                   , () => { updateUrlParam("privacy", "agreeAll"); }             ],  // Prompt options
+        prompt("Privacy notice", tosTextShort + " " + privacyTextShort, [                           // Display prompt
+            [   "Agree to all"                   , () => { handleLocalStorage(); }                                                   ],  // Prompt options
             [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }    ],
             [   "Reject"                         , () => { /* HALT SERVICE */ return false; }                                        ]
         ]);
@@ -256,91 +282,53 @@ function handlePrivacy() {
 
     }
 
-    /**
-     * Modifies and updates a single parameter in the URL query string.
-     * @param paramName Parameter to modify
-     * @param paramValue New value for parameter
-     */
-    function updateUrlParam(paramName, paramValue) {
-        let allParameters = new URLSearchParams(window.location.search);                                            // Get all parameters
-        allParameters.set(paramName, paramValue);                                                                   // Change one parameter
-        window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);        // Replace url with same path and new parameters
-    }
-
+    // TODO: Finalize prompt actions
     function option1() {
     }
 
-    return true;
+
+
+
+    return true; // TODO: Needs an await unless only cookie prompt
+}
+
+/**
+ * Modifies and updates a single parameter in the URL query string.
+ *
+ * @param paramName Parameter to modify
+ * @param paramValue New value for parameter
+ */
+function updateUrlParam(paramName, paramValue) {
+    let allParameters = new URLSearchParams(window.location.search);                                            // Get all parameters
+    allParameters.set(paramName, paramValue);                                                                   // Change one parameter
+    window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);        // Replace url with same path and new parameters
+}
+
+/**
+ * Writes to or reads from local storage.
+ * Performs related actions to apply settings.
+ *
+ */
+function handleLocalStorage() {
+
+    console.log("handleLocalStorage(): Using browser local storage");
+
+    // Write privacy switch to local storage
+    localStorage.setItem("privacy", "agreeAll");
+
+    // Update URL parameter
+    updateUrlParam("privacy", "agreeAll");
+
+    // Load expected local storage keys
+    // TODO: Setting loads
+
 }
 
 
 /**
- * Creates or reads a cookie.
- * Performs related actions to apply settings.
+ * Loads saved settings from local storage
  */
-function handleCookie() {
-
-    // Check for expected cookies
-
-    let cookieExists = checkCookieExists("privacy");
-
-    if (cookieExists) {
-        let privacyCookie = getCookieContents("privacy");
-        switch (privacyCookie) {
-            case "agreeAll":
-                break;
-            default:
-                // Unexpected value
-        }
-    }
-
-
-    // Nested functions for basic cookie operations
-
-    function checkCookieExists(cookieName) {
-        return true;
-    }
-
-    function getCookieContents(cookieName) {
-        let name = cookieName + "=";                                         // Create a variable (name) with the text to search for (cname + "=").
-        let decodedCookie = decodeURIComponent(document.cookie);             // Decode the cookie string, to handle cookies with special characters, e.g. '$'
-        let cookieArray = decodedCookie.split(';');                 // Split document.cookie on semicolons into an array called ca (ca = decodedCookie.split(';')).
-        for(let i = 0; i <cookieArray.length; i++) {                         // Loop through the ca array , and read out each value c = ca[i]).
-            let c = cookieArray[i];
-            while (c.charAt(0) == ' ') {
-                c = c.substring(1);
-            }
-            if (c.indexOf(name) == 0) {                                      // If the cookie is found (c.indexOf(name) == 0), return the value of the cookie (c.substring(name.length, c.length).
-                return c.substring(name.length, c.length);
-            }
-        }
-        return "";                                                           // If the cookie is not found, return "".
-    }
-
-    function checkCookieBoolean(cookieName) {
-        let cookieValue = getCookieContents(cookieName);
-        return (cookieValue === "true");
-    }
-
-    // Not migrated
-
-    /**
-     * This function sets a cookie.
-     *
-     * https://www.w3schools.com/js/js_cookies.asp
-     * @param cname the name of the cookie
-     * @param cookieValue the value of the cookie
-     * @param cookieExpiryDays number of days until the cookie should expire
-     */
-    function setCookie(cname, cookieValue, cookieExpiryDays) {
-        const d = new Date();
-        d.setTime(d.getTime() + (cookieExpiryDays*24*60*60*1000));
-        let expires = "expires="+ d.toUTCString();
-        document.cookie = cname + "=" + cookieValue + ";" + expires + ";path=/";
-    }
-
-
-
+function loadSavedSettings() {
 
 }
 
@@ -1839,16 +1827,30 @@ function developerMenu() {
         [   "Brute test video input"           , () => { bruteForceBestVideoStream();                      }],
         [   "Test dark theme"                  , () => { testThemeDark();                                  }],
         [   "Test another UI style"            , () => { testUserInterfaceVersion();                       }],
-        [   "Dump cookies to console"          , () => { print(document.cookie);                           }],
-        [   "Delete privacy cookie"            , () => { deleteSpecificCookie("privacy");                  }],
-        [   "Delete all cookies"               , () => { deleteAllCookies();                               }],
+        [   "Dump local storage to console"    , () => { dumpLocalStorage();                               }],
+        [   "Clear local storage"              , () => { localStorage.clear();                             }],
+        [   "(Old) Dump cookies to console"    , () => { print(document.cookie);                           }],
+        [   "(Old) Clear cookies"              , () => { deleteAllCookies();                               }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
         // [   "Text for button"               , () => { function_or_code_block();                         }],
         [   "Dismiss"                          , () => {                                                   }]   // Preserve as final line
     ]);
+}
 
 
+/**
+ * Prints out all local storage key-value pairs to console
+ * @returns {{}} Object containing all key-value pairs
+ */
+function dumpLocalStorage() {
+    let localStorageDataPairs = {};                             // Object instead of array
+    Object.keys(localStorage).forEach(key => {
+        localStorageDataPairs[key] = localStorage.getItem(key);
+    });
+    console.log(JSON.stringify(localStorageDataPairs));         // Formatted output
+    // console.log(localStorageDataPairs);
+    return localStorageDataPairs;
 }
 
 /**
