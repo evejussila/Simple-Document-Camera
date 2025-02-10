@@ -1,9 +1,9 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-05-alpha");
+const version = ("2025-02-11-alpha");
 console.log("Version: " + version);
-console.log("To activate debug mode, append (using ?/&) parameter ' debug ' to URL or type to console: ' debug() '");
+console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -43,10 +43,10 @@ function start() {
     addCoreListeners();
 
     // Handle privacy notices and data storage
-    let tosAgreed = handlePrivacy();
+    const tosAgreed = handlePrivacy();                                                       // Determines if user may continue using the service
 
     // Start video feed
-    if (tosAgreed) {                                                                         // TODO: If no video, prompts will overlap (need positioning)
+    if (tosAgreed) {                                                                         // TODO: If no video, prompts will overlap (need positioning or await)
         videoStart().then(() => {   } );
     }
 
@@ -247,11 +247,11 @@ function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice");
 
-        customPrompt("Cookie notice", privacyTextShort, [                                                      // Display prompt
+        customPrompt("Privacy notice", privacyTextShort, [                                                      // Display prompt
             [   "Accept"                          , () => { handleLocalStorage(); }                                                  ],  // Prompt options
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); }   ],
             [   "Dismiss"                         , () => { /* Implicit rejection, ask again later */ }                              ]
-        ]);
+        ], "50%");
 
     }
 
@@ -265,7 +265,7 @@ function handlePrivacy() {
             [   "Agree to all"                   , () => { handleLocalStorage(); }                                                   ],  // Prompt options
             [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }    ],
             [   "Reject"                         , () => { /* HALT SERVICE */ return false; }                                        ]
-        ]);
+        ], "50%");
 
     }
 
@@ -278,7 +278,7 @@ function handlePrivacy() {
         customPrompt("Privacy notice", tosTextShort, [                           // Display prompt
             [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); }     ],  // Prompt options
             [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                         ]
-        ]);
+        ], "50%");
 
     }
 
@@ -289,7 +289,7 @@ function handlePrivacy() {
 
 
 
-    return true; // TODO: Needs an await unless only cookie prompt
+    return true; // TODO: Needs an await unless only privacy prompt
 }
 
 /**
@@ -390,7 +390,7 @@ async function videoStart() {
         }
     }
 
-    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
+    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "10%"); }                   // Prompt user
     // TODO: Provide readable error description and conditional solutions
 
 }
@@ -774,85 +774,118 @@ function toggleControlCollapse(collapseIcon) {
  * @param title Title text for prompt
  * @param text Body text for prompt
  * @param options Array with text and code to run for buttons
- * @param position Position of prompt
+ * @param position Position of prompt (string value for property style.left)
  * @param size Size of prompt
  */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = null) {
 
     // TODO: Handle concurrent prompts
     // TODO: Add support for setting position and size
     // TODO: Add colored buttons
     // TODO: Add link and newline support
     // TODO: Add support for other elements with HTML definitions
+    // TODO: Replace animations with show and hide
 
-
-    // Create prompt element
-    const prompt = document.createElement('div');
+    // Create prompt container
+    const prompt = document.createElement('div');                // Create element
     prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
-    prompt.style.position = 'fixed';
-    prompt.style.left = '50%';
-    prompt.style.transform = 'translateX(-50%)';                         // What was the logic?, also 'translate(-50%, -50%)'?
-    prompt.style.width = '200px';
-    prompt.style.background = '#454545';
-    prompt.style.borderRadius = '10px';
-    prompt.style.padding = '10px';
-    prompt.style.opacity = '0';
-    prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
-    prompt.style.zIndex = '9999';
-    prompt.style.bottom = `0px`;                                          // Initial position before animation
+
+    // CSS block for prompt container
+    {
+        // Styling
+        prompt.className = 'prompt';                                     // Set basic CSS class
+
+        // Positioning
+        prompt.style.position = 'fixed';                                 // Mobility
+        prompt.style.left = position;                                    // Position
+
+        // Sizing
+        prompt.style.width = '200px';                                    // Sizing
+
+        // Initial state for animation
+        prompt.style.opacity = '0';
+        prompt.style.bottom = `0px`;
+        prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
+    }
 
     // Create title text
     const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
-    textTitleElement.style.color = 'white';                                                 // Text color
-    textTitleElement.style.fontSize = '20px';                                               // Text size
-    textTitleElement.style.textAlign = 'center';                                            // Center text
-    textTitleElement.style.marginBottom = '10px';                                           // Margin under title
+
+    // CSS block for prompt title text
+    {
+        // Styling
+        textTitleElement.className = 'promptTitle';                       // Set basic CSS class
+    }
+
+    // Append
     textTitleElement.appendChild(textTitle);
     prompt.appendChild(textTitleElement);
 
     // Create body text
     const textBodyElement = document.createElement('div');
     const textBody = document.createTextNode(text);
-    textBodyElement.style.color = 'white';
-    textBodyElement.style.textAlign = 'justify';                                            // Text fills element area fully horizontally
-    textTitleElement.style.marginBottom = '10px';
+
+    // CSS block for prompt body text
+    {
+        // Styling
+        textBodyElement.className = 'promptText';                        // Set basic CSS class
+    }
+
+    // Append
     textBodyElement.appendChild(textBody);
     prompt.appendChild(textBodyElement);
 
+    // Create button container
+    const buttonContainer = document.createElement('div');
+
+    // CSS block for button container
+    {
+        // Styling
+        buttonContainer.className = 'promptButtonContainer';                   // Set basic CSS class
+    }
+
     // Create buttons
     options.forEach((optionButton) => {
+        // Create button
         const button = document.createElement('button');
         button.textContent = `${optionButton[0]}`;
-        button.style.width = '100%';
-        button.style.margin = '5px 0';
-        button.style.color = '#fff';
-        button.style.background = '#555';
-        button.style.border = 'none';
-        button.style.padding = '10px';
-        button.style.borderRadius = '5px';
 
+        // CSS block for buttons
+        {
+            // Styling
+            button.className = 'promptButton';                       // Set basic CSS class
+        }
+
+        // Attach action listener
         button.addEventListener('click', () => {
-            dismiss();                                                                       // Buttons always dismiss prompt
-            optionButton[1]();
+            dismiss();                                               // Buttons always dismiss prompt
+            optionButton[1]();                                       // Run function or code block
         });
 
-        prompt.appendChild(button);
+        // Append
+        buttonContainer.appendChild(button);
     });
+
+    // Append
+    prompt.appendChild(buttonContainer);
 
     print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
+
+    // Dismiss prompt after timeout
+    // const timeout = 1000;
+    // if (timeout >= 0) {
+    //     setTimeout(() => {
+    //         dismiss();
+    //     }, 1000);}
+    // }
 
     // Animation: fade in
     requestAnimationFrame(() => {
         prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
         prompt.style.opacity = '1';
     });
-
-    // Dismiss prompt after timeout
-    // setTimeout(() => {
-    //     dismiss();
-    // }, 1000);}
 
     // Nested function to dismiss prompt
     function dismiss() {

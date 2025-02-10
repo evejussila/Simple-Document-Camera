@@ -139,3 +139,39 @@ button {
 #selectorDevice {
     width: 200px;
 }
+
+
+.prompt {
+    transform: translateX(-50%);
+    background: #454545;
+    border-radius: 10px;
+    padding: 10px;
+    z-index: 9999;
+}
+
+.promptTitle {
+    color: white;
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.promptText {
+    color: white;
+    text-align: justify;
+    margin-bottom: 10px;
+}
+
+.promptButtonContainer {
+
+}
+
+.promptButton {
+    width: 100%;
+    margin: 5px 0;
+    color: #fff;
+    background: #555;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+}
