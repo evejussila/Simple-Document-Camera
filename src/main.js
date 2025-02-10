@@ -46,7 +46,7 @@ function start() {
     let tosAgreed = handlePrivacy();
 
     // Start video feed
-    if (tosAgreed) {
+    if (tosAgreed) {                                                                         // TODO: If no video, prompts will overlap (need positioning)
         videoStart().then(() => {   } );
     }
 
@@ -247,7 +247,7 @@ function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice");
 
-        prompt("Cookie notice", privacyTextShort, [                                                      // Display prompt
+        customPrompt("Cookie notice", privacyTextShort, [                                                      // Display prompt
             [   "Accept"                          , () => { handleLocalStorage(); }                                                  ],  // Prompt options
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); }   ],
             [   "Dismiss"                         , () => { /* Implicit rejection, ask again later */ }                              ]
@@ -261,7 +261,7 @@ function handlePrivacy() {
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice");
 
-        prompt("Privacy notice", tosTextShort + " " + privacyTextShort, [                           // Display prompt
+        customPrompt("Privacy notice", tosTextShort + " " + privacyTextShort, [                           // Display prompt
             [   "Agree to all"                   , () => { handleLocalStorage(); }                                                   ],  // Prompt options
             [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }    ],
             [   "Reject"                         , () => { /* HALT SERVICE */ return false; }                                        ]
@@ -275,7 +275,7 @@ function handlePrivacy() {
     function tosPrompt() {
         console.log("tosPrompt(): Displaying a notice");
 
-        prompt("Privacy notice", tosTextShort, [                           // Display prompt
+        customPrompt("Privacy notice", tosTextShort, [                           // Display prompt
             [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); }     ],  // Prompt options
             [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                         ]
         ]);
@@ -390,7 +390,7 @@ async function videoStart() {
         }
     }
 
-    if (error) { prompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
+    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
     // TODO: Provide readable error description and conditional solutions
 
 }
@@ -777,7 +777,7 @@ function toggleControlCollapse(collapseIcon) {
  * @param position Position of prompt
  * @param size Size of prompt
  */
-function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
 
     // TODO: Handle concurrent prompts
     // TODO: Add support for setting position and size
@@ -840,7 +840,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
         prompt.appendChild(button);
     });
 
-    print("prompt(): Creating prompt " + prompt.id + " : " + title);
+    print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
 
     // Animation: fade in
@@ -856,7 +856,7 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
 
     // Nested function to dismiss prompt
     function dismiss() {
-        print("prompt(): Dismissing prompt " + prompt.id);
+        print("customPrompt(): Dismissing prompt " + prompt.id);
 
         // Animation: fade out
         prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
@@ -1819,7 +1819,7 @@ function developerMenu() {
     print("developerMenu(): Developer menu button pressed");
 
     // ADD NEW BUTTONS HERE
-    prompt("Developer menu", "Options for developers", [
+    customPrompt("Developer menu", "Options for developers", [
         [   "Toggle visual debug"              , () => { debugVisual();                                    }],
         [   "Update video inputs"              , () => { backgroundUpdateInputList();                      }],
         [   "Release video stream"             , () => { releaseVideoStream();                             }],
@@ -1827,9 +1827,9 @@ function developerMenu() {
         [   "Brute test video input"           , () => { bruteForceBestVideoStream();                      }],
         [   "Test dark theme"                  , () => { testThemeDark();                                  }],
         [   "Test another UI style"            , () => { testUserInterfaceVersion();                       }],
-        [   "Dump local storage to console"    , () => { dumpLocalStorage();                               }],
+        [   "Dump local storage"               , () => { dumpLocalStorage();                               }],
         [   "Clear local storage"              , () => { localStorage.clear();                             }],
-        [   "(Old) Dump cookies to console"    , () => { print(document.cookie);                           }],
+        [   "(Old) Dump cookies"               , () => { print(document.cookie);                           }],
         [   "(Old) Clear cookies"              , () => { deleteAllCookies();                               }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
