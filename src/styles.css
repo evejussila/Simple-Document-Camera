@@ -1,3 +1,5 @@
+/* Generic */
+
 :root {
     --text-color: #ffffff;
 
@@ -6,7 +8,7 @@
     --bg-color-lightest: #454545;
 
     --button-bg-color: rgba(151, 151, 151, 0.22);            /* Must have contrast to background, must have transparency */
-    --button-bg-color-hover: rgba(151, 151, 151, 0.6);       /* Only needs to differ in transparency */
+    --button-bg-color-hover: var(--general-accent-color);    /* Only needs to differ in transparency */
 
     --icon-bg-color: #555555FF;                              /* Must have contrast to background, including that during hover */
     --icon-filter: invert(1);                                /* Inversion for grayscale icons */
@@ -29,8 +31,12 @@ body {
     color: var(--text-color);
 }
 
+/* Generic buttons */
+
 button {
     width: max-content;
+    min-width: 30px;
+    min-height: 30px;
     padding: 5px;
     margin: auto;
     display: flex;
@@ -54,8 +60,11 @@ button:hover {
     background-color: var(--button-bg-color-hover);
 }
 
-.buttonText {
+.buttonSmall {
     color: var(--text-color);
+
+    min-width: 23px;
+    min-height: 23px;
 }
 
 .icon {
@@ -66,104 +75,34 @@ button:hover {
     filter: var(--icon-filter);
 }
 
-
 .icon:hover {
     filter: var(--general-hover-filter) var(--icon-filter);
 }
 
+.promptButtonContainer {
 
+}
 
-#controlBar {
-    display: inline-flex;
-    position: absolute;
-    height: 50px;
+.promptButton {
     width: 100%;
-    z-index: 99;
-    bottom: 0;
+    margin: 5px 0;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
 
-    background-color: var(--bg-color-basic);
+    background-color: var(--button-bg-color);
     color: var(--text-color);
 }
 
-#island_controlBar {
-    position: absolute;
-    cursor: move;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    width: 120px;
-    height: max-content;
-    border-radius: 10px;
-    padding-bottom: 10px;
-    padding-top: 10px;
-
-    gap: 7px;
-
-    background-color: var(--bg-color-lightest);
-    color: var(--text-color);
-}
-
-#textControls {
-    display: flex;
-    gap: 5px;
-
-    justify-content: center;  /* Centers buttons horizontally */
-    align-items: center;      /* Centers buttons vertically */
-
-    color: var(--text-color);
-}
-
-#buttonSmallerFont,
-#buttonBiggerFont {
-    width: 23px;
-    height: 23px;
-    font-size: 21px;
-    align-items: center;
-    padding: 0;
-    margin: 0;
-}
-
-#buttonSmallerFont:hover,
-#buttonBiggerFont:hover {
-    filter: filter: var(--general-hover-filter);
-}
-
-
-/*
-#textSizeLabel {
-    font-size: 15px;
-}
-*/
-
-#cameraFeed {
-    display: block;
-    min-width: 100%;
-    height: 100%;
-    object-fit: cover;
-    position: relative;
-    z-index: 1;
-}
-
-#canvasMain {
-    display: none;
-    width: 100%;
-    height: 100%;
-    margin-left: auto;
-    margin-right: auto;
-    position: relative;
-}
-
-/* Frame around the video */
-#videoContainer {
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-}
+/* Specific controls */
 
 #zoomControls {
     display: flex;
-    margin-left: 20px;
+    margin-left: 15px;
+    margin-right: 15px;
     align-items: center;
+
+    gap: 2px;
 
     color: var(--text-color);
 }
@@ -193,6 +132,46 @@ button:hover {
     right: 6px;
 }
 
+#textControls {
+    display: flex;
+    gap: 5px;
+
+    justify-content: center;
+    align-items: center;
+
+    color: var(--text-color);
+}
+
+#buttonSmallerFont,
+#buttonBiggerFont {
+    min-width: 23px;
+    min-height: 23px;
+    font-size: 21px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
+#buttonSmallerFont:hover,
+#buttonBiggerFont:hover {
+    filter: filter: var(--general-hover-filter);
+}
+
+/* Core UI */
+
+#controlBar {
+    display: inline-flex;
+    position: absolute;
+    height: 50px;
+    width: 100%;
+    z-index: 99;
+    bottom: 0;
+
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
+}
+
 #selectorDevice {
     width: 200px;
 
@@ -200,6 +179,51 @@ button:hover {
     color: var(--text-color);
 }
 
+#island_controlBar {
+    position: absolute;
+    cursor: move;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    width: 120px;
+    height: max-content;
+    border-radius: 10px;
+    padding-bottom: 10px;
+    padding-top: 10px;
+
+    gap: 7px;
+
+    background-color: var(--bg-color-lightest);
+    color: var(--text-color);
+}
+
+/* Core elements */
+
+#cameraFeed {
+    display: block;
+    min-width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: relative;
+    z-index: 1;
+}
+
+#canvasMain {
+    display: none;
+    width: 100%;
+    height: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+}
+
+#videoContainer {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Programmatically created elements */
 
 .prompt {
     transform: translateX(-50%);
@@ -224,17 +248,3 @@ button:hover {
     color: var(--text-color);
 }
 
-.promptButtonContainer {
-
-}
-
-.promptButton {
-    width: 100%;
-    margin: 5px 0;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
-
-    background-color: var(--button-bg-color);
-    color: var(--text-color);
-}
