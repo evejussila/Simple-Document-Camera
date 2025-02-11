@@ -1,3 +1,21 @@
+:root {
+    --text-color: #ffffff;
+
+    --bg-color-darkest: #171717;
+    --bg-color-basic: #212121;
+    --bg-color-lightest: #454545;
+
+    --button-bg-color: #555555FF;             /* Must have contrast to background */
+
+    --icon-bg-color: #555555FF;               /* Must have contrast to background */
+    --icon-filter: invert(1);
+
+    --general-accent-color: #1E96FFB2;
+    --general-hover-filter: opacity(0.7) brightness(1);
+    --general-hover-bg-color: var(--general-accent-color);
+
+}
+
 body {
     height:100%;
     overflow: hidden;
@@ -6,23 +24,35 @@ body {
 
     font-family: 'Noto Sans', sans-serif;
 
-    background-color: #2f2f2f;         /* Theming, dark: #2f2f2f, original light: null  */
-    color: #ffffff;                    /* Theming, dark: #ffffff, original light: null  */
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
 }
 
 button {
     width: max-content;
+    padding: 10px;
     margin: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     border: none;
+
     background-color: transparent;
+    background-size: cover;
+    background-position: center;
+    border-radius: 5px;
+    /*
+    background-color: var(--button-bg-color);
+    */
+}
+
+button:hover {
+    /* background-color: var(--general-hover-bg-color); */
 }
 
 .buttonText {
-    color: #ffffff;                  /* Theming, dark: #ffffff, original light: null */
+    color: var(--text-color);
 }
 
 .icon {
@@ -30,12 +60,15 @@ button {
     height: 30px;
     object-fit: contain; /* Ensures the icon fits within defined width and height */
 
-    filter: invert(1) grayscale(100%); /* Theming, dark: invert(1) grayscale(100%), original light: null  */
+    filter: var(--icon-filter);
 }
 
+
 .icon:hover {
-    filter: opacity(0.6) brightness(0.9) drop-shadow(0 0 0px rgba(30, 150, 255, 0.7));       /* Theming */
+    filter: var(--general-hover-filter) var(--icon-filter);
 }
+
+
 
 #controlBar {
     display: inline-flex;
@@ -45,8 +78,8 @@ button {
     z-index: 99;
     bottom: 0;
 
-    background-color: #212121;       /* Theming, dark: #212121, original light: #ffffff */
-    color: #ffffff;                  /* Theming, dark: #ffffff, original light: null */
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
 }
 
 #island_controlBar {
@@ -61,8 +94,8 @@ button {
     padding-bottom: 10px;
     padding-top: 10px;
 
-    background-color: #474747;       /* Theming, dark: #474747, original light: #ffffff */
-    color: #ffffff;                  /* Theming, dark: #ffffff, original light: null */
+    background-color: var(--bg-color-lightest);
+    color: var(--text-color);
 }
 
 #textButtons {
@@ -79,16 +112,18 @@ button {
     padding: 0;
 }
 
+/*
 #buttonSmallerFont:hover,
 #buttonBiggerFont:hover {
-    filter: opacity(0.6) brightness(0.9) drop-shadow(0 0 0px rgba(30, 150, 255, 0.7));       /* Theming */
+    filter: filter: var(--general-hover-filter);
 }
+*/
 
 #textControls {
     display: flex;
     gap: 5px;
 
-    color: #ffffff;                  /* Theming, dark: #ffffff, original light: null */
+    color: var(--text-color);
 }
 
 #textSizeLabel {
@@ -125,11 +160,11 @@ button {
     margin-left: 20px;
     align-items: center;
 
-    color: #ffffff;                  /* Theming, dark: #ffffff, original light: null */
+    color: var(--text-color);
 }
 
 #zoomSlider {
-    accent-color: rgba(93, 149, 191, 0.45);       /* Theming */
+    accent-color: var(--general-accent-color);
 }
 
 #buttonCollapse,
@@ -156,30 +191,32 @@ button {
 #selectorDevice {
     width: 200px;
 
-    background-color: #171717;         /* Theming, dark: #171717, original light: null  */
-    color: #ffffff;                    /* Theming, dark: #ffffff, original light: null  */
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
 }
 
 
 .prompt {
     transform: translateX(-50%);
-    background: #454545;       /* Theming, dark: white, original light: null  */
+    background-color: var(--bg-color-lightest);
     border-radius: 10px;
     padding: 10px;
     z-index: 9999;
 }
 
 .promptTitle {
-    color: white;              /* Theming, dark: white, original light: null  */
     font-size: 20px;
     text-align: center;
     margin-bottom: 10px;
+
+    color: var(--text-color);
 }
 
 .promptText {
-    color: white;               /* Theming, dark: white, original light: null  */
     text-align: justify;        /* Text fills horizontal space */
     margin-bottom: 10px;
+
+    color: var(--text-color);
 }
 
 .promptButtonContainer {
@@ -189,9 +226,10 @@ button {
 .promptButton {
     width: 100%;
     margin: 5px 0;
-    color: #fff;                 /* Theming */
-    background: #555;            /* Theming */
     border: none;
     padding: 10px;
     border-radius: 5px;
+
+    background-color: var(--button-bg-color);
+    color: var(--text-color);
 }
