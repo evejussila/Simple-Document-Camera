@@ -779,13 +779,6 @@ function toggleControlCollapse(collapseIcon) {
  */
 function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = null) {
 
-    // TODO: Handle concurrent prompts
-    // TODO: Add support for setting position and size
-    // TODO: Add colored buttons
-    // TODO: Add link and newline support
-    // TODO: Add support for other elements with HTML definitions
-    // TODO: Replace animations with show and hide
-
     // Create prompt container
     const prompt = document.createElement('div');                // Create element
     prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
@@ -794,13 +787,17 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     {
         // Styling
         prompt.className = 'prompt';                                     // Set basic CSS class
+        // TODO: Add support for custom color
 
         // Positioning
         prompt.style.position = 'fixed';                                 // Mobility
         prompt.style.left = position;                                    // Position
+        // TODO: Automate prevention of overlap of concurrent prompts
+        // TODO: Extend positioning arg support (pass definitions as object)
 
         // Sizing
         prompt.style.width = '200px';                                    // Sizing
+        // TODO: Add support for sizing argument
 
         // Initial state for animation
         prompt.style.opacity = '0';
@@ -808,15 +805,15 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
     }
 
+    // Logo
+    // TODO: Create container and get logic for logo
+
     // Create title text
     const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
 
-    // CSS block for prompt title text
-    {
-        // Styling
-        textTitleElement.className = 'promptTitle';                       // Set basic CSS class
-    }
+    // Styling
+    textTitleElement.className = 'promptTitle';                       // Set basic CSS class
 
     // Append
     textTitleElement.appendChild(textTitle);
@@ -825,25 +822,23 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Create body text
     const textBodyElement = document.createElement('div');
     const textBody = document.createTextNode(text);
+    // TODO: Add support for HTML text, especially for newline and link support
 
-    // CSS block for prompt body text
-    {
-        // Styling
-        textBodyElement.className = 'promptText';                        // Set basic CSS class
-    }
+    // Styling
+    textBodyElement.className = 'promptText';                        // Set basic CSS class
 
     // Append
     textBodyElement.appendChild(textBody);
     prompt.appendChild(textBodyElement);
 
+    // Add custom element
+    // TODO: Add support for adding custom HTML elements here
+
     // Create button container
     const buttonContainer = document.createElement('div');
 
-    // CSS block for button container
-    {
-        // Styling
-        buttonContainer.className = 'promptButtonContainer';                   // Set basic CSS class
-    }
+    // Styling
+    buttonContainer.className = 'promptButtonContainer';                   // Set basic CSS class
 
     // Create buttons
     options.forEach((optionButton) => {
@@ -851,11 +846,11 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         const button = document.createElement('button');
         button.textContent = `${optionButton[0]}`;
 
-        // CSS block for buttons
-        {
-            // Styling
-            button.className = 'promptButton';                       // Set basic CSS class
-        }
+        // Styling
+        button.className = 'promptButton';                       // Set basic CSS class
+
+        // Custom color
+        // TODO: Add color support
 
         // Attach action listener
         button.addEventListener('click', () => {
@@ -880,6 +875,8 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     //         dismiss();
     //     }, 1000);}
     // }
+
+    // TODO: Replace animations with show and hide, extend show and hide arguments
 
     // Animation: fade in
     requestAnimationFrame(() => {
@@ -1858,7 +1855,7 @@ function developerMenu() {
         [   "Release video stream"             , () => { releaseVideoStream();                             }],
         [   "Start video (reset)"              , () => { videoStart();                                     }],
         [   "Brute test video input"           , () => { bruteForceBestVideoStream();                      }],
-        [   "Test dark theme"                  , () => { testThemeDark();                                  }],
+    //  [   "Test dark theme"                  , () => { testThemeDark();                                  }],
         [   "Test another UI style"            , () => { testUserInterfaceVersion();                       }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                               }],
         [   "Clear local storage"              , () => { localStorage.clear();                             }],
@@ -1866,7 +1863,7 @@ function developerMenu() {
         [   "(Old) Clear cookies"              , () => { deleteAllCookies();                               }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
-        // [   "Text for button"               , () => { function_or_code_block();                         }],
+    //  [   "Text for button"                  , () => { function_or_code_block();                         }],
         [   "Dismiss"                          , () => {                                                   }]   // Preserve as final line
     ]);
 }
@@ -2537,42 +2534,42 @@ function testUserInterfaceVersion() {
 function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', colorBottomBar = '#212121', colorFeedSelector = '#171717', colorText = '#ffffff', buttonStyleFilter = 'invert(1) grayscale(100%)') {
 
     const dev = document.getElementById('buttonDev');
-    const background = document.body;
-    const island = document.getElementById('island_controlBar');
-    const bottomBar = document.getElementById('controlBar');
-    const selector = document.getElementById('selectorDevice');
-    const zoomControls = document.getElementById('zoomControls');
-    const textControls = document.getElementById('textControls');
+    // const background = document.body;
+    // const island = document.getElementById('island_controlBar');
+    // const bottomBar = document.getElementById('controlBar');
+    // const selector = document.getElementById('selectorDevice');
+    // const zoomControls = document.getElementById('zoomControls');
+    // const textControls = document.getElementById('textControls');
 
     dev.style.backgroundColor = colorBackground;
     dev.style.color = colorText;
 
-    background.style.backgroundColor = colorBackground;
-    background.style.color = colorText;
+    // background.style.backgroundColor = colorBackground;
+    // background.style.color = colorText;
 
-    island.style.backgroundColor = colorIsland;
-    island.style.color = colorText;
+    // island.style.backgroundColor = colorIsland;
+    // island.style.color = colorText;
 
-    bottomBar.style.backgroundColor = colorBottomBar;
-    bottomBar.style.color = colorText;
+    // bottomBar.style.backgroundColor = colorBottomBar;
+    // bottomBar.style.color = colorText;
 
-    selector.style.backgroundColor = colorFeedSelector;
-    selector.style.color = colorText;
+    // selector.style.backgroundColor = colorFeedSelector;
+    // selector.style.color = colorText;
 
-    zoomControls.style.color = colorText;
+    // zoomControls.style.color = colorText;
 
-    textControls.style.color = colorText;
+    // textControls.style.color = colorText;
 
     // Button color inversion
-    document.getElementById('buttonRotate').style.filter        = buttonStyleFilter;
-    document.getElementById('buttonFlip').style.filter          = buttonStyleFilter;
-    document.getElementById('buttonFreeze').style.filter        = buttonStyleFilter;
-    document.getElementById('buttonSaveImage').style.filter     = buttonStyleFilter;
-    document.getElementById('buttonOverlay').style.filter       = buttonStyleFilter;
-    document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
-    document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
-    document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
-    document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
+    // document.getElementById('buttonRotate').style.filter        = buttonStyleFilter;
+    // document.getElementById('buttonFlip').style.filter          = buttonStyleFilter;
+    // document.getElementById('buttonFreeze').style.filter        = buttonStyleFilter;
+    // document.getElementById('buttonSaveImage').style.filter     = buttonStyleFilter;
+    // document.getElementById('buttonOverlay').style.filter       = buttonStyleFilter;
+    // document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
+    // document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
+    // document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
+    // document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
 
     // For example buttons
     // Very dirty, for all of same id
@@ -2580,9 +2577,9 @@ function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', col
         button.style.filter = buttonStyleFilter;
     });
 
-    document.getElementById('zoomOutButton').style.color        = colorText;
-    document.getElementById('zoomInButton').style.color         = colorText;
-    document.getElementById('buttonSmallerFont').style.color    = colorText;
-    document.getElementById('buttonBiggerFont').style.color     = colorText;
+    // document.getElementById('zoomOutButton').style.color        = colorText;
+    // document.getElementById('zoomInButton').style.color         = colorText;
+    // document.getElementById('buttonSmallerFont').style.color    = colorText;
+    // document.getElementById('buttonBiggerFont').style.color     = colorText;
 
 }
