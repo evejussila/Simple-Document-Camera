@@ -8,12 +8,11 @@
     --bg-color-lightest: #454545;
 
     --button-bg-color: rgba(151, 151, 151, 0.22);            /* Must have contrast to background, must have transparency */
-    --button-bg-color-hover: var(--general-accent-color);    /* Only needs to differ in transparency */
+    --button-bg-color-hover: var(--general-accent-color);
 
-    --icon-bg-color: #555555FF;                              /* Must have contrast to background, including that during hover */
     --icon-filter: invert(1);                                /* Inversion for grayscale icons */
 
-    --general-accent-color: rgba(30, 150, 255, 0.7);
+    --general-accent-color: rgba(255, 141, 44, 0.5);
 
     --general-hover-filter: opacity(1) brightness(1);
 
@@ -31,6 +30,27 @@ body {
     color: var(--text-color);
 }
 
+/* Light mode */
+
+.lightMode {
+    --text-color: #000000;
+
+    --bg-color-darkest: #bfbfbf;
+    --bg-color-basic: #e4e4e4;
+    --bg-color-lightest: #ffffff;
+
+    --button-bg-color: rgba(218, 218, 218, 0.2);
+    --button-bg-color-hover: var(--general-accent-color);
+
+    --icon-filter: invert(0);
+
+    --general-accent-color: rgba(0, 122, 255, 0.5);
+}
+
+/* Generic animations */
+
+
+
 /* Generic buttons */
 
 button {
@@ -46,7 +66,6 @@ button {
     border: none;
 
     filter: var(--general-hover-filter);
-
 
     background-size: cover;
     background-position: center;
@@ -113,19 +132,15 @@ button:hover {
 
 #buttonCollapse,
 #buttonFullScreen {
+    aspect-ratio: 1/1;
     position: absolute;
-    width: 30px;
-    height: 30px;
     margin: 5px;
-    padding: 0;
-    border: none;
-    background: none;
     z-index: 101;
-    bottom: 6px;
+    bottom: 0;
 }
 
 #buttonCollapse {
-    right: 46px;
+    right: 56px;
 }
 
 #buttonFullScreen {
@@ -168,7 +183,7 @@ button:hover {
     z-index: 99;
     bottom: 0;
 
-    background-color: var(--bg-color-basic);
+    background-color: var(--bg-color-darkest);
     color: var(--text-color);
 }
 

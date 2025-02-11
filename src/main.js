@@ -1852,22 +1852,22 @@ function developerMenu() {
 
     // ADD NEW BUTTONS HERE
     customPrompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                    }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                      }],
-        [   "Release video stream"             , () => { releaseVideoStream();                             }],
-        [   "Start video (reset)"              , () => { videoStart();                                     }],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                      }],
-    //  [   "Test dark theme"                  , () => { testThemeDark();                                  }],
-        [   "Test another UI style"            , () => { testUserInterfaceVersion();                       }],
-        [   "Dump local storage"               , () => { dumpLocalStorage();                               }],
-        [   "Clear local storage"              , () => { localStorage.clear();                             }],
-        [   "(Old) Dump cookies"               , () => { print(document.cookie);                           }],
-        [   "(Old) Clear cookies"              , () => { deleteAllCookies();                               }],
+        [   "Toggle visual debug"              , () => { debugVisual();                                           }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                             }],
+        [   "Release video stream"             , () => { releaseVideoStream();                                    }],
+        [   "Start video (reset)"              , () => { videoStart();                                            }],
+        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                             }],
+        [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
+        [   "Test another UI style"            , () => { testUserInterfaceVersion();                              }],
+        [   "Dump local storage"               , () => { dumpLocalStorage();                                      }],
+        [   "Clear local storage"              , () => { localStorage.clear();                                    }],
+        [   "(Old) Dump cookies"               , () => { print(document.cookie);                                  }],
+        [   "(Old) Clear cookies"              , () => { deleteAllCookies();                                      }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
-    //  [   "Text for button"                  , () => { function_or_code_block();                         }],
-        [   "Dismiss"                          , () => {                                                   }]   // Preserve as final line
-    ]);
+    //  [   "Text for button"                  , () => { function_or_code_block();                                }],
+        [   "Dismiss"                          , () => {                                                          }]   // Preserve as final line
+    ], "30%");
 }
 
 
@@ -2516,73 +2516,5 @@ function testUserInterfaceVersion() {
 
     // Append menuButtons to controlBar
     controlBar.appendChild(menuButtons);
-
-    testThemeDark();
-
-
-}
-
-/**
- * Function to apply UI coloration.
- * Default is dark.
- * Dirty implementation!
- *
- * @param colorBackground
- * @param colorIsland
- * @param colorBottomBar
- * @param colorFeedSelector
- * @param colorText
- * @param buttonStyleFilter
- */
-function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', colorBottomBar = '#212121', colorFeedSelector = '#171717', colorText = '#ffffff', buttonStyleFilter = 'invert(1) grayscale(100%)') {
-
-    const dev = document.getElementById('buttonDev');
-    // const background = document.body;
-    // const island = document.getElementById('island_controlBar');
-    // const bottomBar = document.getElementById('controlBar');
-    // const selector = document.getElementById('selectorDevice');
-    // const zoomControls = document.getElementById('zoomControls');
-    // const textControls = document.getElementById('textControls');
-
-    dev.style.backgroundColor = colorBackground;
-    dev.style.color = colorText;
-
-    // background.style.backgroundColor = colorBackground;
-    // background.style.color = colorText;
-
-    // island.style.backgroundColor = colorIsland;
-    // island.style.color = colorText;
-
-    // bottomBar.style.backgroundColor = colorBottomBar;
-    // bottomBar.style.color = colorText;
-
-    // selector.style.backgroundColor = colorFeedSelector;
-    // selector.style.color = colorText;
-
-    // zoomControls.style.color = colorText;
-
-    // textControls.style.color = colorText;
-
-    // Button color inversion
-    // document.getElementById('buttonRotate').style.filter        = buttonStyleFilter;
-    // document.getElementById('buttonFlip').style.filter          = buttonStyleFilter;
-    // document.getElementById('buttonFreeze').style.filter        = buttonStyleFilter;
-    // document.getElementById('buttonSaveImage').style.filter     = buttonStyleFilter;
-    // document.getElementById('buttonOverlay').style.filter       = buttonStyleFilter;
-    // document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
-    // document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
-    // document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
-    // document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
-
-    // For example buttons
-    // Very dirty, for all of same id
-    // document.querySelectorAll('#exampleButton').forEach(function(button) {
-    //     button.style.filter = buttonStyleFilter;
-    // });
-
-    // document.getElementById('zoomOutButton').style.color        = colorText;
-    // document.getElementById('zoomInButton').style.color         = colorText;
-    // document.getElementById('buttonSmallerFont').style.color    = colorText;
-    // document.getElementById('buttonBiggerFont').style.color     = colorText;
 
 }
