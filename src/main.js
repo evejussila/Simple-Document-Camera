@@ -160,14 +160,17 @@ function handlePrivacy() {
     const tosTextShort =
         "This is a local service. " +
         "Your video and data remain only on your own device. " +
-        "Your data is not collected or sent anywhere. " +
-        "This service is provided as is.";
+        "<b>Your data is not collected or sent anywhere.</b> " +
+        "<br><br> " +
+        "This service is provided as is. " +
+        "<br><br> ";
     const tosTextLong = "The terms of service for this service... " +
         "(long)";
     const privacyTextShort =
-        "This service stores your settings locally. " +
-        "This is optional. " +
-        "If you consent to the storing of your settings, you will not see this prompt on your device in the future.";
+        "This service remembers your consent and settings by storing them locally. " +
+        "Storing this information is optional. " +
+        "<br><br> " +
+        "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. ";
     const privacyTextLong = "This service can store user settings with the user's permission to... " +
         "(long)";
 
@@ -346,9 +349,12 @@ async function videoStart() {
     // Error prompt default content
     let genericPromptTitle = "No valid cameras could be accessed";
     let genericPromptText =
-        "Make sure your devices are connected and not being used by other software. " +             // TODO: When newline supported, use linebreaks
-        "Ensure you do not have SDC open on other tabs. " +
-        "Check you have allowed camera access in your browser. " +
+        "Please make sure your devices are connected and not being used by other software. " +
+        "<br><br>" +
+        "Ensure that you do not have this page open on other tabs. " +
+        "<br><br>" +
+        "Check that you have allowed camera access in your browser. " +
+        "<br><br>" +
         "You may also try a hard reload by pressing Ctrl + F5 ";
     let genericPromptActions = [
         ["Retry",       () =>       { videoStart(); } ],
@@ -799,7 +805,6 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     {
         // Styling
         prompt.className = 'prompt';                                     // Set basic CSS class
-        // TODO: Add support for custom color
 
         // Positioning
         prompt.style.position = 'fixed';                                 // Mobility
@@ -832,26 +837,28 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     prompt.appendChild(textTitleElement);
 
     // Create body text
-    const textBodyElement = document.createElement('div');
+    const textBody = document.createElement('div');
 
-    if (/</.test(text)) {
-        textBodyElement.innerHTML = text;
+    if (/</.test(text) && />/.test(text)) {
         print("customPrompt(): Prompt text identified as HTML");
-    } else {
-        // const textBody = document.createTextNode(text);
-        textBodyElement.textContent = text;
-        print("customPrompt(): Prompt text identified as plain string");
-    }
-    // TODO: Check input is valid (opened tags are closed), malformed should be fine and won't throw any errors but should be noticed
-    
 
+        textBody.innerHTML = text;
+    } else {
+        // print("customPrompt(): Prompt text identified as plain string");
+
+        // const textBody = document.createTextNode(text);
+        // textBodyElement.className = 'promptText';
+        // textBodyElement.appendChild(textBody);
+
+        textBody.textContent = text;
+    }
+    // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed should be fine and won't throw any errors but should be noticed
 
     // Styling
-    textBodyElement.className = 'promptText';                        // Set basic CSS class
+    textBody.className = 'promptText';                                     // Set basic CSS class
 
     // Append
-    // textBodyElement.appendChild(textBody);
-    prompt.appendChild(textBodyElement);
+    prompt.appendChild(textBody);
 
     // Create button container
     const buttonContainer = document.createElement('div');
@@ -1880,41 +1887,12 @@ function developerMenu() {
         [   "Test another UI style"            , () => { testUserInterfaceVersion();                              }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                                      }],
         [   "Clear local storage"              , () => { localStorage.clear();                                    }],
-        [   "(Old) Dump cookies"               , () => { print(document.cookie);                                  }],
-        [   "(Old) Clear cookies"              , () => { deleteAllCookies();                                      }],
-        [   "Test HTML text prompt (Has HTML)" , () => { promptTest(true);                                        }],
-        [   "Test HTML text prompt (No HTML)"  , () => { promptTest(false);                                       }],
-        [   "Test HTML text prompt (HTML err)" , () => { promptTestErr();                                       }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                }],
         [   "Dismiss"                          , () => {                                                          }]   // Preserve as final line
     ], "30%");
     
-}
-
-function promptTest(html) {
-
-    let testText;
-    if (html) {
-        testText = "Test String with HTML: Line 1 <br> Line 2 <br> Line 3 <br> Line 4";
-    } else {
-        testText = "Test String without HTML: text";
-    }
-
-
-    customPrompt("Developer menu", testText, [
-        [   "Dismiss"   , () => { console.warn("Dismiss did run"); }]
-    ], "70%");
-}
-
-function promptTestErr() {
-
-    const testText = "Test String with malformed HTML: Line 1 <br Line 2 br> Line 3 br> Line 4 <br Line 5";
-
-    customPrompt("Developer menu", testText, [
-        [   "Dismiss"   , () => { console.warn("Dismiss did run"); }]
-    ], "70%");
 }
 
 /**
