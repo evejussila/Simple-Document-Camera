@@ -769,15 +769,27 @@ function toggleControlCollapse(collapseIcon) {
 
 /**
  * Creates a prompt with text and buttons.
+ * Executes actions based on button press.
  * Every button will dismiss prompt.
  *
  * @param title Title text for prompt
- * @param text Body text for prompt
+ * @param text Body text for prompt (can contain HTML tags)
  * @param options Array with text and code to run for buttons
  * @param position Position of prompt (string value for property style.left)
  * @param size Size of prompt
  */
 function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = null) {
+
+    // Examples of use:
+    // customPrompt("Title of test menu", "String or variable containing string, string can contain HTML code",    [
+    //     [   "Option 1"              , () => { function_name1()                                               }  ],
+    //     [   "Option 2"              , () => { function_name2();                                              }  ],
+    //     [   "Option 3 "             , () => { function_name2(); function_name3();                            }  ],
+    //     [   "Text for button"       , () => { console.log("functions and code blocks supported")             }  ],
+    //     [   "Text for button"       , () => { console.log("any command can be run here")                     }  ],
+    //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }  ],
+    //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }  ]
+    // ], "50%");
 
     // Create prompt container
     const prompt = document.createElement('div');                // Create element
@@ -806,7 +818,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     }
 
     // Logo
-    // TODO: Create container and get logic for logo
+    // TODO: Create container and getter logic for logo
 
     // Create title text
     const textTitleElement = document.createElement('div');
@@ -821,18 +833,25 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
     // Create body text
     const textBodyElement = document.createElement('div');
-    const textBody = document.createTextNode(text);
-    // TODO: Add support for HTML text, especially for newline and link support
+
+    if (/</.test(text)) {
+        textBodyElement.innerHTML = text;
+        print("customPrompt(): Prompt text identified as HTML");
+    } else {
+        // const textBody = document.createTextNode(text);
+        textBodyElement.textContent = text;
+        print("customPrompt(): Prompt text identified as plain string");
+    }
+    // TODO: Check input is valid (opened tags are closed), malformed should be fine and won't throw any errors but should be noticed
+    
+
 
     // Styling
     textBodyElement.className = 'promptText';                        // Set basic CSS class
 
     // Append
-    textBodyElement.appendChild(textBody);
+    // textBodyElement.appendChild(textBody);
     prompt.appendChild(textBodyElement);
-
-    // Add custom element
-    // TODO: Add support for adding custom HTML elements here
 
     // Create button container
     const buttonContainer = document.createElement('div');
@@ -1863,13 +1882,40 @@ function developerMenu() {
         [   "Clear local storage"              , () => { localStorage.clear();                                    }],
         [   "(Old) Dump cookies"               , () => { print(document.cookie);                                  }],
         [   "(Old) Clear cookies"              , () => { deleteAllCookies();                                      }],
+        [   "Test HTML text prompt (Has HTML)" , () => { promptTest(true);                                        }],
+        [   "Test HTML text prompt (No HTML)"  , () => { promptTest(false);                                       }],
+        [   "Test HTML text prompt (HTML err)" , () => { promptTestErr();                                       }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                }],
         [   "Dismiss"                          , () => {                                                          }]   // Preserve as final line
     ], "30%");
+    
 }
 
+function promptTest(html) {
+
+    let testText;
+    if (html) {
+        testText = "Test String with HTML: Line 1 <br> Line 2 <br> Line 3 <br> Line 4";
+    } else {
+        testText = "Test String without HTML: text";
+    }
+
+
+    customPrompt("Developer menu", testText, [
+        [   "Dismiss"   , () => { console.warn("Dismiss did run"); }]
+    ], "70%");
+}
+
+function promptTestErr() {
+
+    const testText = "Test String with malformed HTML: Line 1 <br Line 2 br> Line 3 br> Line 4 <br Line 5";
+
+    customPrompt("Developer menu", testText, [
+        [   "Dismiss"   , () => { console.warn("Dismiss did run"); }]
+    ], "70%");
+}
 
 /**
  * Prints out all local storage key-value pairs to console
