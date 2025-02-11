@@ -5,14 +5,15 @@
     --bg-color-basic: #212121;
     --bg-color-lightest: #454545;
 
-    --button-bg-color: #555555FF;             /* Must have contrast to background */
+    --button-bg-color: rgba(151, 151, 151, 0.22);            /* Must have contrast to background, must have transparency */
+    --button-bg-color-hover: rgba(151, 151, 151, 0.6);       /* Only needs to differ in transparency */
 
-    --icon-bg-color: #555555FF;               /* Must have contrast to background */
-    --icon-filter: invert(1);
+    --icon-bg-color: #555555FF;                              /* Must have contrast to background, including that during hover */
+    --icon-filter: invert(1);                                /* Inversion for grayscale icons */
 
-    --general-accent-color: #1E96FFB2;
-    --general-hover-filter: opacity(0.7) brightness(1);
-    --general-hover-bg-color: var(--general-accent-color);
+    --general-accent-color: rgba(30, 150, 255, 0.7);
+
+    --general-hover-filter: opacity(1) brightness(1);
 
 }
 
@@ -30,7 +31,7 @@ body {
 
 button {
     width: max-content;
-    padding: 10px;
+    padding: 5px;
     margin: auto;
     display: flex;
     align-items: center;
@@ -38,17 +39,19 @@ button {
     overflow: hidden;
     border: none;
 
-    background-color: transparent;
+    filter: var(--general-hover-filter);
+
+
     background-size: cover;
     background-position: center;
     border-radius: 5px;
-    /*
+
     background-color: var(--button-bg-color);
-    */
+    color: var(--text-color);
 }
 
 button:hover {
-    /* background-color: var(--general-hover-bg-color); */
+    background-color: var(--button-bg-color-hover);
 }
 
 .buttonText {
@@ -89,18 +92,25 @@ button:hover {
     display: flex;
     flex-direction: column;
     width: 120px;
-    height: 250px;
+    height: max-content;
     border-radius: 10px;
     padding-bottom: 10px;
     padding-top: 10px;
+
+    gap: 7px;
 
     background-color: var(--bg-color-lightest);
     color: var(--text-color);
 }
 
-#textButtons {
+#textControls {
     display: flex;
-    padding-top: 5px;
+    gap: 5px;
+
+    justify-content: center;  /* Centers buttons horizontally */
+    align-items: center;      /* Centers buttons vertically */
+
+    color: var(--text-color);
 }
 
 #buttonSmallerFont,
@@ -110,25 +120,20 @@ button:hover {
     font-size: 21px;
     align-items: center;
     padding: 0;
+    margin: 0;
 }
 
-/*
 #buttonSmallerFont:hover,
 #buttonBiggerFont:hover {
     filter: filter: var(--general-hover-filter);
 }
-*/
 
-#textControls {
-    display: flex;
-    gap: 5px;
 
-    color: var(--text-color);
-}
-
+/*
 #textSizeLabel {
     font-size: 15px;
 }
+*/
 
 #cameraFeed {
     display: block;

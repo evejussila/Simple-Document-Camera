@@ -1829,11 +1829,13 @@ function debug() {
     developerButton.textContent = 'Developer Options';
     developerButton.addEventListener('click', developerMenu);
     developerButton.style.zIndex = '9999';
-    developerButton.style.border = "2px solid darkgray";
+    // developerButton.style.border = "2px solid darkgray";
+    developerButton.style.border = "none";
     // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
     // developerButton.color = "red";
     developerButton.style.borderRadius = "5px";
     developerButton.style.height = '40px';
+
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
@@ -2454,7 +2456,8 @@ function testUserInterfaceVersion() {
         height: "40px",
         backgroundColor: "rgba(128, 128, 128, 0.5)",
         borderRadius: "5px",
-        border: "2px solid darkgray",
+        // border: "2px solid darkgray",
+        border: "none",
         // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
         padding: "0",
         display: "flex",
@@ -2573,9 +2576,9 @@ function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', col
 
     // For example buttons
     // Very dirty, for all of same id
-    document.querySelectorAll('#exampleButton').forEach(function(button) {
-        button.style.filter = buttonStyleFilter;
-    });
+    // document.querySelectorAll('#exampleButton').forEach(function(button) {
+    //     button.style.filter = buttonStyleFilter;
+    // });
 
     // document.getElementById('zoomOutButton').style.color        = colorText;
     // document.getElementById('zoomInButton').style.color         = colorText;
