@@ -39,12 +39,12 @@ body {
     --bg-color-basic: #e4e4e4;
     --bg-color-lightest: #ffffff;
 
-    --button-bg-color: rgba(218, 218, 218, 0.2);
+    --button-bg-color: rgba(214, 241, 255, 0.5);
     --button-bg-color-hover: var(--general-accent-color);
 
     --icon-filter: invert(0);
 
-    --general-accent-color: rgba(0, 122, 255, 0.5);
+    --general-accent-color: rgba(0, 178, 255, 0.6);
 }
 
 /* Generic animations */
@@ -121,7 +121,7 @@ button:hover {
     margin-right: 15px;
     align-items: center;
 
-    gap: 2px;
+    gap: 5px;   /* FF: 2px looks good, Chrome needs more */
 
     color: var(--text-color);
 }

@@ -157,19 +157,21 @@ function handlePrivacy() {
     const privacyTextExists = true;                                              // Check if privacy notice text exists
     print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
 
+    // TODO: This tos text is already privacy text. Reconsider distinctions.
     const tosTextShort =
         "This is a local service. " +
         "Your video and data remain only on your own device. " +
+        "<br><br>" +
         "<b>Your data is not collected or sent anywhere.</b> " +
-        "<br><br> " +
+        "<br><br>" +
         "This service is provided as is. " +
-        "<br><br> ";
+        "<br><br>";
     const tosTextLong = "The terms of service for this service... " +
         "(long)";
     const privacyTextShort =
-        "This service remembers your consent and settings by storing them locally. " +
+        "This service remembers your consent and settings by storing them locally in your browser. " +
         "Storing this information is optional. " +
-        "<br><br> " +
+        "<br><br>" +
         "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. ";
     const privacyTextLong = "This service can store user settings with the user's permission to... " +
         "(long)";
@@ -804,7 +806,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }  ]
     // ], "50%");
 
-    // Buttons also support custom colors (optional)
+    // Buttons also support optional custom colors (note that only rgba colors with transparency enable good hover effects)
     // customPrompt("Title", "Text or HTML",                                                         [
     //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
     //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
@@ -853,7 +855,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Create body text
     const textBody = document.createElement('div');
 
-    if (/</.test(text) && />/.test(text)) {
+    if (/</.test(text) && />/.test(text)) {                           // Test for signs of HTML tags
         print("customPrompt(): Prompt text identified as HTML");
 
         textBody.innerHTML = text;
@@ -892,8 +894,30 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
         // Custom color (optional)
         if (optionButton[2] != null) {
-            button.style.backgroundColor = `${optionButton[2]}`;
-            // TODO: Define hover effect with a lightening or opacity increase action, if possible
+            console.warn("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
+
+            // DEV: TODO: Print won't trigger here because debug var not set yet
+
+            // Set base color
+            button.style.backgroundColor = optionButton[2];          // Overrides CSS background color (including hover) // DEV temp: `${optionButton[2]}`
+
+            // Custom hover
+            let customHoverColor = optionButton[2];
+            if (customHoverColor.startsWith('rgba')) {
+                console.warn("customPrompt(): Color is rgba, hover enabled");
+
+                // Change color alpha for hover color
+                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ', 1)');
+                // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.) and group 1 is decimal number only
+
+                console.warn("customPrompt(): Hover color: " + customHoverColor);
+            }
+
+            button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
+            button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
+            // TODO: Make sure event listeners are orphaned completely for GC
+
+
         }
 
         // Attach action listener
@@ -1902,13 +1926,13 @@ function developerMenu() {
         [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
         [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                   }],
         [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
-        [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
+    //  [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
-    //  [   "Text for button"                  , () => { function_or_code_block();                                }],
-        [   "Dismiss"                          , () => {                                                          }]   // Preserve as final line
+    //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
+        [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
     ], "30%");
 
 }
