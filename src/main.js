@@ -174,6 +174,10 @@ function handlePrivacy() {
     const privacyTextLong = "This service can store user settings with the user's permission to... " +
         "(long)";
 
+    // Set button styles
+    const colorAccept = "rgba(70,136,255,0.5)";
+    const colorReject = "rgba(255,139,139,0.5)";
+
     // Interpret course of action
 
     // Table of actions
@@ -232,7 +236,7 @@ function handlePrivacy() {
                     print("handlePrivacy(): ... privacy text does not exist");
 
                     // TODO: Might want a switch here that completely disables persistence, if that is what the hosting party wants
-                    handleLocalStorage();                                              // Create local storage (assume local storage can be used if notice text is not provided)
+                    handleLocalStorage();                                         // Create local storage (assume local storage can be used if notice text is not provided)
                 }
             }
 
@@ -251,11 +255,10 @@ function handlePrivacy() {
         console.log("privacyPrompt(): Displaying a notice");
 
         customPrompt("Privacy notice", privacyTextShort, [                                                      // Display prompt
-            [   "Accept"                          , () => { handleLocalStorage(); }                                                  ],  // Prompt options
-            [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); }   ],
-            [   "Dismiss"                         , () => { /* Implicit rejection, ask again later */ }                              ]
+            [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
+            [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
+            [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
         ], "50%");
-
     }
 
     /**
@@ -265,11 +268,10 @@ function handlePrivacy() {
         console.log("fullPrompt(): Displaying a notice");
 
         customPrompt("Privacy notice", tosTextShort + " " + privacyTextShort, [                           // Display prompt
-            [   "Agree to all"                   , () => { handleLocalStorage(); }                                                   ],  // Prompt options
-            [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }    ],
-            [   "Reject"                         , () => { /* HALT SERVICE */ return false; }                                        ]
+            [   "Agree to all"                   , () => { handleLocalStorage(); }                                          , colorAccept  ],  // Prompt options
+            [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
+            [   "Reject terms"                   , () => { /* HALT SERVICE */ return false; }                               , colorReject  ]
         ], "50%");
-
     }
 
     /**
@@ -279,10 +281,9 @@ function handlePrivacy() {
         console.log("tosPrompt(): Displaying a notice");
 
         customPrompt("Privacy notice", tosTextShort, [                           // Display prompt
-            [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); }     ],  // Prompt options
-            [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                         ]
+            [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],  // Prompt options
+            [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                     , colorReject  ]
         ], "50%");
-
     }
 
     // TODO: Finalize prompt actions
@@ -787,6 +788,12 @@ function toggleControlCollapse(collapseIcon) {
 function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = null) {
 
     // Examples of use:
+
+    // customPrompt("Title", "Text or HTML",                                                                       [
+    //     [   "Button"                , () => { console.log("Button pressed")                                  }  ],
+    //     [   "Dismiss"               , () => {                                                                }  ]
+    // ], "50%");
+
     // customPrompt("Title of test menu", "String or variable containing string, string can contain HTML code",    [
     //     [   "Option 1"              , () => { function_name1()                                               }  ],
     //     [   "Option 2"              , () => { function_name2();                                              }  ],
@@ -796,6 +803,13 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }  ],
     //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }  ]
     // ], "50%");
+
+    // Buttons also support custom colors (optional)
+    // customPrompt("Title", "Text or HTML",                                                         [
+    //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
+    //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
+    //     [   "Red button"          , () => { console.log("Red button pressed")           }  , "rgba(255,0,0,0.74)"  ]
+    // ], "70%");
 
     // Create prompt container
     const prompt = document.createElement('div');                // Create element
@@ -846,11 +860,12 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     } else {
         // print("customPrompt(): Prompt text identified as plain string");
 
+        textBody.textContent = text;
+
+        // Alternate
         // const textBody = document.createTextNode(text);
         // textBodyElement.className = 'promptText';
         // textBodyElement.appendChild(textBody);
-
-        textBody.textContent = text;
     }
     // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed should be fine and won't throw any errors but should be noticed
 
@@ -873,15 +888,18 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         button.textContent = `${optionButton[0]}`;
 
         // Styling
-        button.className = 'promptButton';                       // Set basic CSS class
+        button.className = 'promptButton';                                // Set basic CSS class
 
-        // Custom color
-        // TODO: Add color support
+        // Custom color (optional)
+        if (optionButton[2] != null) {
+            button.style.backgroundColor = `${optionButton[2]}`;
+            // TODO: Define hover effect with a lightening or opacity increase action, if possible
+        }
 
         // Attach action listener
         button.addEventListener('click', () => {
-            dismiss();                                               // Buttons always dismiss prompt
-            optionButton[1]();                                       // Run function or code block
+            dismiss();                                                    // Buttons always dismiss prompt
+            optionButton[1]();                                            // Run function or code block
         });
 
         // Append
@@ -1878,21 +1896,21 @@ function developerMenu() {
 
     // ADD NEW BUTTONS HERE
     customPrompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                           }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                             }],
-        [   "Release video stream"             , () => { releaseVideoStream();                                    }],
-        [   "Start video (reset)"              , () => { videoStart();                                            }],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                             }],
+        [   "Toggle visual debug"              , () => { debugVisual();                                                 }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
+        [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
+        [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
+        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                   }],
         [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
-        [   "Test another UI style"            , () => { testUserInterfaceVersion();                              }],
-        [   "Dump local storage"               , () => { dumpLocalStorage();                                      }],
-        [   "Clear local storage"              , () => { localStorage.clear();                                    }],
+        [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
+        [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
+        [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                }],
         [   "Dismiss"                          , () => {                                                          }]   // Preserve as final line
     ], "30%");
-    
+
 }
 
 /**
