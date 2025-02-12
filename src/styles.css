@@ -21,6 +21,8 @@
     --link-visited: #b35729;
     --link-active: #ffcc00;
 
+    /* z-index ranges: prompts 900-1000 modals 1000-1100    dev 9000-> */
+
 }
 
 a {
@@ -131,12 +133,12 @@ button:hover {
     flex-grow: 1;
     justify-content: flex-end;
 
-    gap: 0;
+    gap: 0px;
 }
 
 .promptButton {
     width: 100%;
-    margin: 5px 0;
+    margin: 4px 0;
     border: none;
     padding: 10px;
     border-radius: 5px;
@@ -283,7 +285,7 @@ button:hover {
     background-color: var(--bg-color-lightest);
     border-radius: 10px;
     padding: 10px;
-    z-index: 9999;
+    z-index: 900;
 }
 
 .promptTitle {

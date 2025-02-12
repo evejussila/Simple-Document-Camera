@@ -171,12 +171,12 @@ function handlePrivacy() {
         "<br><br>" +
         "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. " +
         "<br><br>" +
-        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long')\">Privacy Statement</a>" +
+        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long', true)\">Privacy Statement</a>" +
         "<br><br>";
     const tosTextShort =
         "This service is provided as is. " +
         "<br><br>" +
-        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long')\">Terms of Service</a>" +
+        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true)\">Terms of Service</a>" +
         "<br><br>";
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
@@ -776,7 +776,7 @@ function toggleControlCollapse(collapseIcon) {
  * Can be for terms, notices, tutorials and various content.
  * @param {string} file File to load text from
  */
-function showContentBox(file) {
+function showContentBox(file, modal = false) {
     print("showText(): Showing text from: " + file);
 
     // Load text from file
@@ -793,20 +793,49 @@ function showContentBox(file) {
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
+
+
+    const modalOverlay = document.createElement("div");
+    const overlayFadeTime = 0.3;
+
+    if (modal) {
+        Object.assign(modalOverlay.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100vw",                             // Match viewport width
+            height: "100vh",                            // Match viewport height
+            background: "rgba(255,255,255,0.4)",
+            zIndex: "1000",
+            pointerEvents: "auto",
+            // userSelect: "none"
+
+            opacity: 0
+        });
+        document.body.appendChild(modalOverlay);
+        showElement(modalOverlay, overlayFadeTime, "");
+
+    }
+
     const customPromptStyle = {
         position: "fixed",
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
         aspectRatio: "16 / 9",
-        bottom: "unset",
+        bottom: "unset",                                // Remove default value that conflicts with purpose
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        zIndex: "1050"
     };
 
-    customPrompt(title, textToShow,                   [     // Display prompt
-        [   "Close"      , () => {  }                        ]
+    customPrompt(title, textToShow,                         [     // Display prompt
+        [   "Close"      , () => { hideElement(modalOverlay, overlayFadeTime/2, true) }   ]
     ], "50%", "500px", customPromptStyle);
+
+
+
+
 
 }
 
@@ -1164,15 +1193,18 @@ function removeElement(element, fadeTime = 0.2) {
 /**
  * Hides an element.
  * Applies a fade out.
+ * Can be used to delete elements.
  * @param element Element to hide
  * @param fadeTime Fade duration s (optional)
+ * @param removeAfter Should the element be deleted after hiding
  */
-function hideElement(element, fadeTime = 0.3) {
+function hideElement(element, fadeTime = 0.3, removeAfter = false) {
     element.style.transition = `opacity ${fadeTime}s ease-in-out`;
     element.style.opacity = '0';
-    // TODO: Add interaction prevention (no click during animations)
+    // TODO: Add interaction prevention (no click during animations, plus recovery to previous state) (pointerEvents: none)
     setTimeout(() => {
         element.style.display = 'none';
+        if (removeAfter) { element.remove(); print("hideElement(): Removing element, parameter removeAfter=" + removeAfter); }
     }, fadeTime * 1000);
 }
 
@@ -1188,11 +1220,16 @@ function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
     element.style.display = displayStyle;                           // Renders element display
     element.style.transition = `opacity ${fadeTime}s ease-in-out`;
 
-    requestAnimationFrame(() => {                           // Runs code after display is rendered
-        element.style.opacity = '1';
-    });
+    // requestAnimationFrame(() => {                           // Runs code after display is rendered
+    //     element.style.opacity = '1';
+    // });
 
     // TODO: Animation not working on FF even when it works on Chrome
+
+    // DEV: Testing alternative
+    setTimeout(() => {
+        element.style.opacity = '1';
+    }, 10);
 
 }
 
