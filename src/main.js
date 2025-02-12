@@ -250,6 +250,7 @@ async function videoStart() {
         try {
             let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
             await setVideoInput(input);                                                          // Use the selected input
+            await testCameraResolutions();  // Testaa kameran resoluutiot ja yritä parantaa laatua JONNA
             resetVideoState();                                                                   // Reset video view
         } catch (e) {
             // TODO: Catch not reliable enough
@@ -475,8 +476,18 @@ async function setVideoInput(input = selector.value) {
                     frameRate: {ideal: 60}
                 }
             });
-            videoElement.srcObject = stream;
 
+            // JONNA
+            // Tarkista, mitä asetuksia selain todella käyttää
+            console.log("Camera settings:", stream.getVideoTracks()[0].getSettings());
+            await stream.getVideoTracks()[0].applyConstraints({
+                width: 1920,
+                height: 1080,
+                frameRate: 60
+            });
+            // JONNA
+
+            videoElement.srcObject = stream;
             // TODO: Debug low video quality
             // printStreamInformation(stream);
             // bruteForceVideoStream(input); // Accessible from developer menu, is intensive if used here
@@ -503,6 +514,50 @@ async function setVideoInput(input = selector.value) {
 
     return !failed;
 }
+
+// JONNA
+async function testCameraResolutions() {
+    const stream = videoElement.srcObject;  // Hakee käytössä olevan videovirran
+    if (!stream) {
+        console.error("Ei aktiivista videovirtaa.");
+        return;
+    }
+
+    const track = stream.getVideoTracks()[0];  // Hakee videoraidan
+    const deviceId = track.getSettings().deviceId;  // Hakee deviceId:n
+
+    console.log("Testataan kameran resoluutioita:", deviceId);
+    await getSupportedResolutions(deviceId);  // Kutsutaan funktiota oikealla kameralla
+}
+
+// JONNA
+async function getSupportedResolutions(deviceId) {
+    const testResolutions = [
+        { width: 1920, height: 1080 },
+        { width: 1280, height: 720 },
+        { width: 1024, height: 768 },
+        { width: 800, height: 600 },
+        { width: 640, height: 480 }
+    ];
+
+    for (const res of testResolutions) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: { exact: deviceId },
+                    width: { exact: res.width },
+                    height: { exact: res.height }
+                }
+            });
+
+            console.log(`Kamera tukee: ${res.width}x${res.height}`);
+            stream.getTracks().forEach(track => track.stop());
+        } catch (e) {
+            console.log(`Kamera EI tue: ${res.width}x${res.height}`);
+        }
+    }
+}
+
 
 /**
  * Reset video feed back to its default state.
