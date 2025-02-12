@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-11-alpha");
+const version = ("2025-02-12-alpha");
 console.log("Version: " + version);
 console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 
@@ -118,10 +118,8 @@ function addCoreListeners() {
     });
 }
 
-
 /**
  * Handles privacy-related prompting, parameters, data storage and logical coordination
- *
  * @returns {boolean} True if the service can be used
  */
 function handlePrivacy() {
@@ -151,11 +149,16 @@ function handlePrivacy() {
             print("handlePrivacy(): No fast exit (URL parameter)");
     }
 
-    // Check if notice text files exist and load texts
-    // TODO: Check FILES and load text from them to variables, use localization and file read implementation
+    // Check if notice text files exist and load short texts
+    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+    // TODO: Check that the appropriate files exist (" xx_privacy_short " and " xx_tos_short " where xx is the correct country code like en, fi, se, de)
+    // TODO: If the files exist, set the two boolean variables below accordingly to true or false
+
     const tosTextExists = true;                                                  // Check if terms of service text exists
     const privacyTextExists = true;                                              // Check if privacy notice text exists
     print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
+
+    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below. Note that the code breaks using ' " + " ' are just for readability and that this text contains escapes.
 
     const privacyTextShort =
         "This is a local service. " +
@@ -168,19 +171,15 @@ function handlePrivacy() {
         "<br><br>" +
         "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. " +
         "<br><br>" +
-        "<a href=\"javascript:void(0);\" onclick=\"console.warn('Onclick ok 1')\">Privacy Statement</a>" +
+        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long')\">Privacy Statement</a>" +
         "<br><br>";
     const tosTextShort =
         "This service is provided as is. " +
         "<br><br>" +
-        "<a href=\"javascript:void(0);\" onclick=\"console.warn('Onclick ok 2')\">Terms of Service</a>" +
+        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long')\">Terms of Service</a>" +
         "<br><br>";
 
-    const privacyTextLong = "This service can store user settings with the user's permission to... " +
-        "(long)";
-    const tosTextLong = "The terms of service for this service... " +
-        "(long)";
-
+    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
     // Set button styles
     const colorAccept = "rgba(70,136,255,0.5)";
@@ -306,7 +305,6 @@ function handlePrivacy() {
 
 /**
  * Modifies and updates a single parameter in the URL query string.
- *
  * @param paramName Parameter to modify
  * @param paramValue New value for parameter
  */
@@ -319,7 +317,6 @@ function updateUrlParam(paramName, paramValue) {
 /**
  * Writes to or reads from local storage.
  * Performs related actions to apply settings.
- *
  */
 function handleLocalStorage() {
 
@@ -332,15 +329,7 @@ function handleLocalStorage() {
     updateUrlParam("privacy", "agreeAll");
 
     // Load expected local storage keys
-    // TODO: Setting loads
-
-}
-
-
-/**
- * Loads saved settings from local storage
- */
-function loadSavedSettings() {
+    // TODO: Setting loads and saves (which should only be called if user has agreed)
 
 }
 
@@ -783,6 +772,45 @@ function toggleControlCollapse(collapseIcon) {
 }
 
 /**
+ * Creates a text box with text from a file.
+ * Can be for terms, notices, tutorials and various content.
+ * @param {string} file File to load text from
+ */
+function showContentBox(file) {
+    print("showText(): Showing text from: " + file);
+
+    // Load text from file
+    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+    // TODO: Load text from a file. The file is named in the parameter ' file '. Expect it to be in the localisation folder. Store the text in the variable below.
+
+    const textToShow =
+        "This text is not finished and will be added in a future update. " +
+        "In any case, rest assured that the developers have your privacy and rights in mind. " +
+        "The code in this program is public and can be fully inspected in your browser's developer tools and on GitHub.";
+
+    // TODO: If the file has a way of containing a title for the text separately, load that title to this variable.
+    const title = "Title from file";
+
+    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
+
+    const customPromptStyle = {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        aspectRatio: "16 / 9",
+        bottom: "unset",
+        display: "flex",
+        flexDirection: "column"
+    };
+
+    customPrompt(title, textToShow,                   [     // Display prompt
+        [   "Close"      , () => {  }                        ]
+    ], "50%", "500px", customPromptStyle);
+
+}
+
+/**
  * Creates a prompt with text and buttons.
  * Executes actions based on button press.
  * Every button will dismiss prompt.
@@ -790,14 +818,15 @@ function toggleControlCollapse(collapseIcon) {
  * @param title Title text for prompt
  * @param text Body text for prompt (can contain HTML tags)
  * @param options Array with text and code to run for buttons
- * @param position Position of prompt (string value for property style.left)
- * @param size Size of prompt
+ * @param positionX Position of prompt (string value for property style.left)
+ * @param width Size of prompt
+ * @param containerCSSOverrides Object with custom CSS style declarations, will override existing ones
  */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = "200px") {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "50%", width = "200px", containerCSSOverrides = null) {
 
     // Examples of use:
 
-    // customPrompt("Title", "Text or HTML",                                                                       [
+    // customPrompt("Title", "Text or HTML for body",                                                              [
     //     [   "Button"                , () => { console.log("Button pressed")                                  }  ],
     //     [   "Dismiss"               , () => {                                                                }  ]
     // ], "50%");
@@ -812,9 +841,10 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }  ]
     // ], "50%");
 
-    // Buttons also support optional custom colors (note that only rgba colors with transparency enable good hover effects)
-    // Custom width and positioning (% of viewport from left) are supported
-    // customPrompt("Title", "Text or HTML",                                                         [
+    // Buttons also support optional custom colors (note that only rgba colors with transparency get good hover effects)
+    // Custom width (in px) and x-axis positioning (distance from left edge in % or px) are supported
+    // For special uses, other optional parameters also exist.
+    // customPrompt("Title", "Text or HTML",                                                                          [
     //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
     //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
     //     [   "Red button"          , () => { console.log("Red button pressed")           }  , "rgba(255,0,0,0.74)"  ]
@@ -830,19 +860,23 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         prompt.className = 'prompt';                                     // Set basic CSS class
 
         // Positioning
-        prompt.style.position = 'fixed';                                 // Mobility
-        prompt.style.left = position;                                    // Position
-        // TODO: Automate prevention of overlap of concurrent prompts
-        // TODO: Extend positioning arg support (pass definitions as object)
+        prompt.style.position = 'fixed';                                  // Mobility
+        prompt.style.left = positionX;                                    // Position
+        // TODO: Automate prevention of overlap of concurrent prompts (turn into class?)
 
         // Sizing
-        prompt.style.width = size;                                    // Sizing
-        // TODO: Add support for sizing argument
+        prompt.style.width = width;                                        // Sizing
 
         // Initial state for animation
         prompt.style.opacity = '0';
         prompt.style.bottom = `0px`;
         prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
+    }
+
+    // Possible CSS overrides
+    if (containerCSSOverrides != null) {
+        console.warn("customPrompt(): Applying CSS overrides to prompt");
+        Object.assign(prompt.style, containerCSSOverrides);               // Assigns CSS key-value pairs from argument for custom styles
     }
 
     // Logo
@@ -968,6 +1002,8 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         }, 300);
 
     }
+
+    return prompt;
 
 }
 
@@ -1905,6 +1941,7 @@ function debug() {
     // developerButton.color = "red";
     developerButton.style.borderRadius = "5px";
     developerButton.style.height = '40px';
+    developerButton.style.marginLeft = "0";
 
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
@@ -1935,7 +1972,7 @@ function developerMenu() {
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
         [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
-    ], "380px", "180px");
+    ], "585px", "180px");
 
 }
 
