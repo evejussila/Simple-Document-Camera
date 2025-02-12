@@ -16,6 +16,24 @@
 
     --general-hover-filter: opacity(1) brightness(1);
 
+    --link-color: #ff7633;
+    --link-hover: #ffa400;
+    --link-visited: #b35729;
+    --link-active: #ffcc00;
+
+}
+
+a {
+    color: var(--link-color);
+}
+a:hover {
+    color: var(--link-hover);
+}
+a:visited {
+    color: var(--link-visited);
+}
+a:active {
+    color: var(--link-active);
 }
 
 body {
@@ -35,16 +53,25 @@ body {
 .lightMode {
     --text-color: #000000;
 
-    --bg-color-darkest: #bfbfbf;
-    --bg-color-basic: #e4e4e4;
+    --bg-color-darkest: #dadada;
+    --bg-color-basic: #ececec;
     --bg-color-lightest: #ffffff;
 
-    --button-bg-color: rgba(214, 241, 255, 0.5);
+    --button-bg-color: rgba(185, 198, 223, 0.6);
     --button-bg-color-hover: var(--general-accent-color);
 
     --icon-filter: invert(0);
 
-    --general-accent-color: rgba(0, 178, 255, 0.6);
+    --general-accent-color: rgba(0, 178, 255, 0.7);
+
+    --link-color: #1111ff;
+    --link-hover: #4141ff;
+    --link-visited: #6811ff;
+    --link-active: #6161ff;
+}
+
+* {
+    user-select: none;
 }
 
 /* Generic animations */
@@ -189,6 +216,7 @@ button:hover {
 
 #selectorDevice {
     width: 200px;
+    border-radius: 8px;
 
     background-color: var(--bg-color-basic);
     color: var(--text-color);

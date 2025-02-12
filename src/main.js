@@ -157,24 +157,30 @@ function handlePrivacy() {
     const privacyTextExists = true;                                              // Check if privacy notice text exists
     print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
 
-    // TODO: This tos text is already privacy text. Reconsider distinctions.
-    const tosTextShort =
+    const privacyTextShort =
         "This is a local service. " +
         "Your video and data remain only on your own device. " +
         "<br><br>" +
-        "<b>Your data is not collected or sent anywhere.</b> " +
+        "<b>Your video or data are not sent anywhere.</b> " +
         "<br><br>" +
-        "This service is provided as is. " +
-        "<br><br>";
-    const tosTextLong = "The terms of service for this service... " +
-        "(long)";
-    const privacyTextShort =
         "This service remembers your consent and settings by storing them locally in your browser. " +
         "Storing this information is optional. " +
         "<br><br>" +
-        "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. ";
+        "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. " +
+        "<br><br>" +
+        "<a href=\"javascript:void(0);\" onclick=\"console.warn('Onclick ok 1')\">Privacy Statement</a>" +
+        "<br><br>";
+    const tosTextShort =
+        "This service is provided as is. " +
+        "<br><br>" +
+        "<a href=\"javascript:void(0);\" onclick=\"console.warn('Onclick ok 2')\">Terms of Service</a>" +
+        "<br><br>";
+
     const privacyTextLong = "This service can store user settings with the user's permission to... " +
         "(long)";
+    const tosTextLong = "The terms of service for this service... " +
+        "(long)";
+
 
     // Set button styles
     const colorAccept = "rgba(70,136,255,0.5)";
@@ -260,7 +266,7 @@ function handlePrivacy() {
             [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
             [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
-        ], "50%");
+        ], "50%", "350px");
     }
 
     /**
@@ -269,11 +275,11 @@ function handlePrivacy() {
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice");
 
-        customPrompt("Privacy notice", tosTextShort + " " + privacyTextShort, [                           // Display prompt
+        customPrompt("Privacy notice", privacyTextShort + " " + tosTextShort, [                           // Display prompt
             [   "Agree to all"                   , () => { handleLocalStorage(); }                                          , colorAccept  ],  // Prompt options
             [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
             [   "Reject terms"                   , () => { /* HALT SERVICE */ return false; }                               , colorReject  ]
-        ], "50%");
+        ], "50%", "350px");
     }
 
     /**
@@ -285,7 +291,7 @@ function handlePrivacy() {
         customPrompt("Privacy notice", tosTextShort, [                           // Display prompt
             [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],  // Prompt options
             [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                     , colorReject  ]
-        ], "50%");
+        ], "50%", "350px");
     }
 
     // TODO: Finalize prompt actions
@@ -787,7 +793,7 @@ function toggleControlCollapse(collapseIcon) {
  * @param position Position of prompt (string value for property style.left)
  * @param size Size of prompt
  */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = null) {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = "50%", size = "200px") {
 
     // Examples of use:
 
@@ -807,11 +813,12 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // ], "50%");
 
     // Buttons also support optional custom colors (note that only rgba colors with transparency enable good hover effects)
+    // Custom width and positioning (% of viewport from left) are supported
     // customPrompt("Title", "Text or HTML",                                                         [
     //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
     //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
     //     [   "Red button"          , () => { console.log("Red button pressed")           }  , "rgba(255,0,0,0.74)"  ]
-    // ], "70%");
+    // ], "70%", "100px");
 
     // Create prompt container
     const prompt = document.createElement('div');                // Create element
@@ -829,7 +836,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         // TODO: Extend positioning arg support (pass definitions as object)
 
         // Sizing
-        prompt.style.width = '200px';                                    // Sizing
+        prompt.style.width = size;                                    // Sizing
         // TODO: Add support for sizing argument
 
         // Initial state for animation
@@ -855,20 +862,15 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Create body text
     const textBody = document.createElement('div');
 
-    if (/</.test(text) && />/.test(text)) {                           // Test for signs of HTML tags
+    // Handle HTML text
+    if (/</.test(text) && />/.test(text)) {                             // Test for signs of HTML tags
         print("customPrompt(): Prompt text identified as HTML");
-
-        textBody.innerHTML = text;
+        textBody.innerHTML = text;                                      // HTML text to innerHTML of div
     } else {
-        // print("customPrompt(): Prompt text identified as plain string");
-
-        textBody.textContent = text;
-
-        // Alternate
-        // const textBody = document.createTextNode(text);
-        // textBodyElement.className = 'promptText';
-        // textBodyElement.appendChild(textBody);
+        print("customPrompt(): Prompt text identified as plain string");
+        textBody.textContent = text;                                    // Plain string text to text content of div
     }
+
     // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed should be fine and won't throw any errors but should be noticed
 
     // Styling
@@ -894,7 +896,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
         // Custom color (optional)
         if (optionButton[2] != null) {
-            console.warn("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
+            // console.warn("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
 
             // DEV: TODO: Print won't trigger here because debug var not set yet
 
@@ -904,13 +906,13 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
             // Custom hover
             let customHoverColor = optionButton[2];
             if (customHoverColor.startsWith('rgba')) {
-                console.warn("customPrompt(): Color is rgba, hover enabled");
+                // console.warn("customPrompt(): Color is rgba, hover enabled");
 
                 // Change color alpha for hover color
-                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ', 1)');
-                // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.) and group 1 is decimal number only
+                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 1)");
+                // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
 
-                console.warn("customPrompt(): Hover color: " + customHoverColor);
+                // console.warn("customPrompt(): Hover color: " + customHoverColor);
             }
 
             button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
