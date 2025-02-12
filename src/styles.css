@@ -210,13 +210,18 @@ button:hover {
     z-index: 99;
     bottom: 0;
 
+    align-items: center;
+
     background-color: var(--bg-color-darkest);
     color: var(--text-color);
 }
 
 #selectorDevice {
     width: 200px;
+    height: 40px;
     border-radius: 8px;
+    outline: none;
+    border: 1px solid var(--text-color);
 
     background-color: var(--bg-color-basic);
     color: var(--text-color);

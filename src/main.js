@@ -405,7 +405,7 @@ async function videoStart() {
         }
     }
 
-    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "10%"); }                   // Prompt user
+    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "108px", "180px"); }                   // Prompt user
     // TODO: Provide readable error description and conditional solutions
 
 }
@@ -1935,7 +1935,7 @@ function developerMenu() {
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
         [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
-    ], "30%");
+    ], "380px", "180px");
 
 }
 
