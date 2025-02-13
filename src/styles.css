@@ -10,6 +10,8 @@
     --button-bg-color: rgba(151, 151, 151, 0.22);            /* Must have contrast to background, must have transparency */
     --button-bg-color-hover: var(--general-accent-color);
 
+    --option-bg-color: var(--button-bg-color);
+
     --icon-filter: invert(1);                                /* Inversion for grayscale icons */
 
     --general-accent-color: rgba(255, 141, 44, 0.5);
@@ -59,12 +61,14 @@ body {
     --bg-color-basic: #ececec;
     --bg-color-lightest: #ffffff;
 
-    --button-bg-color: rgba(185, 198, 223, 0.6);
+    --button-bg-color: rgba(255, 255, 255, 0.43);
     --button-bg-color-hover: var(--general-accent-color);
+
+    --option-bg-color: rgba(173, 231, 255, 0.51);
 
     --icon-filter: invert(0);
 
-    --general-accent-color: rgba(0, 178, 255, 0.7);
+    --general-accent-color: rgba(0, 178, 255, 0.6);
 
     --link-color: #1111ff;
     --link-hover: #4141ff;
@@ -127,23 +131,23 @@ button:hover {
     filter: var(--general-hover-filter) var(--icon-filter);
 }
 
-.promptButtonContainer {
+.promptOptionContainer {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
     justify-content: flex-end;
 
-    gap: 0px;
+    gap: 0;
 }
 
-.promptButton {
+.promptOption {
     width: 100%;
     margin: 4px 0;
     border: none;
     padding: 10px;
     border-radius: 5px;
 
-    background-color: var(--button-bg-color);
+    background-color: var(--option-bg-color);
     color: var(--text-color);
 }
 

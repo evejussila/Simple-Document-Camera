@@ -1,9 +1,11 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-12-alpha");
+const version = ("2025-02-13-alpha");
 console.log("Version: " + version);
-console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
+if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
+    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
+}
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -46,20 +48,12 @@ function start() {
     const tosAgreed = handlePrivacy();                                                       // Determines if user may continue using the service
 
     // Start video feed
-    if (tosAgreed) {                                                                         // TODO: If no video, prompts will overlap (need positioning or await)
-        videoStart().then(() => {   } );
+    if (tosAgreed) {                                                                         // Only start video if user agreed to terms
+        videoStart().then(() => {   } );                                                     // Start video
     }
 
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
-
-    // Development
-    const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
-    if (urlParameters.has("debug")) {                                                  // Check for debug/developer parameter
-        debugMode = true;
-        print("start(): Found URL parameter for debug");
-    }
-    if (debugMode) debug();                                                                  // Activate developer features
 
 }
 
@@ -124,9 +118,8 @@ function addCoreListeners() {
  */
 function handlePrivacy() {
 
-    // Check browser local storage for privacy setting
+    // Fast exit: Check browser local storage for permissive privacy setting
     const privacyKey = localStorage.getItem('privacy');
-
     switch (privacyKey) {
         case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
             handleLocalStorage();
@@ -135,10 +128,9 @@ function handlePrivacy() {
             print("handlePrivacy(): No fast exit (local storage)");
     }
 
-    // Check URL privacy parameter
+    // Fast exit: Check URL privacy parameter for permissive privacy setting
     const privacyParameter = new URLSearchParams(window.location.search).get("privacy");
     print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
-
     switch (privacyParameter) {
         case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
             handleLocalStorage();
@@ -154,13 +146,14 @@ function handlePrivacy() {
     // TODO: Check that the appropriate files exist (" xx_privacy_short " and " xx_tos_short " where xx is the correct country code like en, fi, se, de)
     // TODO: If the files exist, set the two boolean variables below accordingly to true or false
 
-    const tosTextExists = true;                                                  // Check if terms of service text exists
-    const privacyTextExists = true;                                              // Check if privacy notice text exists
+    const privacyTextExists = true;                                              // Check if short privacy notice text xx_privacy_short exists
+    const tosTextExists = true;                                                  // Check if short terms of service text xx_tos_short exists
     print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
 
-    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below. Note that the code breaks using ' " + " ' are just for readability and that this text contains escapes.
+    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below.
+    // TODO: Note that the code breaks using ' " + " ' are just for readability and that this text also contains escapes that may or may not be needed in a your implementation.
 
-    const privacyTextShort =
+    const privacyTextShort =                                                     // Load text from xx_privacy_short
         "This is a local service. " +
         "Your video and data remain only on your own device. " +
         "<br><br>" +
@@ -169,11 +162,11 @@ function handlePrivacy() {
         "This service remembers your consent and settings by storing them locally in your browser. " +
         "Storing this information is optional. " +
         "<br><br>" +
-        "If you agree to the storing of your consent and settings <b>locally</b>, you will not see this prompt on your device in the future. " +
+        "If you agree to the storing of your consent and settings locally, you will not see this prompt on your device in the future. " +
         "<br><br>" +
         "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long', true)\">Privacy Statement</a>" +
         "<br><br>";
-    const tosTextShort =
+    const tosTextShort =                                                         // Load text from xx_tos_short
         "This service is provided as is. " +
         "<br><br>" +
         "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true)\">Terms of Service</a>" +
@@ -196,7 +189,7 @@ function handlePrivacy() {
 
     // Table of actions
     // Table:
-    // Privacy text    Tos text        agreeTosInclusive        null
+    // Privacy text    Tos text        agreeTosInclusive        null                  agreeAll
     // ---------------------------------------------------------------------------------------------------
     // true            -               privacyPrompt
     // false           -               handleLocalStorage
@@ -209,13 +202,13 @@ function handlePrivacy() {
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            if (privacyTextExists) {                                             // Privacy text exists -> privacy prompt only
+            if (privacyTextExists) {                                             // Privacy text exists -> Privacy prompt only
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
 
                 privacyPrompt();                                                 // Privacy prompt
             } else {                                                             // Privacy text does not exist -> No prompt, create local storage
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
-                handleLocalStorage();                                            // Create local storage (assume local storage can be used if notice text is not provided)
+                handleLocalStorage();                                            // Create local storage (assume local storage can be used if privacy notice text is not provided)
             }
 
             break;
@@ -242,13 +235,13 @@ function handlePrivacy() {
                 } else {                                                          // No texts exist
                     print("handlePrivacy(): ... privacy text does not exist");
 
-                    // TODO: Might want a switch here that completely disables persistence, if that is what the hosting party wants
+                    // TODO: Might want a switch here that completely disables persistence and prompts, if that is what the hosting party wants
                     handleLocalStorage();                                         // Create local storage (assume local storage can be used if notice text is not provided)
                 }
             }
 
             break;
-        default:                                                                 // Privacy agreement state unexpected
+        default:                                                                 // Privacy agreement state value unexpected
             console.error("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
             fullPrompt();                                                        // Full prompt
     }
@@ -261,7 +254,7 @@ function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice");
 
-        customPrompt("Privacy notice", privacyTextShort, [                                                      // Display prompt
+        customPrompt("Privacy notice", privacyTextShort, [                                                                                // Display prompt
             [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
             [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
@@ -269,12 +262,12 @@ function handlePrivacy() {
     }
 
     /**
-     * Displays a full privacy notice.
+     * Displays a full privacy and ToS (terms of service) notice.
      */
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice");
 
-        customPrompt("Privacy notice", privacyTextShort + " " + tosTextShort, [                           // Display prompt
+        customPrompt("Privacy and Terms of Service", privacyTextShort + " " + tosTextShort, [                                 // Display prompt
             [   "Agree to all"                   , () => { handleLocalStorage(); }                                          , colorAccept  ],  // Prompt options
             [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
             [   "Reject terms"                   , () => { /* HALT SERVICE */ return false; }                               , colorReject  ]
@@ -287,20 +280,13 @@ function handlePrivacy() {
     function tosPrompt() {
         console.log("tosPrompt(): Displaying a notice");
 
-        customPrompt("Privacy notice", tosTextShort, [                           // Display prompt
+        customPrompt("Terms of Service", tosTextShort, [                                                                                // Display prompt
             [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],  // Prompt options
             [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                     , colorReject  ]
         ], "50%", "350px");
     }
 
-    // TODO: Finalize prompt actions
-    function option1() {
-    }
-
-
-
-
-    return true; // TODO: Needs an await unless only privacy prompt
+    return true; // TODO: For return value to have an effect, function needs to be async and await prompt responses
 }
 
 /**
@@ -329,7 +315,7 @@ function handleLocalStorage() {
     updateUrlParam("privacy", "agreeAll");
 
     // Load expected local storage keys
-    // TODO: Setting loads and saves (which should only be called if user has agreed)
+    // TODO: Setting loads and saves (saves should only be possible if user has agreed, likely needs separate function)
 
 }
 
@@ -772,18 +758,19 @@ function toggleControlCollapse(collapseIcon) {
 }
 
 /**
- * Creates a text box with text from a file.
- * Can be for terms, notices, tutorials and various content.
+ * Creates a box with text or HTML from a file.
+ * Can be used for showing terms, notices, tutorials and various content.
  * @param {string} file File to load text from
+ * @param modal Should the prompt be modal
  */
 function showContentBox(file, modal = false) {
-    print("showText(): Showing text from: " + file);
+    print("showContentBox(): Showing content from file: " + file);
 
     // Load text from file
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
     // TODO: Load text from a file. The file is named in the parameter ' file '. Expect it to be in the localisation folder. Store the text in the variable below.
 
-    const textToShow =
+    const contentToShow =                                                                              // Content to show
         "This text is not finished and will be added in a future update. " +
         "In any case, rest assured that the developers have your privacy and rights in mind. " +
         "The code in this program is public and can be fully inspected in your browser's developer tools and on GitHub.";
@@ -793,21 +780,19 @@ function showContentBox(file, modal = false) {
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
+    const modalOverlay = document.createElement("div");    // Create container element
+    const overlayFadeTime = 0.3;                                    // Fade time for animations
 
-
-    const modalOverlay = document.createElement("div");
-    const overlayFadeTime = 0.3;
-
-    if (modal) {
-        Object.assign(modalOverlay.style, {
+    if (modal) {                                                    // Create modal overlay if requested
+        Object.assign(modalOverlay.style, {                  // Assigns CSS key-value pairs to element
             position: "fixed",
             top: "0",
             left: "0",
-            width: "100vw",                             // Match viewport width
-            height: "100vh",                            // Match viewport height
-            background: "rgba(255,255,255,0.4)",
+            width: "100vw",                             // Match viewport width (fill)
+            height: "100vh",                            // Match viewport height (fill)
+            background: "rgba(255,255,255,0.4)",        // Transparent, white
             zIndex: "1000",
-            pointerEvents: "auto",
+            pointerEvents: "all",                       // Will not let clicks "through"
             // userSelect: "none"
 
             opacity: 0
@@ -819,19 +804,19 @@ function showContentBox(file, modal = false) {
 
     const customPromptStyle = {
         position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        aspectRatio: "16 / 9",
+        top: "50%",                                     // Centering
+        left: "50%",                                    // Centering
+        transform: "translate(-50%, -50%)",             // Centering
+        aspectRatio: "16 / 9",                          // Sizing
         bottom: "unset",                                // Remove default value that conflicts with purpose
         display: "flex",
         flexDirection: "column",
         zIndex: "1050"
     };
 
-    customPrompt(title, textToShow,                         [     // Display prompt
-        [   "Close"      , () => { hideElement(modalOverlay, overlayFadeTime/2, true) }   ]
-    ], "50%", "500px", customPromptStyle);
+    customPrompt(title, contentToShow,                                                                [  // Display prompt
+        [   "Close"      , () => { hideElement(modalOverlay, overlayFadeTime/2, true) }   ]  // Only close button
+    ], "50%", "500px", customPromptStyle);                                                        // Apply custom definitions
 
 
 
@@ -855,24 +840,24 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
     // Examples of use:
 
-    // customPrompt("Title", "Text or HTML for body",                                                              [
-    //     [   "Button"                , () => { console.log("Button pressed")                                  }  ],
-    //     [   "Dismiss"               , () => {                                                                }  ]
+    // customPrompt("Title", "Text or HTML for body",                                                               [
+    //     [   "Button"                , () => { console.log("Button pressed")                                  }   ],
+    //     [   "Dismiss"               , () => {                                                                }   ]
     // ], "50%");
 
-    // customPrompt("Title of test menu", "String or variable containing string, string can contain HTML code",    [
-    //     [   "Option 1"              , () => { function_name1()                                               }  ],
-    //     [   "Option 2"              , () => { function_name2();                                              }  ],
-    //     [   "Option 3 "             , () => { function_name2(); function_name3();                            }  ],
-    //     [   "Text for button"       , () => { console.log("functions and code blocks supported")             }  ],
-    //     [   "Text for button"       , () => { console.log("any command can be run here")                     }  ],
-    //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }  ],
-    //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }  ]
+    // customPrompt("Title of test prompt", "String or a variable containing string, string can contain HTML code", [
+    //     [   "Option 1"              , () => { function_name1()                                               }   ],
+    //     [   "Option 2"              , () => { function_name2();                                              }   ],
+    //     [   "Option 3 "             , () => { function_name2(); function_name3();                            }   ],
+    //     [   "Text for button"       , () => { console.log("functions and code blocks supported")             }   ],
+    //     [   "Text for button"       , () => { console.log("any command can be run here")                     }   ],
+    //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }   ],
+    //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }   ]
     // ], "50%");
 
-    // Buttons also support optional custom colors (note that only rgba colors with transparency get good hover effects)
+    // Buttons also support optional custom colors (note that only rgba colors with reduced transparency get hover effects)
     // Custom width (in px) and x-axis positioning (distance from left edge in % or px) are supported
-    // For special uses, other optional parameters also exist.
+    // For special uses, CSS style overrides can be passed as an object argument.
     // customPrompt("Title", "Text or HTML",                                                                          [
     //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
     //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
@@ -902,10 +887,10 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
     }
 
-    // Possible CSS overrides
+    // Potential CSS overrides
     if (containerCSSOverrides != null) {
-        console.warn("customPrompt(): Applying CSS overrides to prompt");
-        Object.assign(prompt.style, containerCSSOverrides);               // Assigns CSS key-value pairs from argument for custom styles
+        print("customPrompt(): Applying CSS overrides to prompt");
+        Object.assign(prompt.style, containerCSSOverrides);               // Assigns CSS key-value pairs to element from argument for custom styles
     }
 
     // Logo
@@ -916,7 +901,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     const textTitle = document.createTextNode(title);
 
     // Styling
-    textTitleElement.className = 'promptTitle';                       // Set basic CSS class
+    textTitleElement.className = 'promptTitle';                           // Set basic CSS class
 
     // Append
     textTitleElement.appendChild(textTitle);
@@ -926,18 +911,17 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     const textBody = document.createElement('div');
 
     // Handle HTML text
-    if (/</.test(text) && />/.test(text)) {                             // Test for signs of HTML tags
+    if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
         print("customPrompt(): Prompt text identified as HTML");
-        textBody.innerHTML = text;                                      // HTML text to innerHTML of div
+        textBody.innerHTML = text;                                       // HTML text to innerHTML of div
     } else {
         print("customPrompt(): Prompt text identified as plain string");
-        textBody.textContent = text;                                    // Plain string text to text content of div
+        textBody.textContent = text;                                     // Plain string text to text content of div
     }
-
     // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed should be fine and won't throw any errors but should be noticed
 
     // Styling
-    textBody.className = 'promptText';                                     // Set basic CSS class
+    textBody.className = 'promptText';                                   // Set basic CSS class
 
     // Append
     prompt.appendChild(textBody);
@@ -946,22 +930,20 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     const buttonContainer = document.createElement('div');
 
     // Styling
-    buttonContainer.className = 'promptButtonContainer';                   // Set basic CSS class
+    buttonContainer.className = 'promptOptionContainer';                   // Set basic CSS class
 
     // Create buttons
     options.forEach((optionButton) => {
         // Create button
         const button = document.createElement('button');
-        button.textContent = `${optionButton[0]}`;
+        button.textContent = `${optionButton[0]}`;                        // Get text for button
 
         // Styling
-        button.className = 'promptButton';                                // Set basic CSS class
+        button.className = 'promptOption';                                // Set basic CSS class
 
-        // Custom color (optional)
-        if (optionButton[2] != null) {
-            // console.warn("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
-
-            // DEV: TODO: Print won't trigger here because debug var not set yet
+        // Potential custom color
+        if (optionButton[2] != null) {                                    // Get potential color for button
+            print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
 
             // Set base color
             button.style.backgroundColor = optionButton[2];          // Overrides CSS background color (including hover) // DEV temp: `${optionButton[2]}`
@@ -969,20 +951,18 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
             // Custom hover
             let customHoverColor = optionButton[2];
             if (customHoverColor.startsWith('rgba')) {
-                // console.warn("customPrompt(): Color is rgba, hover enabled");
+                // print("customPrompt(): Color is rgba, hover enabled");
 
                 // Change color alpha for hover color
-                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 1)");
+                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 0.8)");
                 // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
 
-                // console.warn("customPrompt(): Hover color: " + customHoverColor);
+                // print("customPrompt(): Hover color: " + customHoverColor);
             }
 
             button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
             button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
             // TODO: Make sure event listeners are orphaned completely for GC
-
-
         }
 
         // Attach action listener
@@ -1009,7 +989,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     //     }, 1000);}
     // }
 
-    // TODO: Replace animations with show and hide, extend show and hide arguments
+    // TODO: Replace animations with show and hide, extend show and hide arguments or use CSS classes
 
     // Animation: fade in
     requestAnimationFrame(() => {
@@ -1983,7 +1963,7 @@ function debug() {
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
-    controlBar.appendChild(developerButton);
+    document.getElementById('controlBar').appendChild(developerButton); // May run before DOM loaded
 
 }
 
@@ -2060,6 +2040,10 @@ function releaseVideoStream() {
 function print(string) {
     if (!debugMode) return;
     console.log(string);
+
+    // Trace caller here unless false (for mass events)
+    //     const stack = new Error().stack.split('\n');
+    //     const callerFunction = stack[2].trim();
 }
 
 /**
