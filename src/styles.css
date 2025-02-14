@@ -328,14 +328,20 @@ button:hover {
 }
 
 .createdTextAreaRemoveButton { /* TODO: Not referenced */
-    left: 0;
-    width: 20px;
+    /*
+        width: 20px;
+        height: 20px;
+        margin-top: -18px;
+        position: absolute;
+        display: none;
+        border-radius: 10px;
+        padding-bottom: 10px;
+    */
+
+    width: 5%;
     height: 20px;
-    margin-top: -18px;
-    position: absolute;
+    margin: -10px auto auto;
     display: none;
-    border-radius: 10px;
-    padding-bottom: 10px;
 }
 
 .createdTextAreaResizeHandle {

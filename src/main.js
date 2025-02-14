@@ -1733,16 +1733,25 @@ class TextArea extends MovableElement {
 
 
     // Font size handling
-
     /**
      * Changes the active text area's font size
      * @param size Size value
      */
     static changeFontSize(size) {
-        let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
-        fontSize += size;                                                                                      // Make font size bigger or smaller
-        TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+
+        const element = TextArea.activeTextArea;
         // TODO: Eliminate static function and add resize call for container, based on text size: this.resizeToFitText(this.textAreaElement, this.element)
+        // Static function can be eliminated by using management. CreatedElements.getActiveTextArea().
+
+        // Load computed font size to element property
+        element.style.fontSize = window.getComputedStyle(element).fontSize                           // Initial font size set in CSS will not be set in the inline font size automatically
+
+        print("changeFontSize(): Called font size " + element.style.fontSize + " = " + window.getComputedStyle(element).fontSize + " change by " + size + " for: " + element.id);
+
+        let fontSize = parseFloat(element.style.fontSize);                                     // Get font size
+        fontSize += size;                                                                                      // Make font size bigger or smaller
+        element.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+
     }
 
 }
