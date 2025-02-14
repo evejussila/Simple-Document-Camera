@@ -1,6 +1,7 @@
 /* Generic */
 
 :root {
+    /* Colors */
     --text-color: #ffffff;
 
     --bg-color-darkest: #171717;
@@ -23,7 +24,28 @@
     --link-visited: #b35729;
     --link-active: #ffcc00;
 
-    /* z-index ranges: prompts 900-1000 modals 1000-1100    dev 9000-> */
+    /* z-index ranges for various elements (starting values, 100 values reserved for each) */
+    --zindex-visual-core: 0;               /* Core visual elements like video */
+    --zindex-drawings: 200;                /* Created element */
+    --zindex-textAreas: 300;               /* Created element */
+    --zindex-overlays: 400;                /* Created element */
+
+    --zindex-interface-dynamic: 700;       /* Interface elements that can go under other interface elements */
+    --zindex-interface-core: 800;          /* Interface elements that must not be covered */
+    --zindex-prompts: 900;                 /* Prompts that should almost always be possible to interact with */
+    --zindex-modals: 1000;                 /* Modal elements that can cover everything else */
+
+    --zindex-dev: 9000;                    /* Developer elements */
+
+    /* Animations */
+    --general-transitions: opacity 100ms ease, background-color 20ms linear, transform 300ms ease-in-out;
+
+}
+
+* {
+    user-select: none; /* Almost nothing should be possible to select */
+
+    transition: var(--general-transitions);
 
 }
 
@@ -52,6 +74,10 @@ body {
     color: var(--text-color);
 }
 
+textarea {
+    /*  user-select: text; Text in text areas could be selectable */
+}
+
 /* Light mode */
 
 .lightMode {
@@ -76,11 +102,7 @@ body {
     --link-active: #6161ff;
 }
 
-* {
-    user-select: none;
-}
 
-/* Generic animations */
 
 
 
@@ -265,6 +287,7 @@ button:hover {
     object-fit: cover;
     position: relative;
     z-index: 1;
+    border-radius: 5px;
 }
 
 #canvasMain {
@@ -306,4 +329,50 @@ button:hover {
 
     color: var(--text-color);
 }
+
+.createdTextArea {
+    user-select: text !important; /* Text in text areas should be selectable */
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    font-size: 30px;
+    resize: none; /* Prefer custom implementation for resize */
+    overflow: auto;
+    cursor: move; /* TODO: Will not allow for text selection cursor, related: drag handler interferes with text selection */
+}
+
+.createdTextAreaResizeHandle {
+    width: 15px;
+    height: 15px;
+    background-color: gray;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    cursor: se-resize;
+    z-index: 8;
+    clip-path: polygon(100% 0, 0 100%, 100% 100%);
+}
+
+.createdTextAreaCloseButton { /* TODO: Not referenced */
+    left: 0;
+    background: white;
+    border-color: grey;
+    width: 20px;
+    height: 20px;
+    margin-top: -18px;
+    position: absolute;
+    display: none;
+    border-radius: 10px;
+    padding-bottom: 10px;
+}
+
+.createdTextAreaContainer { /* TODO: Not referenced */
+    position: absolute;
+    left: 300px;
+    top: 100px;
+    min-width: 150px;
+    min-height: 40px;
+    z-index: 7;
+}
+
 

@@ -743,15 +743,17 @@ function switchToFullscreen(fullScreenIcon) {
 function toggleControlCollapse(collapseIcon) {
     isControlCollapsed = !isControlCollapsed;
 
+    collapseIcon.style.transform += "scaleY(-1)";
+
     if (isControlCollapsed) {
         collapseIcon.title = 'Show controls';
-        collapseIcon.src = "./images/showControls.png";
+        // collapseIcon.src = "./images/showControls.png";
         hideElement(controlBar);
         hideElement(island);
     }
     else {
         collapseIcon.title = 'Hide controls';
-        collapseIcon.src = "./images/hideControls.png";                             // TODO: Use same image, transform Y -1 to flip
+        // collapseIcon.src = "./images/hideControls.png";
         showElement(controlBar, undefined, 'inline-flex');
         showElement(island, undefined, 'flex');
     }
@@ -830,7 +832,7 @@ function showContentBox(file, modal = false) {
  * Every button will dismiss prompt.
  *
  * @param title Title text for prompt
- * @param text Body text for prompt (can contain HTML tags)
+ * @param text Body text for prompt (can contain HTML)
  * @param options Array with text and code to run for buttons
  * @param positionX Position of prompt (string value for property style.left)
  * @param width Size of prompt
@@ -1555,11 +1557,14 @@ class Overlay extends MovableElement {
  */
 class TextArea extends MovableElement {
 
-    // Styles
-    static textAreaStyle = "position:absolute;width:100%;height:100%;font-size:30px;resize:none;overflow:auto;cursor:move;font-size:30px;"
+    // Styles (TODO: deprecate inlines with CSS classes)
     static closeButtonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
+        // .className = "createdTextAreaCloseButton"
     static containerStyle = "position:absolute;left:300px;top:100px;min-width:150px;min-height:40px;z-index:7;"
-    static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
+        // .className = "createdTextAreaContainer"
+    // Already deprecated:
+    // static textAreaStyle = "position:absolute;width:100%;height:100%;font-size:30px;resize:none;overflow:auto;cursor:move;font-size:30px;"
+    // static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
 
     // Class shared variables (TODO: Deprecate)
     static textAreaCount = 0;                                                               // Counter for text areas TODO: Only used for unique id, is risky, use instead String(Date.now());
@@ -1595,17 +1600,19 @@ class TextArea extends MovableElement {
 
         // Create main element
         this.element = document.createElement("textarea");
+        this.element.className = "createdTextArea";
         this.element.id = TextArea.textAreaCount + "textArea";
         this.element.placeholder = "Text";
-        this.element.style.cssText = TextArea.textAreaStyle;
+        // this.element.style.cssText = TextArea.textAreaStyle;                                                                        // DEV: Replaced with CSS class
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
         if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.element;                                             // Makes font size buttons work even when text area was not clicked TODO: Deprecate, activeTextArea, only functional dependency is right here, related to the font size modifier, see changeFontSize()
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
+        this.resizeHandle.className = "createdTextAreaResizeHandle";
         this.resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
-        this.resizeHandle.style.cssText = TextArea.resizeHandleStyle;
+        // this.resizeHandle.style.cssText = TextArea.resizeHandleStyle;                                                                // DEV: Replaced with CSS class
         this.container.appendChild(this.resizeHandle);
 
         // Add resize listeners
