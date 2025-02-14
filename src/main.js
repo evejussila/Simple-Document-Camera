@@ -1390,8 +1390,8 @@ class MovableElement {
     /**
      * Creates new element and a remove button for it.
      * @param type Element type to add (HTML tagName)
-     * @param className Class name for element
-     * @param id Identifier for added element
+     * @param className Class name for element (should correspond with a CSS class)
+     * @param id Unique identifier for added element
      * @param elementStyle CSS style object for added element
      * @param removeButtonStyle CSS style object for remove button
      */
@@ -1551,7 +1551,7 @@ class Overlay extends MovableElement {
 class TextArea extends MovableElement {
 
     // Styles (TODO: deprecate inlines with CSS classes)
-    closeButtonStyle = {                 // Matches .className = "createdTextAreaCloseButton"
+    closeButtonStyle = {                 // Matches .className = "createdTextAreaRemoveButton"
         left: "0",
         background: "white",
         borderColor: "grey",
@@ -1574,7 +1574,6 @@ class TextArea extends MovableElement {
 
 
     // Class shared variables (TODO: Deprecate)
-    static textAreaCount = 0;                                                               // Counter for text areas TODO: Only used for unique id, is risky, use instead String(Date.now());
     static activeTextArea;                                                                  // Shows which text area is currently active TODO: Deprecate, if this object class _instance_ is called by mouse event, currently active is always this.element
 
     // Other
@@ -1603,14 +1602,13 @@ class TextArea extends MovableElement {
      */
     create() {
         // Create container
-        this.container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", this.containerStyle, this.closeButtonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
+        this.container = super.createElement("div", "createdTextAreaContainer", this.id + "Container", this.containerStyle, this.closeButtonStyle);
 
         // Create main element
         this.element = document.createElement("textarea");
         this.element.className = "createdTextArea";
-        this.element.id = TextArea.textAreaCount + "textArea";
+        this.element.id = this.id;
         this.element.placeholder = "Text";
-        // this.element.style.cssText = TextArea.textAreaStyle;                                                                        // DEV: Replaced with CSS class
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
         if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.element;                                             // Makes font size buttons work even when text area was not clicked TODO: Deprecate, activeTextArea, only functional dependency is right here, related to the font size modifier, see changeFontSize()
@@ -1618,14 +1616,12 @@ class TextArea extends MovableElement {
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
         this.resizeHandle.className = "createdTextAreaResizeHandle";
-        this.resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
-        // this.resizeHandle.style.cssText = TextArea.resizeHandleStyle;                                                                // DEV: Replaced with CSS class
+        this.resizeHandle.id = this.id + "ResizeHandle";
         this.container.appendChild(this.resizeHandle);
 
         // Add resize listeners
         this.handleListeners();
 
-        TextArea.textAreaCount++;
     }
 
     /**

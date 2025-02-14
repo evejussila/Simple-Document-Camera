@@ -307,6 +307,14 @@ button:hover {
 
 /* Programmatically created elements */
 
+.createdTextAreaContainer { /* TODO: Not referenced */
+    position: absolute;
+    left: 300px;
+    top: 100px;
+    min-width: 150px;
+    min-height: 40px;
+    z-index: 7;
+}
 
 .createdTextArea {
     user-select: text !important; /* Text in text areas should be selectable */
@@ -317,6 +325,17 @@ button:hover {
     resize: none; /* Prefer custom implementation for resize */
     overflow: auto;
     cursor: move; /* TODO: Will not allow for text selection cursor, related: drag handler interferes with text selection */
+}
+
+.createdTextAreaRemoveButton { /* TODO: Not referenced */
+    left: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: -18px;
+    position: absolute;
+    display: none;
+    border-radius: 10px;
+    padding-bottom: 10px;
 }
 
 .createdTextAreaResizeHandle {
@@ -331,29 +350,12 @@ button:hover {
     clip-path: polygon(100% 0, 0 100%, 100% 100%);
 }
 
-.createdTextAreaCloseButton { /* TODO: Not referenced */
-    left: 0;
-
-    width: 20px;
-    height: 20px;
-    margin-top: -18px;
-    position: absolute;
-    display: none;
-    border-radius: 10px;
-    padding-bottom: 10px;
-}
-
-.createdTextAreaContainer { /* TODO: Not referenced */
-    position: absolute;
-    left: 300px;
-    top: 100px;
-    min-width: 150px;
-    min-height: 40px;
-    z-index: 7;
-}
 
 
-.overlay {
+
+
+
+.overlay { /* TODO: Should start with created */
     width: 105%;
     height: 105%;
     background: linear-gradient(to bottom, #e6e6e6, #222222);
