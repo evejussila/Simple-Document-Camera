@@ -1393,16 +1393,17 @@ class MovableElement {
      * @param type Element type to add (tagName)
      * @param number Number of element (for avoiding identical ids)
      * @param idBase Identifier base for added element
-     * @param elementCssStyle CSS style for added element
-     * @param buttonCssStyle CSS style for remove button
+     * @param elementStyle CSS style object for added element
+     * @param removeButtonStyle CSS style object for remove button
      */
-    createElement(type, number, idBase, elementCssStyle, buttonCssStyle) {
+    createElement(type, number, idBase, elementStyle, removeButtonStyle) {
 
         // Create main element
         let newElement = document.createElement(type);
         newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken (pseudorandom: String(Date.now()); ).
         newElement.class = idBase;
-        newElement.style.cssText = elementCssStyle // New elements style must be edited in js
+        // newElement.style.cssText = elementStyle       // Deprecated, uses obscure string
+        Object.assign(newElement.style, elementStyle);
         print("createElement(): Added element: " + newElement.id);
 
         // Create remove button
@@ -1411,7 +1412,8 @@ class MovableElement {
         removeButton.id = number + "remove";
         removeButton.title = "Remove";
         removeButton.textContent = "X";
-        removeButton.style.cssText = buttonCssStyle;
+        // removeButton.style.cssText = removeButtonStyle;       // Deprecated, uses obscure string
+        Object.assign(removeButton.style, removeButtonStyle);
         removeButton.addEventListener('click', () => removeElement(newElement));
         print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
 
@@ -1437,9 +1439,31 @@ class MovableElement {
  */
 class Overlay extends MovableElement {
 
-    // Styles
-    static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
-    static closeButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
+    // Styles (TODO: deprecate inlines with CSS classes)
+    // static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
+    // static closeButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
+    static overlayStyle = {
+        width: "105%",
+        height: "105%",
+        background: "linear-gradient(to bottom, #e6e6e6, #222222)",
+        cursor: "move",
+        zIndex: "10",
+        position: "absolute",
+        left: "2%",
+        top: "2%"
+    };
+
+    static closeButtonStyle = {
+        margin: "auto",
+        background: "white",
+        borderColor: "grey",
+        width: "5%",
+        height: "20px",
+        marginTop: "-10px",
+        display: "none"
+    };
+
+
 
     // Class shared variables (TODO: Deprecate)
     static overlayCount = 0;                                                                // Counter for overlays // TODO: Only used for unique id, is risky, use instead String(Date.now());
@@ -1558,13 +1582,35 @@ class Overlay extends MovableElement {
 class TextArea extends MovableElement {
 
     // Styles (TODO: deprecate inlines with CSS classes)
-    static closeButtonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
-        // .className = "createdTextAreaCloseButton"
-    static containerStyle = "position:absolute;left:300px;top:100px;min-width:150px;min-height:40px;z-index:7;"
-        // .className = "createdTextAreaContainer"
+    // static closeButtonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
+
+    // static containerStyle = "position:absolute;left:300px;top:100px;min-width:150px;min-height:40px;z-index:7;"
+
     // Already deprecated:
     // static textAreaStyle = "position:absolute;width:100%;height:100%;font-size:30px;resize:none;overflow:auto;cursor:move;font-size:30px;"
     // static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
+    static closeButtonStyle = {                 // Matches .className = "createdTextAreaCloseButton"
+        left: "0",
+        background: "white",
+        borderColor: "grey",
+        width: "20px",
+        height: "20px",
+        marginTop: "-18px",
+        position: "absolute",
+        display: "none",
+        borderRadius: "10px",
+        paddingBottom: "10px"
+    };
+
+    static containerStyle = {                     // Matches .className = "createdTextAreaContainer"
+        position: "absolute",
+        left: "300px",
+        top: "100px",
+        minWidth: "150px",
+        minHeight: "40px",
+        zIndex: "7"
+    };
+
 
     // Class shared variables (TODO: Deprecate)
     static textAreaCount = 0;                                                               // Counter for text areas TODO: Only used for unique id, is risky, use instead String(Date.now());
