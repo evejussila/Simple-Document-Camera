@@ -38,7 +38,7 @@
     --zindex-dev: 9000;                    /* Developer elements */
 
     /* Animations */
-    --general-transitions: opacity 100ms ease, background-color 20ms linear, transform 300ms ease-in-out;
+    --general-transitions: opacity 400ms ease, background-color 20ms linear, transform 300ms ease-in-out;
 
 }
 
@@ -307,28 +307,6 @@ button:hover {
 
 /* Programmatically created elements */
 
-.prompt {
-    transform: translateX(-50%);
-    background-color: var(--bg-color-lightest);
-    border-radius: 10px;
-    padding: 10px;
-    z-index: 900;
-}
-
-.promptTitle {
-    font-size: 20px;
-    text-align: center;
-    margin-bottom: 10px;
-
-    color: var(--text-color);
-}
-
-.promptText {
-    text-align: justify;        /* Text fills horizontal space */
-    margin-bottom: 10px;
-
-    color: var(--text-color);
-}
 
 .createdTextArea {
     user-select: text !important; /* Text in text areas should be selectable */
@@ -373,6 +351,39 @@ button:hover {
     min-width: 150px;
     min-height: 40px;
     z-index: 7;
+}
+
+
+.overlay {
+
+}
+
+.overlayRemoveButton {
+
+}
+
+
+.prompt {
+    transform: translateX(-50%);
+    background-color: var(--bg-color-lightest);
+    border-radius: 10px;
+    padding: 10px;
+    z-index: 900;
+}
+
+.promptTitle {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 10px;
+
+    color: var(--text-color);
+}
+
+.promptText {
+    text-align: justify;        /* Text fills horizontal space */
+    margin-bottom: 10px;
+
+    color: var(--text-color);
 }
 
 

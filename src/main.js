@@ -1164,29 +1164,26 @@ function updateVideoTransform() {
  * @param fadeTime Fade duration s (optional)
  */
 function removeElement(element, fadeTime = 0.2) {
-    element.style.transition = `opacity ${fadeTime}s`;                     // TODO: Use hideElement()
-    element.style.opacity = '0';
-
-    setTimeout(() => element.remove(), fadeTime*1000);      // Asynchronous
-
-    print("removeElement(): Removed element: " + element.id);
+    hideElement(element, fadeTime, true)
+    print("removeElement(): Remove issued for element: " + element.id);
 }
 
 /**
  * Hides an element.
  * Applies a fade out.
- * Can be used to delete elements.
+ * Can be used to remove elements.
  * @param element Element to hide
  * @param fadeTime Fade duration s (optional)
  * @param removeAfter Should the element be deleted after hiding
  */
 function hideElement(element, fadeTime = 0.3, removeAfter = false) {
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
-    element.style.opacity = '0';
-    // TODO: Add interaction prevention (no click during animations, plus recovery to previous state) (pointerEvents: none)
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`; // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    element.style.opacity = "0";
+
     setTimeout(() => {
-        element.style.display = 'none';
-        if (removeAfter) { element.remove(); print("hideElement(): Removing element, parameter removeAfter=" + removeAfter); }
+        element.style.display = "none";
+        element.style.pointerEvents = "none";
+        if (removeAfter) { element.remove(); print("hideElement(): Removing element: " + removeAfter); }
     }, fadeTime * 1000);
 }
 
@@ -1197,10 +1194,10 @@ function hideElement(element, fadeTime = 0.3, removeAfter = false) {
  * @param fadeTime Fade duration in s (optional)
  * @param displayStyle Display style (optional)
  */
-function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
-    element.style.opacity = '0';                                    // Ensures not visible
+function showElement(element, fadeTime = 0.4, displayStyle = "block") {
+    element.style.opacity = "0";                                    // Ensures not visible
     element.style.display = displayStyle;                           // Renders element display
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`; // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
 
     // requestAnimationFrame(() => {                           // Runs code after display is rendered
     //     element.style.opacity = '1';
@@ -1317,6 +1314,7 @@ class MovableElement {
 
     // Generic
     type;                                           // For fast identification of inheritor instance type
+    id;
 
     // Element references
     element;                                        // Main element reference
@@ -1343,6 +1341,7 @@ class MovableElement {
      */
     constructor(type, allowMove = true) {
         this.type = type;
+        this.id = String(Date.now());
         this.allowMove = allowMove;
     }
 
@@ -1390,44 +1389,48 @@ class MovableElement {
 
     /**
      * Creates new element and a remove button for it.
-     * @param type Element type to add (tagName)
-     * @param number Number of element (for avoiding identical ids)
-     * @param idBase Identifier base for added element
+     * @param type Element type to add (HTML tagName)
+     * @param className Class name for element
+     * @param id Identifier for added element
      * @param elementStyle CSS style object for added element
      * @param removeButtonStyle CSS style object for remove button
      */
-    createElement(type, number, idBase, elementStyle, removeButtonStyle) {
+    createElement(type, className, id, elementStyle, removeButtonStyle) {
 
         // Create main element
         let newElement = document.createElement(type);
-        newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken (pseudorandom: String(Date.now()); ).
-        newElement.class = idBase;
+        newElement.id = this.id;
+        // newElement.class = className;                 // DEV: No "class" property exists for HTML elements
+        newElement.className = className;
         // newElement.style.cssText = elementStyle       // Deprecated, uses obscure string
         Object.assign(newElement.style, elementStyle);
-        print("createElement(): Added element: " + newElement.id);
+        newElement.style.opacity = "0";
+        print("createElement(): Added " + className + " element: " + newElement.id);
 
         // Create remove button
         let removeButton = document.createElement('button');
-        removeButton.class = "removeButton";
-        removeButton.id = number + "remove";
+        // removeButton.class = "removeButton";                   // DEV: No "class" property exists for HTML elements
+        removeButton.className = className + "RemoveButton";
+        removeButton.id = id + "RemoveButton";                    // Forms id for remove button
         removeButton.title = "Remove";
         removeButton.textContent = "X";
-        // removeButton.style.cssText = removeButtonStyle;       // Deprecated, uses obscure string
+        // removeButton.style.cssText = removeButtonStyle;        // Deprecated string inline
         Object.assign(removeButton.style, removeButtonStyle);
         removeButton.addEventListener('click', () => removeElement(newElement));
         print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
 
-        // Remove buttons only visible when hovered over
-        newElement.addEventListener('mouseover', () => (
-            removeButton.style.display = "block" // TODO: Use fade with showElement()
+        // Remove button only visible when hovered over
+        newElement.addEventListener('mouseover', () => (          // TODO: Make sure fastest CSS animations apply
+            removeButton.style.display = "block"
         ));
         newElement.addEventListener('mouseout', () => (
-            removeButton.style.display = "none" // TODO: Use fade with hideElement()
+            removeButton.style.display = "none"
         ));
 
         // Add element to DOM
-        island.after(newElement);
         newElement.appendChild(removeButton);
+        island.after(newElement);
+        newElement.style.opacity = "1";                           // TODO: Apply fade
 
         return newElement;
     }
@@ -1440,9 +1443,7 @@ class MovableElement {
 class Overlay extends MovableElement {
 
     // Styles (TODO: deprecate inlines with CSS classes)
-    // static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
-    // static closeButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
-    static overlayStyle = {
+    overlayStyle = {
         width: "105%",
         height: "105%",
         background: "linear-gradient(to bottom, #e6e6e6, #222222)",
@@ -1452,8 +1453,7 @@ class Overlay extends MovableElement {
         left: "2%",
         top: "2%"
     };
-
-    static closeButtonStyle = {
+    closeButtonStyle = {
         margin: "auto",
         background: "white",
         borderColor: "grey",
@@ -1464,9 +1464,7 @@ class Overlay extends MovableElement {
     };
 
 
-
     // Class shared variables (TODO: Deprecate)
-    static overlayCount = 0;                                                                // Counter for overlays // TODO: Only used for unique id, is risky, use instead String(Date.now());
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
     // Other
@@ -1491,12 +1489,11 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.closeButtonStyle);
+        this.element = super.createElement("div", "overlay", this.id, this.overlayStyle, this.closeButtonStyle);
 
         // Add listeners
         this.handleListeners();
 
-        Overlay.overlayCount++;
     }
 
     /**
@@ -1504,8 +1501,8 @@ class Overlay extends MovableElement {
      */
     handleListeners() {
         // Add listener for drag
-        print("handleListeners(): Adding drag listener for overlay: " +  Overlay.overlayCount + "overlay");
-        let overlay = document.getElementById(Overlay.overlayCount + "overlay");
+        print("handleListeners(): Adding drag listener for overlay: " +  this.id);
+        let overlay = document.getElementById(this.id);                              // TODO: Remove extra gets, use reference in variable
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
     }
 
@@ -1582,14 +1579,7 @@ class Overlay extends MovableElement {
 class TextArea extends MovableElement {
 
     // Styles (TODO: deprecate inlines with CSS classes)
-    // static closeButtonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
-
-    // static containerStyle = "position:absolute;left:300px;top:100px;min-width:150px;min-height:40px;z-index:7;"
-
-    // Already deprecated:
-    // static textAreaStyle = "position:absolute;width:100%;height:100%;font-size:30px;resize:none;overflow:auto;cursor:move;font-size:30px;"
-    // static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
-    static closeButtonStyle = {                 // Matches .className = "createdTextAreaCloseButton"
+    closeButtonStyle = {                 // Matches .className = "createdTextAreaCloseButton"
         left: "0",
         background: "white",
         borderColor: "grey",
@@ -1601,8 +1591,7 @@ class TextArea extends MovableElement {
         borderRadius: "10px",
         paddingBottom: "10px"
     };
-
-    static containerStyle = {                     // Matches .className = "createdTextAreaContainer"
+    containerStyle = {                     // Matches .className = "createdTextAreaContainer"
         position: "absolute",
         left: "300px",
         top: "100px",
@@ -1642,7 +1631,7 @@ class TextArea extends MovableElement {
      */
     create() {
         // Create container
-        this.container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.containerStyle, TextArea.closeButtonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
+        this.container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", this.containerStyle, this.closeButtonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
 
         // Create main element
         this.element = document.createElement("textarea");
