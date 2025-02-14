@@ -333,8 +333,7 @@ button:hover {
 
 .createdTextAreaCloseButton { /* TODO: Not referenced */
     left: 0;
-    background: white;
-    border-color: grey;
+
     width: 20px;
     height: 20px;
     margin-top: -18px;
@@ -355,12 +354,24 @@ button:hover {
 
 
 .overlay {
-
+    width: 105%;
+    height: 105%;
+    background: linear-gradient(to bottom, #e6e6e6, #222222);
+    cursor: move;
+    z-index: 10;
+    position: absolute;
+    left: 2%;
+    top: 2%;
 }
 
 .overlayRemoveButton {
 
+    width: 5%;
+    height: 20px;
+    margin: -10px auto auto;
+    display: none;
 }
+
 
 
 .prompt {

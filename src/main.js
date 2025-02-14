@@ -1395,29 +1395,25 @@ class MovableElement {
      * @param elementStyle CSS style object for added element
      * @param removeButtonStyle CSS style object for remove button
      */
-    createElement(type, className, id, elementStyle, removeButtonStyle) {
+    createElement(type, className, id, elementStyle = {}, removeButtonStyle = {}) {
 
         // Create main element
         let newElement = document.createElement(type);
         newElement.id = this.id;
-        // newElement.class = className;                 // DEV: No "class" property exists for HTML elements
-        newElement.className = className;
-        // newElement.style.cssText = elementStyle       // Deprecated, uses obscure string
+        newElement.className = className;                          // Assign basic class name to apply CSS styles
         Object.assign(newElement.style, elementStyle);
         newElement.style.opacity = "0";
-        print("createElement(): Added " + className + " element: " + newElement.id);
+        print("createElement(): Added " + newElement.className + " element: " + newElement.id);
 
         // Create remove button
         let removeButton = document.createElement('button');
-        // removeButton.class = "removeButton";                   // DEV: No "class" property exists for HTML elements
-        removeButton.className = className + "RemoveButton";
+        removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
         removeButton.id = id + "RemoveButton";                    // Forms id for remove button
         removeButton.title = "Remove";
         removeButton.textContent = "X";
-        // removeButton.style.cssText = removeButtonStyle;        // Deprecated string inline
-        Object.assign(removeButton.style, removeButtonStyle);
+        Object.assign(removeButton.style, removeButtonStyle);     // TODO: Only assign if anything defined (set default to null and add conditional for != null)
         removeButton.addEventListener('click', () => removeElement(newElement));
-        print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
+        print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
 
         // Remove button only visible when hovered over
         newElement.addEventListener('mouseover', () => (          // TODO: Make sure fastest CSS animations apply
@@ -1430,7 +1426,7 @@ class MovableElement {
         // Add element to DOM
         newElement.appendChild(removeButton);
         island.after(newElement);
-        newElement.style.opacity = "1";                           // TODO: Apply fade
+        newElement.style.opacity = "1";                           // TODO: Apply fade to creation
 
         return newElement;
     }
@@ -1442,35 +1438,12 @@ class MovableElement {
  */
 class Overlay extends MovableElement {
 
-    // Styles (TODO: deprecate inlines with CSS classes)
-    overlayStyle = {
-        width: "105%",
-        height: "105%",
-        background: "linear-gradient(to bottom, #e6e6e6, #222222)",
-        cursor: "move",
-        zIndex: "10",
-        position: "absolute",
-        left: "2%",
-        top: "2%"
-    };
-    closeButtonStyle = {
-        margin: "auto",
-        background: "white",
-        borderColor: "grey",
-        width: "5%",
-        height: "20px",
-        marginTop: "-10px",
-        display: "none"
-    };
-
-
     // Class shared variables (TODO: Deprecate)
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
     // Other
     overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
-
 
     // Initialization
 
@@ -1489,11 +1462,10 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "overlay", this.id, this.overlayStyle, this.closeButtonStyle);
+        this.element = super.createElement("div", "overlay", this.id);
 
         // Add listeners
         this.handleListeners();
-
     }
 
     /**
