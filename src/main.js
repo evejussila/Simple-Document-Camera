@@ -56,7 +56,7 @@ function start() {
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
     // Keep control island visible
-    setInterval( () => {moveElementToView(island) }, 1000);
+    setInterval( () => {moveElementToView(island) }, 5000);
 }
 
 /**
@@ -687,6 +687,8 @@ function islandDragStop() {
     document.removeEventListener('mousemove', islandDragUpdater);
     document.removeEventListener('mouseup', islandDragStop);
 
+    moveElementToView(island);
+
     print("islandDragStop(): Island drag stopped");
 }
 
@@ -730,8 +732,9 @@ function switchToFullscreen(fullScreenIcon) {
             print("switchToFullscreen(): Full screen mode closed");
             fullScreenIcon.title = 'Full screen';
             fullScreenIcon.src = "./images/fullscreen.png";
-            island.style.top = '';                                       // UI island to starting position
-            island.style.left = '';
+            // island.style.top = '';                                       // UI island to starting position
+            // island.style.left = '';
+            moveElementToView(island);
         }).catch(error => {
             console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });
