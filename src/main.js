@@ -55,6 +55,8 @@ function start() {
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
+    // Keep control island visible
+    setInterval( () => {moveElementToView(island) }, 1000);
 }
 
 /**
@@ -1018,6 +1020,44 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
 }
 
+/**
+ * Moves the control island to view if it is outside the viewport
+ *
+ */
+async function moveElementToView(element) {
+    const {x: islandX, y: islandY} = getElementCenter(element);
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();
+
+    if (islandX < leftEdge || islandX > rightEdge || islandY > bottomEdge || islandY < topEdge) { // TODO: Replace dirty solution
+        console.warn("moveElementToView(): Island outside viewport, x = " + islandX + " y = " + islandY + ", moving to view");
+        element.classList.toggle("animate_move");
+
+        if (islandX < leftEdge) {
+            // "Island is to the left of viewport"
+            element.style.left = "0";
+        }
+        if (islandX > rightEdge) {
+            // "Island is to the right of viewport"
+            element.style.left = "50vw"; // 100vw will probably work if translated to align center
+        }
+        if (islandY > bottomEdge) {
+            // Island is below viewport edge
+            element.style.top = "50vh"; // 100vh will probably work if translated to align center
+        }
+        if (islandY < topEdge) {
+            // Island is above viewport edge
+            element.style.top = "0";
+        }
+
+        setTimeout(() => {
+            element.classList.toggle('animate_move');
+        }, 1000);
+
+        return true;
+    }
+    return false;
+
+}
 
 // Functionality functions
 
@@ -1228,6 +1268,33 @@ function getElementCenter(element) {
     const y = rect.top + window.scrollY + rect.height / 2;
 
     return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+}
+
+/**
+ * Gets coordinates of viewport edges.
+ *
+ * @returns {{top: number, left: number, bottom: number, right: number}} Relevant coordinate for each edge
+ */
+function getViewportEdges() {
+    const top = window.scrollY;
+    const right = window.scrollX + window.innerWidth;
+    const bottom = window.scrollY + window.innerHeight;
+    const left = window.scrollX;
+
+    return { top, right, bottom, left };
+
+    /*
+    Coordinate system has inverted y axis:
+                   y-
+                    |
+                    |
+                    |
+       x-   - - - - | - - - - -   x+
+                    |  PAGE
+                    |
+                    |
+                    y+
+     */
 }
 
 
@@ -1996,6 +2063,7 @@ function developerMenu() {
     //  [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
+        [   "Move island to view"              , () => { moveElementToView();                                            }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
@@ -2414,33 +2482,6 @@ function getElementDimensions(element) {
 }
 
 /**
- * Gets coordinates of viewport edges.
- *
- * @returns {{top: number, left: number, bottom: number, right: number}} Relevant coordinate for each edge
- */
-function getViewportEdges() {
-    const top = window.scrollY;
-    const right = window.scrollX + window.innerWidth;
-    const bottom = window.scrollY + window.innerHeight;
-    const left = window.scrollX;
-
-    return { top, right, bottom, left };
-
-    /*
-    Coordinate system has inverted y axis:
-                   y-
-                    |
-                    |
-                    |
-       x-   - - - - | - - - - -   x+
-                    |  PAGE
-                    |
-                    |
-                    y+
-     */
-}
-
-/**
  * Draws a label (with the middle of its left edge) at the coordinates
  * HTML/CSS implementation.
  *
@@ -2649,30 +2690,5 @@ function testUserInterfaceVersion() {
 
     // Append menuButtons to controlBar
     controlBar.appendChild(menuButtons);
-
-}
-
-
-function keepIslandVisible() {
-    let islandPosition = getElementCenter(island);
-    let {x: islandX, y:islandY} = islandPosition;
-
-    let viewportEdges = getViewportEdges();
-    let { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = viewportEdges;
-
-    if (islandX < leftEdge) {
-        // Island is to the left of viewport
-        island.style.left = '0';
-    }
-    if (islandX > rightEdge) {
-        // Island is to the right of viewport
-        island.style.left = '100vw';
-    }
-    if (islandY > bottomEdge) {
-        island.style.top = '100vh';
-    }
-    if (islandY < topEdge) {
-        island.style.top = '0';
-    }
 
 }

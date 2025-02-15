@@ -248,6 +248,8 @@ button:not(:hover) {
 
     background-color: var(--bg-color-lightest);
     color: var(--text-color);
+
+
 }
 
 #selectorDevice {
@@ -259,6 +261,13 @@ button:not(:hover) {
 
     background-color: var(--bg-color-basic);
     color: var(--text-color);
+}
+
+
+/* Special behavior */
+
+#island_controlBar.animate_move {
+    transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
 }
 
 
