@@ -1,14 +1,16 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-04-alpha");
+const version = ("2025-02-13-alpha");
 console.log("Version: " + version);
-console.log("To activate debug mode, append parameter ?debug to URL or type to console: debug()");
+if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
+    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
+}
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
-const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector // TODO: Why not get element by id?
+const selector              = document.getElementById('selectorDevice');             // Camera feed selector
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
@@ -42,26 +44,19 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Handle privacy notices and cookie
-    // let tosAgreed = handlePrivacy();
+    // Handle privacy notices and data storage
+    const tosAgreed = handlePrivacy();                                                       // Determines if user may continue using the service
 
     // Start video feed
-    // TODO: Do not run if tosAgreed === false
-    videoStart().then( () => {} );
+    if (tosAgreed) {                                                                         // Only start video if user agreed to terms
+        videoStart().then(() => {   } );                                                     // Start video
+    }
 
     // Update video input list periodically
-    setInterval(backgroundUpdateInputList, 10000);
+    setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
-    // Development
-    const urlParameters = new URLSearchParams(window.location.search);                       // Get URL parameters
-    if (urlParameters.has("debug")) {                                                  // Check for debug/developer parameter
-        debugMode = true;
-        print("start(): Found URL parameter for debug");
-
-        handlePrivacy();                                                                     // DEV: Used here only while developing privacy notice functionality
-    }
-    if (debugMode) debug();                                                                  // Activate developer features
-
+    // Keep control island visible
+    setInterval( () => {moveElementToView(island) }, 5000);
 }
 
 /**
@@ -76,8 +71,8 @@ function addCoreListeners() {
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
     listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
-    listenerToElement('buttonSmallerFont', 'click', () => changeFontSize(-5));          // Font size decrease button
-    listenerToElement('buttonBiggerFont', 'click', () => changeFontSize(5));            // Font size increase button
+    listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
+    listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
@@ -92,7 +87,7 @@ function addCoreListeners() {
     const collapseButton = document.getElementById('buttonCollapse');
     collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon));
 
-    // Fetch HTML element for freeze button and it's icon. Attach event listener to freeze button.
+    // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
     const freezeButton = document.getElementById('buttonFreeze');
     freezeButton.addEventListener('click', () => videoFreeze(freezeIcon));
@@ -119,86 +114,211 @@ function addCoreListeners() {
     });
 }
 
+/**
+ * Handles privacy-related prompting, parameters, data storage and logical coordination
+ * @returns {boolean} True if the service can be used
+ */
 function handlePrivacy() {
 
-    // Check files
-    // TODO: Check FILES
-    const cookieExists = false;                                                      // Check if cookie exists
-    const tosTextExists = true;                                                      // Check if terms of service text exists
-    const cookieTextExists = true;                                                   // Check if cookie notice text exists
-    console.log("handlePrivacy(): Privacy files: cookieExists = " + cookieExists + " & tosTextExists = " + tosTextExists + " & cookieTextExists = " + cookieTextExists);
-
-    // Get URL parameters
-    const urlParameters = new URLSearchParams(window.location.search);               // Get URL parameters
-    console.log("handlePrivacy(): Privacy URL parameters: cookie = " + urlParameters.get("cookie") + " & tos = " + urlParameters.get("tos"));
-
-    // Interpret ToS agreement status (URL parameter string interpretations)
-    let tosAgreed = false;
-    if (cookieExists) {tosAgreed = true}                                             // Existing cookie implies agreement to ToS and cookie
-    if (urlParameters.get("tos") === "true") {tosAgreed = true}                      // Explicit agreement
-    if (urlParameters.get("cookie") === "true") {tosAgreed = true}                   // Cookie permission implies agreement to ToS
-    if (urlParameters.get("tos") === "false") {tosAgreed = false}                    // Explicit rejection of ToS overrides all
-    print("handlePrivacy(): ToS agreement interpretation: " + tosAgreed);
-
-    // Interpret cookie agreement status (URL parameter string interpretations)
-    let cookieAgreed = false;
-    if (cookieExists) {cookieAgreed = true}                                          // Existing cookie implies agreement to ToS and cookie
-    if (urlParameters.get("cookie") === "true") {cookieAgreed = true}                // Explicit agreement
-    if (urlParameters.get("cookie") === "false") {cookieAgreed = false}              // Explicit rejection
-    if (urlParameters.get("tos") === "false") {cookieAgreed = false}                 // Explicit rejection of ToS overrides all, disallows cookie as well
-    print("handlePrivacy(): Cookie agreement interpretation: " + cookieAgreed);
-
-    // Console (debug)
-    if (urlParameters.get("cookie") === "false") {
-        console.warn("handlePrivacy(): Cookie rejected");
+    // Fast exit: Check browser local storage for permissive privacy setting
+    const privacyKey = localStorage.getItem('privacy');
+    switch (privacyKey) {
+        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+            handleLocalStorage();
+            return true;
+        default:
+            print("handlePrivacy(): No fast exit (local storage)");
     }
-    if (urlParameters.get("tos") === "false") {
-        console.error("handlePrivacy(): ToS rejected, service use forbidden");
+
+    // Fast exit: Check URL privacy parameter for permissive privacy setting
+    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");
+    print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
+    switch (privacyParameter) {
+        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+            handleLocalStorage();
+            return true;
+        case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden local storage -> No prompt, no action
+            return true;
+        default:
+            print("handlePrivacy(): No fast exit (URL parameter)");
     }
+
+    // Check if notice text files exist and load short texts
+    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+    // TODO: Check that the appropriate files exist (" xx_privacy_short " and " xx_tos_short " where xx is the correct country code like en, fi, se, de)
+    // TODO: If the files exist, set the two boolean variables below accordingly to true or false
+
+    const privacyTextExists = true;                                              // Check if short privacy notice text xx_privacy_short exists
+    const tosTextExists = true;                                                  // Check if short terms of service text xx_tos_short exists
+    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
+
+    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below.
+    // TODO: Note that the code breaks using ' " + " ' are just for readability and that this text also contains escapes that may or may not be needed in a your implementation.
+
+    const privacyTextShort =                                                     // Load text from xx_privacy_short
+        "This is a local service. " +
+        "Your video and data remain only on your own device. " +
+        "<br><br>" +
+        "<b>Your video or data are not sent anywhere.</b> " +
+        "<br><br>" +
+        "This service remembers your consent and settings by storing them locally in your browser. " +
+        "Storing this information is optional. " +
+        "<br><br>" +
+        "If you agree to the storing of your consent and settings locally, you will not see this prompt on your device in the future. " +
+        "<br><br>" +
+        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long', true)\">Privacy Statement</a>" +
+        "<br><br>";
+    const tosTextShort =                                                         // Load text from xx_tos_short
+        "This service is provided as is. " +
+        "<br><br>" +
+        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true)\">Terms of Service</a>" +
+        "<br><br>";
+
+    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
+
+    // Set button styles
+    const colorAccept = "rgba(70,136,255,0.5)";
+    const colorReject = "rgba(255,139,139,0.5)";
 
     // Interpret course of action
-    let queryTos = false;                                                            // Should ToS be queried (default behavior is uninterrupted operation)
-    if (tosTextExists && !tosAgreed) {
-        // ToS text exists, no agreement
-        // Prompt necessary
+
+    // Table of actions
+    // Format:
+    // Text states (does text exist)   Privacy parameters
+    // Privacy text    Tos text        Parameter
+    // ---------------------------------------------------------------------------------------------------
+    // Boolean         Boolean         Action (output)
+
+    // Table of actions
+    // Table:
+    // Privacy text    Tos text        agreeTosInclusive        null                  agreeAll
+    // ---------------------------------------------------------------------------------------------------
+    // true            -               privacyPrompt
+    // false           -               handleLocalStorage
+    // true            true                                     fullPrompt
+    // false           true                                     tosPrompt
+    // true            false                                    privacyPrompt
+    // false           false                                    handleLocalStorage
+
+    // TODO: Minimize table, compact logic
+
+    switch (privacyParameter) {
+        case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
+            if (privacyTextExists) {                                             // Privacy text exists -> Privacy prompt only
+                print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
+
+                privacyPrompt();                                                 // Privacy prompt
+            } else {                                                             // Privacy text does not exist -> No prompt, create local storage
+                print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
+                handleLocalStorage();                                            // Create local storage (assume local storage can be used if privacy notice text is not provided)
+            }
+
+            break;
+        case null:                                                               // No URL privacy parameter set
+            print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
+
+            if (tosTextExists) {                                                 // ToS text exists
+                print("handlePrivacy(): ... ToS text exists");
+
+                if (privacyTextExists) {                                         // Privacy text exists
+                    print("handlePrivacy(): ... privacy text exists");
+
+                    fullPrompt();                                                // Full prompt
+                } else {                                                         // Privacy text does not exist
+                    print("handlePrivacy(): ... privacy text does not exist");
+
+                    tosPrompt();                                                 // ToS prompt
+                }
+            } else {                                                             // ToS text does not exist
+                if (privacyTextExists) {                                         // Privacy text does exist
+                    print("handlePrivacy(): ... privacy text exists");
+
+                    privacyPrompt();                                              // Privacy prompt
+                } else {                                                          // No texts exist
+                    print("handlePrivacy(): ... privacy text does not exist");
+
+                    // TODO: Might want a switch here that completely disables persistence and prompts, if that is what the hosting party wants
+                    handleLocalStorage();                                         // Create local storage (assume local storage can be used if notice text is not provided)
+                }
+            }
+
+            break;
+        default:                                                                 // Privacy agreement state value unexpected
+            console.error("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
+            fullPrompt();                                                        // Full prompt
     }
 
-    let queryCookie = false;                                                         // Should cookie be queried (default behavior is uninterrupted operation)
-    if (cookieTextExists && !cookieAgreed && urlParameters.get("cookie") !== "false" && urlParameters.get("tos") !== "false") {
-        // Cookie notice text exists, no agreement, no explicit rejections
-        // Prompt necessary
-        // Note that if cookie param in url not set to false, will prompt for cookie even if tos agreed
+    // Nested functions for prompts
+
+    /**
+     * Displays a privacy notice.
+     */
+    function privacyPrompt() {
+        console.log("privacyPrompt(): Displaying a notice");
+
+        customPrompt("Privacy notice", privacyTextShort, [                                                                                // Display prompt
+            [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
+            [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
+            [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
+        ], "50%", "350px");
     }
 
-    // DEV: Cookie stuff should be non-await, just set it off as async and handle on the fly?
+    /**
+     * Displays a full privacy and ToS (terms of service) notice.
+     */
+    function fullPrompt() {
+        console.log("fullPrompt(): Displaying a notice");
 
-    // Show privacy notices (if needed)
-    // privacyNotice();
+        customPrompt("Privacy and Terms of Service", privacyTextShort + " " + tosTextShort, [                                 // Display prompt
+            [   "Agree to all"                   , () => { handleLocalStorage(); }                                          , colorAccept  ],  // Prompt options
+            [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
+            [   "Reject terms"                   , () => { /* HALT SERVICE */ return false; }                               , colorReject  ]
+        ], "50%", "350px");
+    }
 
-    // Read or create cookie (if needed)
-    // handleCookie();
+    /**
+     * Displays a ToS (terms of service) notice.
+     */
+    function tosPrompt() {
+        console.log("tosPrompt(): Displaying a notice");
 
-    return true;
+        customPrompt("Terms of Service", tosTextShort, [                                                                                // Display prompt
+            [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],  // Prompt options
+            [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                     , colorReject  ]
+        ], "50%", "350px");
+    }
+
+    return true; // TODO: For return value to have an effect, function needs to be async and await prompt responses
 }
 
 /**
- * Displays a privacy notice.
- *
+ * Modifies and updates a single parameter in the URL query string.
+ * @param paramName Parameter to modify
+ * @param paramValue New value for parameter
  */
-function privacyNotice() {
-    prompt("Privacy notice", "This service...", [                       // Display prompt
-        [   "Agree to terms"                , () => {  }                     ],          // Prompt options
-        [   "Agree to terms and cookie"     , () => { handleCookie(); }      ],
-        [   "Disagree to all"               , () => {  }                     ]
-    ]);
+function updateUrlParam(paramName, paramValue) {
+    let allParameters = new URLSearchParams(window.location.search);                                            // Get all parameters
+    allParameters.set(paramName, paramValue);                                                                   // Change one parameter
+    window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);        // Replace url with same path and new parameters
 }
 
 /**
- * Creates or reads a cookie.
+ * Writes to or reads from local storage.
  * Performs related actions to apply settings.
  */
-function handleCookie() {
-    // TODO: Create cookie if does not exist, read settings if does exist
+function handleLocalStorage() {
+
+    console.log("handleLocalStorage(): Using browser local storage");
+
+    // Write privacy switch to local storage
+    localStorage.setItem("privacy", "agreeAll");
+
+    // Update URL parameter
+    updateUrlParam("privacy", "agreeAll");
+
+    // Load expected local storage keys
+    // TODO: Setting loads and saves (saves should only be possible if user has agreed, likely needs separate function)
+
 }
 
 
@@ -215,9 +335,12 @@ async function videoStart() {
     // Error prompt default content
     let genericPromptTitle = "No valid cameras could be accessed";
     let genericPromptText =
-        "Make sure your devices are connected and not being used by other software. " +             // TODO: When newline supported, use linebreaks
-        "Ensure you do not have SDC open on other tabs. " +
-        "Check you have allowed camera access in your browser. " +
+        "Please make sure your devices are connected and not being used by other software. " +
+        "<br><br>" +
+        "Ensure that you do not have this page open on other tabs. " +
+        "<br><br>" +
+        "Check that you have allowed camera access in your browser. " +
+        "<br><br>" +
         "You may also try a hard reload by pressing Ctrl + F5 ";
     let genericPromptActions = [
         ["Retry",       () =>       { videoStart(); } ],
@@ -259,7 +382,7 @@ async function videoStart() {
         }
     }
 
-    if (error) { prompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
+    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "108px", "180px"); }                   // Prompt user
     // TODO: Provide readable error description and conditional solutions
 
 }
@@ -564,6 +687,8 @@ function islandDragStop() {
     document.removeEventListener('mousemove', islandDragUpdater);
     document.removeEventListener('mouseup', islandDragStop);
 
+    moveElementToView(island);
+
     print("islandDragStop(): Island drag stopped");
 }
 
@@ -607,8 +732,9 @@ function switchToFullscreen(fullScreenIcon) {
             print("switchToFullscreen(): Full screen mode closed");
             fullScreenIcon.title = 'Full screen';
             fullScreenIcon.src = "./images/fullscreen.png";
-            island.style.top = '';                                       // UI island to starting position
-            island.style.left = '';
+            // island.style.top = '';                                       // UI island to starting position
+            // island.style.left = '';
+            moveElementToView(island);
         }).catch(error => {
             console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });
@@ -622,92 +748,255 @@ function switchToFullscreen(fullScreenIcon) {
 function toggleControlCollapse(collapseIcon) {
     isControlCollapsed = !isControlCollapsed;
 
+    collapseIcon.style.transform += "scaleY(-1)";
+
     if (isControlCollapsed) {
         collapseIcon.title = 'Show controls';
-        collapseIcon.src = "./images/showControls.png";
+        // collapseIcon.src = "./images/showControls.png";
         hideElement(controlBar);
         hideElement(island);
     }
     else {
         collapseIcon.title = 'Hide controls';
-        collapseIcon.src = "./images/hideControls.png";                             // TODO: Use same image, transform Y -1 to flip
+        // collapseIcon.src = "./images/hideControls.png";
         showElement(controlBar, undefined, 'inline-flex');
         showElement(island, undefined, 'flex');
     }
 }
 
 /**
+ * Creates a box with text or HTML from a file.
+ * Can be used for showing terms, notices, tutorials and various content.
+ * @param {string} file File to load text from
+ * @param modal Should the prompt be modal
+ */
+function showContentBox(file, modal = false) {
+    print("showContentBox(): Showing content from file: " + file);
+
+    // Load text from file
+    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+    // TODO: Load text from a file. The file is named in the parameter ' file '. Expect it to be in the localisation folder. Store the text in the variable below.
+
+    const contentToShow =                                                                              // Content to show
+        "This text is not finished and will be added in a future update. " +
+        "In any case, rest assured that the developers have your privacy and rights in mind. " +
+        "The code in this program is public and can be fully inspected in your browser's developer tools and on GitHub.";
+
+    // TODO: If the file has a way of containing a title for the text separately, load that title to this variable.
+    const title = "Title from file";
+
+    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
+
+    const modalOverlay = document.createElement("div");    // Create container element
+    const overlayFadeTime = 0.3;                                    // Fade time for animations
+
+    if (modal) {                                                    // Create modal overlay if requested
+        Object.assign(modalOverlay.style, {                  // Assigns CSS key-value pairs to element
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100vw",                             // Match viewport width (fill)
+            height: "100vh",                            // Match viewport height (fill)
+            background: "rgba(255,255,255,0.4)",        // Transparent, white
+            zIndex: "1000",
+            pointerEvents: "all",                       // Will not let clicks "through"
+            // userSelect: "none"
+
+            opacity: 0
+        });
+        document.body.appendChild(modalOverlay);
+        showElement(modalOverlay, overlayFadeTime, "");
+
+    }
+
+    const customPromptStyle = {
+        position: "fixed",
+        top: "50%",                                     // Centering
+        left: "50%",                                    // Centering
+        transform: "translate(-50%, -50%)",             // Centering
+        aspectRatio: "16 / 9",                          // Sizing
+        bottom: "unset",                                // Remove default value that conflicts with purpose
+        display: "flex",
+        flexDirection: "column",
+        zIndex: "1050"
+    };
+
+    customPrompt(title, contentToShow,                                                                [  // Display prompt
+        [   "Close"      , () => { hideElement(modalOverlay, overlayFadeTime/2, true) }   ]  // Only close button
+    ], "50%", "500px", customPromptStyle);                                                        // Apply custom definitions
+
+
+
+
+
+}
+
+/**
  * Creates a prompt with text and buttons.
+ * Executes actions based on button press.
  * Every button will dismiss prompt.
  *
  * @param title Title text for prompt
- * @param text Body text for prompt
+ * @param text Body text for prompt (can contain HTML)
  * @param options Array with text and code to run for buttons
- * @param position Position of prompt
- * @param size Size of prompt
+ * @param positionX Position of prompt (string value for property style.left)
+ * @param width Size of prompt
+ * @param containerCSSOverrides Object with custom CSS style declarations, will override existing ones
  */
-function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], position = null, size = null) {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "50%", width = "200px", containerCSSOverrides = null) {
 
-    // TODO: Handle concurrent prompts
+    // Examples of use:
 
-    // TODO: Add support for setting position and size
+    // customPrompt("Title", "Text or HTML for body",                                                               [
+    //     [   "Button"                , () => { console.log("Button pressed")                                  }   ],
+    //     [   "Dismiss"               , () => {                                                                }   ]
+    // ], "50%");
 
-    // Create prompt element
-    const prompt = document.createElement('div');
+    // customPrompt("Title of test prompt", "String or a variable containing string, string can contain HTML code", [
+    //     [   "Option 1"              , () => { function_name1()                                               }   ],
+    //     [   "Option 2"              , () => { function_name2();                                              }   ],
+    //     [   "Option 3 "             , () => { function_name2(); function_name3();                            }   ],
+    //     [   "Text for button"       , () => { console.log("functions and code blocks supported")             }   ],
+    //     [   "Text for button"       , () => { console.log("any command can be run here")                     }   ],
+    //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }   ],
+    //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }   ]
+    // ], "50%");
+
+    // Buttons also support optional custom colors (note that only rgba colors with reduced transparency get hover effects)
+    // Custom width (in px) and x-axis positioning (distance from left edge in % or px) are supported
+    // For special uses, CSS style overrides can be passed as an object argument.
+    // customPrompt("Title", "Text or HTML",                                                                          [
+    //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
+    //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
+    //     [   "Red button"          , () => { console.log("Red button pressed")           }  , "rgba(255,0,0,0.74)"  ]
+    // ], "70%", "100px");
+
+    // Create prompt container
+    const prompt = document.createElement('div');                // Create element
     prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
-    prompt.style.position = 'fixed';
-    prompt.style.left = '50%';
-    prompt.style.transform = 'translateX(-50%)';                         // What was the logic?, also 'translate(-50%, -50%)'?
-    prompt.style.width = '200px';
-    prompt.style.background = '#454545';
-    prompt.style.borderRadius = '10px';
-    prompt.style.padding = '10px';
-    prompt.style.opacity = '0';
-    prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
-    prompt.style.zIndex = '9999';
-    prompt.style.bottom = `0px`;                                          // Initial position before animation
+
+    // CSS block for prompt container
+    {
+        // Styling
+        prompt.className = 'prompt';                                     // Set basic CSS class
+
+        // Positioning
+        prompt.style.position = 'fixed';                                  // Mobility
+        prompt.style.left = positionX;                                    // Position
+        // TODO: Automate prevention of overlap of concurrent prompts (turn into class?)
+
+        // Sizing
+        prompt.style.width = width;                                        // Sizing
+
+        // Initial state for animation
+        prompt.style.opacity = '0';
+        prompt.style.bottom = `0px`;
+        prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
+    }
+
+    // Potential CSS overrides
+    if (containerCSSOverrides != null) {
+        print("customPrompt(): Applying CSS overrides to prompt");
+        Object.assign(prompt.style, containerCSSOverrides);               // Assigns CSS key-value pairs to element from argument for custom styles
+    }
+
+    // Logo
+    // TODO: Create container and getter logic for logo
 
     // Create title text
     const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
-    textTitleElement.style.color = 'white';                                                 // Text color
-    textTitleElement.style.fontSize = '20px';                                               // Text size
-    textTitleElement.style.textAlign = 'center';                                            // Center text
-    textTitleElement.style.marginBottom = '10px';                                           // Margin under title
+
+    // Styling
+    textTitleElement.className = 'promptTitle';                           // Set basic CSS class
+
+    // Append
     textTitleElement.appendChild(textTitle);
     prompt.appendChild(textTitleElement);
 
     // Create body text
-    const textBodyElement = document.createElement('div');
-    const textBody = document.createTextNode(text);
-    textBodyElement.style.color = 'white';
-    textBodyElement.style.textAlign = 'justify';                                            // Text fills element area fully horizontally
-    textTitleElement.style.marginBottom = '10px';
-    textBodyElement.appendChild(textBody);
-    prompt.appendChild(textBodyElement);
+    const textBody = document.createElement('div');
+
+    // Handle HTML text
+    if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
+        print("customPrompt(): Prompt text identified as HTML");
+        textBody.innerHTML = text;                                       // HTML text to innerHTML of div
+    } else {
+        print("customPrompt(): Prompt text identified as plain string");
+        textBody.textContent = text;                                     // Plain string text to text content of div
+    }
+    // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed should be fine and won't throw any errors but should be noticed
+
+    // Styling
+    textBody.className = 'promptText';                                   // Set basic CSS class
+
+    // Append
+    prompt.appendChild(textBody);
+
+    // Create button container
+    const buttonContainer = document.createElement('div');
+
+    // Styling
+    buttonContainer.className = 'promptOptionContainer';                   // Set basic CSS class
 
     // Create buttons
     options.forEach((optionButton) => {
+        // Create button
         const button = document.createElement('button');
-        button.textContent = `${optionButton[0]}`;
-        button.style.width = '100%';
-        button.style.margin = '5px 0';
-        button.style.color = '#fff';
-        button.style.background = '#555';
-        button.style.border = 'none';
-        button.style.padding = '10px';
-        button.style.borderRadius = '5px';
+        button.textContent = `${optionButton[0]}`;                        // Get text for button
 
+        // Styling
+        button.className = 'promptOption';                                // Set basic CSS class
+
+        // Potential custom color
+        if (optionButton[2] != null) {                                    // Get potential color for button
+            print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
+
+            // Set base color
+            button.style.backgroundColor = optionButton[2];          // Overrides CSS background color (including hover) // DEV temp: `${optionButton[2]}`
+
+            // Custom hover
+            let customHoverColor = optionButton[2];
+            if (customHoverColor.startsWith('rgba')) {
+                // print("customPrompt(): Color is rgba, hover enabled");
+
+                // Change color alpha for hover color
+                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 0.8)");
+                // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
+
+                // print("customPrompt(): Hover color: " + customHoverColor);
+            }
+
+            button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
+            button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
+            // TODO: Make sure event listeners are orphaned completely for GC
+        }
+
+        // Attach action listener
         button.addEventListener('click', () => {
-            dismiss();                                                                       // Buttons always dismiss prompt
-            optionButton[1]();
+            dismiss();                                                    // Buttons always dismiss prompt
+            optionButton[1]();                                            // Run function or code block
         });
 
-        prompt.appendChild(button);
+        // Append
+        buttonContainer.appendChild(button);
     });
 
-    print("prompt(): Creating prompt " + prompt.id + " : " + title);
+    // Append
+    prompt.appendChild(buttonContainer);
+
+    print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
+
+    // Dismiss prompt after timeout
+    // const timeout = 1000;
+    // if (timeout >= 0) {
+    //     setTimeout(() => {
+    //         dismiss();
+    //     }, 1000);}
+    // }
+
+    // TODO: Replace animations with show and hide, extend show and hide arguments or use CSS classes
 
     // Animation: fade in
     requestAnimationFrame(() => {
@@ -715,14 +1004,9 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
         prompt.style.opacity = '1';
     });
 
-    // Dismiss prompt after timeout
-    // setTimeout(() => {
-    //     dismiss();
-    // }, 1000);}
-
     // Nested function to dismiss prompt
     function dismiss() {
-        print("prompt(): Dismissing prompt " + prompt.id);
+        print("customPrompt(): Dismissing prompt " + prompt.id);
 
         // Animation: fade out
         prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
@@ -735,8 +1019,48 @@ function prompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }
 
     }
 
+    return prompt;
+
 }
 
+/**
+ * Moves the control island to view if it is outside the viewport
+ *
+ */
+async function moveElementToView(element) {
+    const {x: islandX, y: islandY} = getElementCenter(element);
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();
+
+    if (islandX < leftEdge || islandX > rightEdge || islandY > bottomEdge || islandY < topEdge) { // TODO: Replace dirty solution
+        console.warn("moveElementToView(): Island outside viewport, x = " + islandX + " y = " + islandY + ", moving to view");
+        element.classList.toggle("animate_move");
+
+        if (islandX < leftEdge) {
+            // "Island is to the left of viewport"
+            element.style.left = "0";
+        }
+        if (islandX > rightEdge) {
+            // "Island is to the right of viewport"
+            element.style.left = "50vw"; // 100vw will probably work if translated to align center
+        }
+        if (islandY > bottomEdge) {
+            // Island is below viewport edge
+            element.style.top = "50vh"; // 100vh will probably work if translated to align center
+        }
+        if (islandY < topEdge) {
+            // Island is above viewport edge
+            element.style.top = "0";
+        }
+
+        setTimeout(() => {
+            element.classList.toggle('animate_move');
+        }, 1000);
+
+        return true;
+    }
+    return false;
+
+}
 
 // Functionality functions
 
@@ -883,26 +1207,28 @@ function updateVideoTransform() {
  * @param fadeTime Fade duration s (optional)
  */
 function removeElement(element, fadeTime = 0.2) {
-    element.style.transition = `opacity ${fadeTime}s`;                     // TODO: Use hideElement()
-    element.style.opacity = '0';
-
-    setTimeout(() => element.remove(), fadeTime*1000);      // Asynchronous
-
-    print("removeElement(): Removed element: " + element.id);
+    hideElement(element, fadeTime, true)
+    print("removeElement(): Remove issued for element: " + element.id);
 }
 
 /**
  * Hides an element.
  * Applies a fade out.
+ * Can be used to remove elements.
  * @param element Element to hide
  * @param fadeTime Fade duration s (optional)
+ * @param removeAfter Should the element be deleted after hiding
  */
-function hideElement(element, fadeTime = 0.3) {
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
-    element.style.opacity = '0';
-    // TODO: Add interaction prevention (no click during animations)
+function hideElement(element, fadeTime = 0.3, removeAfter = false) {
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    element.style.opacity = "0";
+
     setTimeout(() => {
-        element.style.display = 'none';
+        element.style.display = "none";
+        // element.style.pointerEvents = "none";                    // TODO: Disable interactions during animations, but recover pointer event status (create toggleable class CSS)
+        if (removeAfter) {
+            element.remove();
+            print("hideElement(): Removing element: " + removeAfter); }
     }, fadeTime * 1000);
 }
 
@@ -913,16 +1239,22 @@ function hideElement(element, fadeTime = 0.3) {
  * @param fadeTime Fade duration in s (optional)
  * @param displayStyle Display style (optional)
  */
-function showElement(element, fadeTime = 0.4, displayStyle = 'block') {
-    element.style.opacity = '0';                                    // Ensures not visible
+function showElement(element, fadeTime = 0.4, displayStyle = "block") {
+    element.style.opacity = "0";                                    // Ensures not visible
     element.style.display = displayStyle;                           // Renders element display
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    // element.style.pointerEvents = "all";                         // TODO: Pointer event recovery needs to use initial value
 
-    requestAnimationFrame(() => {                           // Runs code after display is rendered
-        element.style.opacity = '1';
-    });
+    // requestAnimationFrame(() => {                                // Runs code after display is rendered
+    //     element.style.opacity = '1';
+    // });
 
     // TODO: Animation not working on FF even when it works on Chrome
+
+    // DEV: Testing alternative
+    setTimeout(() => {
+        element.style.opacity = '1';
+    }, 10);
 
 }
 
@@ -935,29 +1267,47 @@ function getElementCenter(element) {
     // Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
 
     const rect = element.getBoundingClientRect();
-    const x = rect.left + window.scrollX + rect.width / 2; // Rounding with Math.round() should not be necessary
+    const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
     const y = rect.top + window.scrollY + rect.height / 2;
 
-    return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+    return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+}
+
+/**
+ * Gets coordinates of viewport edges.
+ *
+ * @returns {{top: number, left: number, bottom: number, right: number}} Relevant coordinate for each edge
+ */
+function getViewportEdges() {
+    const top = window.scrollY;
+    const right = window.scrollX + window.innerWidth;
+    const bottom = window.scrollY + window.innerHeight;
+    const left = window.scrollX;
+
+    return { top, right, bottom, left };
+
+    /*
+    Coordinate system has inverted y axis:
+                   y-
+                    |
+                    |
+                    |
+       x-   - - - - | - - - - -   x+
+                    |  PAGE
+                    |
+                    |
+                    y+
+     */
 }
 
 
 // Simple caller methods
 
 /**
- * Changes font size.
- * @param size
- */
-function changeFontSize(size) {
-    TextArea.changeFontSize(size); // Using static method, should be deprecated
-}
-
-/**
  * Adds new overlay.
  */
 function addOverlay() {
     createdElements.createOverlay();
-    // new Overlay(); // Direct instantiation without management
 }
 
 /**
@@ -965,7 +1315,6 @@ function addOverlay() {
  */
 function addText() {
     createdElements.createTextArea();
-    // new TextArea(); // Direct instantiation without management
 }
 
 
@@ -978,6 +1327,10 @@ class CreatedElements {
 
     // Generic
     elements = [];                                  // Contains information on all created elements: [[classReference, "type", "id"]]
+
+    // Other
+    activeTextArea;
+    activeTextAreaObject;                           // TODO: Could replace with a find-function call
 
 
     // Initialization
@@ -1018,6 +1371,28 @@ class CreatedElements {
         return classReference;
     }
 
+
+    // Setters
+
+    setActiveTextArea(element, object) {
+        this.activeTextArea = element;
+        this.activeTextAreaObject = object;
+    }
+
+
+    // Getters
+
+    getActiveTextArea() {
+        return this.activeTextArea;
+    }
+
+
+    // Functionality
+
+    changeFontSize(size) {
+        this.activeTextAreaObject.changeFontSize(size);
+    }
+
 }
 
 /**
@@ -1028,6 +1403,7 @@ class MovableElement {
 
     // Generic
     type;                                           // For fast identification of inheritor instance type
+    id;
 
     // Element references
     element;                                        // Main element reference
@@ -1054,6 +1430,7 @@ class MovableElement {
      */
     constructor(type, allowMove = true) {
         this.type = type;
+        this.id = String(Date.now());
         this.allowMove = allowMove;
     }
 
@@ -1101,42 +1478,44 @@ class MovableElement {
 
     /**
      * Creates new element and a remove button for it.
-     * @param type Element type to add (tagName)
-     * @param number Number of element (for avoiding identical ids)
-     * @param idBase Identifier base for added element
-     * @param elementCssStyle CSS style for added element
-     * @param buttonCssStyle CSS style for remove button
+     * @param type Element type to add (HTML tagName)
+     * @param className Class name for element (should correspond with a CSS class)
+     * @param id Unique identifier for added element
+     * @param elementStyle CSS style object for added element
+     * @param removeButtonStyle CSS style object for remove button
      */
-    createElement(type, number, idBase, elementCssStyle, buttonCssStyle) {
+    createElement(type, className, id, elementStyle = {}, removeButtonStyle = {}) {
 
         // Create main element
         let newElement = document.createElement(type);
-        newElement.id = number + idBase;            // TODO: Change method to take id from caller instead of forming an id here. Caller must make sure id is new and not taken (pseudorandom: String(Date.now()); ).
-        newElement.class = idBase;
-        newElement.style.cssText = elementCssStyle // New elements style must be edited in js
-        print("createElement(): Added element: " + newElement.id);
+        newElement.id = this.id;
+        newElement.className = className;                          // Assign basic class name to apply CSS styles
+        Object.assign(newElement.style, elementStyle);
+        newElement.style.opacity = "0";
+        print("createElement(): Added " + newElement.className + " element: " + newElement.id);
 
         // Create remove button
         let removeButton = document.createElement('button');
-        removeButton.class = "removeButton";
-        removeButton.id = number + "remove";
+        removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
+        removeButton.id = id + "RemoveButton";                    // Forms id for remove button
         removeButton.title = "Remove";
         removeButton.textContent = "X";
-        removeButton.style.cssText = buttonCssStyle;
+        Object.assign(removeButton.style, removeButtonStyle);     // TODO: Only assign if anything defined (set default to null and add conditional for != null)
         removeButton.addEventListener('click', () => removeElement(newElement));
-        print("createElement(): Added remove button " + removeButton.id + " for: " + newElement.id);
+        print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
 
-        // Remove buttons only visible when hovered over
-        newElement.addEventListener('mouseover', () => (
-            removeButton.style.display = "block" // TODO: Use fade with showElement()
+        // Remove button only visible when hovered over
+        newElement.addEventListener('mouseover', () => (          // TODO: Make sure fastest CSS animations apply
+            removeButton.style.display = "block"
         ));
         newElement.addEventListener('mouseout', () => (
-            removeButton.style.display = "none" // TODO: Use fade with hideElement()
+            removeButton.style.display = "none"
         ));
 
         // Add element to DOM
-        island.after(newElement);
         newElement.appendChild(removeButton);
+        island.after(newElement);
+        newElement.style.opacity = "1";                           // TODO: Apply fade to creation
 
         return newElement;
     }
@@ -1148,18 +1527,12 @@ class MovableElement {
  */
 class Overlay extends MovableElement {
 
-    // Styles
-    static overlayStyle = "width:105%; height:105%; background: linear-gradient(to bottom, #e6e6e6, #222222); cursor:move; z-index:10; position:absolute; left:2%; top:2%;";
-    static closeButtonStyle = "margin:auto;background:white;border-color:grey;width:5%;height:20px;margin-top:-10px;display:none;"
-
     // Class shared variables (TODO: Deprecate)
-    static overlayCount = 0;                                                                // Counter for overlays // TODO: Only used for unique id, is risky, use instead String(Date.now());
     static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
 
     // Other
     overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
-
 
     // Initialization
 
@@ -1178,12 +1551,10 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", Overlay.overlayCount, "overlay", Overlay.overlayStyle, Overlay.closeButtonStyle);
+        this.element = super.createElement("div", "createdOverlay", this.id);
 
         // Add listeners
         this.handleListeners();
-
-        Overlay.overlayCount++;
     }
 
     /**
@@ -1191,8 +1562,8 @@ class Overlay extends MovableElement {
      */
     handleListeners() {
         // Add listener for drag
-        print("handleListeners(): Adding drag listener for overlay: " +  Overlay.overlayCount + "overlay");
-        let overlay = document.getElementById(Overlay.overlayCount + "overlay");
+        print("handleListeners(): Adding drag listener for overlay: " +  this.id);
+        let overlay = document.getElementById(this.id);                              // TODO: Remove extra gets, use reference in variable
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
     }
 
@@ -1268,16 +1639,6 @@ class Overlay extends MovableElement {
  */
 class TextArea extends MovableElement {
 
-    // Styles
-    static textAreaStyle = "position:absolute;width:100%;height:100%;font-size:30px;resize:none;overflow:auto;cursor:move;font-size:30px;"
-    static closeButtonStyle = "left:0;background:white;border-color:grey;width:20px;height:20px;margin-top:-18px;position:absolute;display:none;border-radius:10px;padding-bottom:10px;"
-    static containerStyle = "position:absolute;left:300px;top:100px;min-width:150px;min-height:40px;z-index:7;"
-    static resizeHandleStyle = "width:15px;height:15px;background-color:gray;position:absolute;right:0;bottom:0px;cursor:se-resize;z-index:8;clip-path:polygon(100% 0, 0 100%, 100% 100%);";
-
-    // Class shared variables (TODO: Deprecate)
-    static textAreaCount = 0;                                                               // Counter for text areas TODO: Only used for unique id, is risky, use instead String(Date.now());
-    static activeTextArea;                                                                  // Shows which text area is currently active TODO: Deprecate, if this object class _instance_ is called by mouse event, currently active is always this.element
-
     // Other
     offsetXText;                                                                             // Initial position of the text area when starting drag
     offsetYText;
@@ -1299,32 +1660,31 @@ class TextArea extends MovableElement {
     }
 
     /**
-     * Creates new text area on top of feed.
+     * Creates new text area.
      * Draggable, resizable.
      */
     create() {
         // Create container
-        this.container = super.createElement("div", TextArea.textAreaCount, "textAreaContainer", TextArea.containerStyle, TextArea.closeButtonStyle); // DEV: Avoid string-based gets: document.getElementById(TextArea.textAreaCount + "textAreaContainer");
+        this.container = super.createElement("div", "createdTextAreaContainer", this.id + "Container");
 
         // Create main element
         this.element = document.createElement("textarea");
-        this.element.id = TextArea.textAreaCount + "textArea";
+        this.element.className = "createdTextArea";
+        this.element.id = this.id;
         this.element.placeholder = "Text";
-        this.element.style.cssText = TextArea.textAreaStyle;
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
-        if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.element;                                             // Makes font size buttons work even when text area was not clicked TODO: Deprecate, activeTextArea, only functional dependency is right here, related to the font size modifier, see changeFontSize()
+        createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
-        this.resizeHandle.id = TextArea.textAreaCount + "resizeHandle";
-        this.resizeHandle.style.cssText = TextArea.resizeHandleStyle;
+        this.resizeHandle.className = "createdTextAreaResizeHandle";
+        this.resizeHandle.id = this.id + "ResizeHandle";
         this.container.appendChild(this.resizeHandle);
 
         // Add resize listeners
         this.handleListeners();
 
-        TextArea.textAreaCount++;
     }
 
     /**
@@ -1350,7 +1710,8 @@ class TextArea extends MovableElement {
     dragStart(e) {
         print("dragStart(): Text area drag initiated");
 
-        TextArea.activeTextArea = this.element;                         // When this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
+        createdElements.setActiveTextArea(this.element, this);                         // TODO: Replace global variable use ; When this object class instance is called by mouse event, currently active is always this.element
+
         this.container.style.zIndex = '7';
 
         if (e.target === this.element) {                           // Check is the mouse click event is on the text area
@@ -1436,16 +1797,23 @@ class TextArea extends MovableElement {
 
 
     // Font size handling
-
     /**
      * Changes the active text area's font size
      * @param size Size value
      */
-    static changeFontSize(size) {
-        let fontSize = parseFloat(TextArea.activeTextArea.style.fontSize);                             // Get fontsize without "px"
+    changeFontSize(size) {
+
+        const element = createdElements.getActiveTextArea();                                   // TODO: Replace global variable use
+
+        // Load computed font size to element property
+        element.style.fontSize = window.getComputedStyle(element).fontSize                     // Initial font size set in CSS will not be set in the inline font size automatically
+
+        print("changeFontSize(): Called font size " + element.style.fontSize + " = " + window.getComputedStyle(element).fontSize + " change by " + size + " for: " + element.id);
+
+        let fontSize = parseFloat(element.style.fontSize);                                     // Get font size
         fontSize += size;                                                                                      // Make font size bigger or smaller
-        TextArea.activeTextArea.style.fontSize = fontSize + "px";                                              // Change active text area's font size
-        // TODO: Eliminate static function and add resize call for container, based on text size: this.resizeToFitText(this.textAreaElement, this.element)
+        element.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+
     }
 
 }
@@ -1665,15 +2033,18 @@ function debug() {
     developerButton.textContent = 'Developer Options';
     developerButton.addEventListener('click', developerMenu);
     developerButton.style.zIndex = '9999';
-    developerButton.style.border = "2px solid darkgray";
+    // developerButton.style.border = "2px solid darkgray";
+    developerButton.style.border = "none";
     // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
     // developerButton.color = "red";
     developerButton.style.borderRadius = "5px";
     developerButton.style.height = '40px';
+    developerButton.style.marginLeft = "0";
+
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
-    controlBar.appendChild(developerButton);
+    document.getElementById('controlBar').appendChild(developerButton); // May run before DOM loaded
 
 }
 
@@ -1685,21 +2056,37 @@ function developerMenu() {
     print("developerMenu(): Developer menu button pressed");
 
     // ADD NEW BUTTONS HERE
-    prompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                      }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                        }],
-        [   "Release video stream"             , () => { releaseVideoStream();                               }],
-        [   "Start video (reset)"              , () => { videoStart();                                       }],
-        [   "Test dark theme"                  , () => { testThemeDark();                                    }],
-        [   "Test another UI style"            , () => { testUserInterfaceVersion();                         }],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                        }],
-        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON
+    customPrompt("Developer menu", "Options for developers", [
+        [   "Toggle visual debug"              , () => { debugVisual();                                                 }],
+        [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
+        [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
+        [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
+        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                   }],
+        [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
+    //  [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
+        [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
+        [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
+        [   "Move island to view"              , () => { moveElementToView();                                            }],
+        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
-        // [   "Text for button"               , () => { function_or_code_block();                           }],
-        ["Dismiss"                             , () => {                                                     }]   // Preserve as final line
-    ]);
+    //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
+        [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
+    ], "585px", "180px");
 
+}
 
+/**
+ * Prints out all local storage key-value pairs to console
+ * @returns {{}} Object containing all key-value pairs
+ */
+function dumpLocalStorage() {
+    let localStorageDataPairs = {};                             // Object instead of array
+    Object.keys(localStorage).forEach(key => {
+        localStorageDataPairs[key] = localStorage.getItem(key);
+    });
+    console.log(JSON.stringify(localStorageDataPairs));         // Formatted output
+    // console.log(localStorageDataPairs);
+    return localStorageDataPairs;
 }
 
 /**
@@ -1718,6 +2105,10 @@ function releaseVideoStream() {
 function print(string) {
     if (!debugMode) return;
     console.log(string);
+
+    // Trace caller here unless false (for mass events)
+    //     const stack = new Error().stack.split('\n');
+    //     const callerFunction = stack[2].trim();
 }
 
 /**
@@ -1860,6 +2251,9 @@ async function bruteForceBestVideoStream(input = selector.value) {
  * @returns {string}
  */
 function shorten(id) {
+    // Might want to remove {} from ends
+    // id = id.replace(/^(\{|\})|(\\{|\})$/g, '');
+    // id = id.replace(/^([{}])|(\\{|})$/g, '');
     return `${id.slice(0, 4)}:${id.slice(-4)}`;
 }
 
@@ -2091,20 +2485,6 @@ function getElementDimensions(element) {
 }
 
 /**
- * Gets coordinates of viewport edges.
- *
- * @returns {{top: number, left: number, bottom: number, right: number}} Relevant coordinate for each edge
- */
-function getViewportEdges() {
-    const top = window.scrollY;
-    const right = window.scrollX + window.innerWidth;
-    const bottom = window.scrollY + window.innerHeight;
-    const left = window.scrollX;
-
-    return { top, right, bottom, left };
-}
-
-/**
  * Draws a label (with the middle of its left edge) at the coordinates
  * HTML/CSS implementation.
  *
@@ -2253,7 +2633,8 @@ function testUserInterfaceVersion() {
         height: "40px",
         backgroundColor: "rgba(128, 128, 128, 0.5)",
         borderRadius: "5px",
-        border: "2px solid darkgray",
+        // border: "2px solid darkgray",
+        border: "none",
         // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
         padding: "0",
         display: "flex",
@@ -2312,73 +2693,5 @@ function testUserInterfaceVersion() {
 
     // Append menuButtons to controlBar
     controlBar.appendChild(menuButtons);
-
-    testThemeDark();
-
-
-}
-
-/**
- * Function to apply UI coloration.
- * Default is dark.
- * Dirty implementation!
- *
- * @param colorBackground
- * @param colorIsland
- * @param colorBottomBar
- * @param colorFeedSelector
- * @param colorText
- * @param buttonStyleFilter
- */
-function testThemeDark(colorBackground = '#2f2f2f', colorIsland = '#474747', colorBottomBar = '#212121', colorFeedSelector = '#171717', colorText = '#ffffff', buttonStyleFilter = 'invert(1) grayscale(100%)') {
-
-    const dev = document.getElementById('buttonDev');
-    const background = document.body;
-    const island = document.getElementById('island_controlBar');
-    const bottomBar = document.getElementById('controlBar');
-    const selector = document.getElementById('selectorDevice');
-    const zoomControls = document.getElementById('zoomControls');
-    const textControls = document.getElementById('textControls');
-
-    dev.style.backgroundColor = colorBackground;
-    dev.style.color = colorText;
-
-    background.style.backgroundColor = colorBackground;
-    background.style.color = colorText;
-
-    island.style.backgroundColor = colorIsland;
-    island.style.color = colorText;
-
-    bottomBar.style.backgroundColor = colorBottomBar;
-    bottomBar.style.color = colorText;
-
-    selector.style.backgroundColor = colorFeedSelector;
-    selector.style.color = colorText;
-
-    zoomControls.style.color = colorText;
-
-    textControls.style.color = colorText;
-
-    // Button color inversion
-    document.getElementById('buttonRotate').style.filter        = buttonStyleFilter;
-    document.getElementById('buttonFlip').style.filter          = buttonStyleFilter;
-    document.getElementById('buttonFreeze').style.filter        = buttonStyleFilter;
-    document.getElementById('buttonSaveImage').style.filter     = buttonStyleFilter;
-    document.getElementById('buttonOverlay').style.filter       = buttonStyleFilter;
-    document.getElementById('buttonAddText').style.filter       = buttonStyleFilter;
-    document.getElementById('buttonFullScreen').style.filter    = buttonStyleFilter;
-    document.getElementById('buttonCollapse').style.filter      = buttonStyleFilter;
-    document.getElementById('buttonCollapseBar').style.filter   = buttonStyleFilter;
-
-    // For example buttons
-    // Very dirty, for all of same id
-    document.querySelectorAll('#exampleButton').forEach(function(button) {
-        button.style.filter = buttonStyleFilter;
-    });
-
-    document.getElementById('zoomOutButton').style.color        = colorText;
-    document.getElementById('zoomInButton').style.color         = colorText;
-    document.getElementById('buttonSmallerFont').style.color    = colorText;
-    document.getElementById('buttonBiggerFont').style.color     = colorText;
 
 }
