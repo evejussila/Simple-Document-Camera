@@ -69,8 +69,8 @@ function addCoreListeners() {
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
     listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
-    listenerToElement('buttonSmallerFont', 'click', () => changeFontSize(-5));          // Font size decrease button
-    listenerToElement('buttonBiggerFont', 'click', () => changeFontSize(5));            // Font size increase button
+    listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));          // Font size decrease button
+    listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));            // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
@@ -1234,14 +1234,6 @@ function getElementCenter(element) {
 // Simple caller methods
 
 /**
- * Changes font size.
- * @param size
- */
-function changeFontSize(size) {
-    TextArea.changeFontSize(size); // Using static method, should be deprecated
-}
-
-/**
  * Adds new overlay.
  */
 function addOverlay() {
@@ -1267,6 +1259,10 @@ class CreatedElements {
 
     // Generic
     elements = [];                                  // Contains information on all created elements: [[classReference, "type", "id"]]
+
+    // Other
+    activeTextArea;
+    activeTextAreaObject;                           // TODO: Could replace with a find-function call
 
 
     // Initialization
@@ -1305,6 +1301,28 @@ class CreatedElements {
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
         print("createMenu(): Created and registered " + classReference.getType() + ": " + classReference.getElementId());
         return classReference;
+    }
+
+
+    // Setters
+
+    setActiveTextArea(element, object) {
+        this.activeTextArea = element;
+        this.activeTextAreaObject = object;
+    }
+
+
+    // Getters
+
+    getActiveTextArea() {
+        return this.activeTextArea;
+    }
+
+
+    // Functionality
+
+    changeFontSize(size) {
+        this.activeTextAreaObject.changeFontSize(size);
     }
 
 }
@@ -1553,9 +1571,6 @@ class Overlay extends MovableElement {
  */
 class TextArea extends MovableElement {
 
-    // Class shared variables (TODO: Deprecate)
-    static activeTextArea;                                                                  // Shows which text area is currently active TODO: Deprecate, if this object class _instance_ is called by mouse event, currently active is always this.element
-
     // Other
     offsetXText;                                                                             // Initial position of the text area when starting drag
     offsetYText;
@@ -1591,7 +1606,7 @@ class TextArea extends MovableElement {
         this.element.placeholder = "Text";
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
-        TextArea.activeTextArea = this.element;                                                                                        // Makes font size buttons target latest or last clicked text area
+        createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
@@ -1627,7 +1642,8 @@ class TextArea extends MovableElement {
     dragStart(e) {
         print("dragStart(): Text area drag initiated");
 
-        TextArea.activeTextArea = this.element;                         // When this object class instance is called by mouse event, currently active is always this.element, see changeFontSize()
+        createdElements.setActiveTextArea(this.element, this);                         // TODO: Replace global variable use ; When this object class instance is called by mouse event, currently active is always this.element
+
         this.container.style.zIndex = '7';
 
         if (e.target === this.element) {                           // Check is the mouse click event is on the text area
@@ -1717,14 +1733,12 @@ class TextArea extends MovableElement {
      * Changes the active text area's font size
      * @param size Size value
      */
-    static changeFontSize(size) {
+    changeFontSize(size) {
 
-        const element = TextArea.activeTextArea;
-        // TODO: Eliminate static function and add resize call for container, based on text size: this.resizeToFitText(this.textAreaElement, this.element)
-        // Static function can be eliminated by using management. CreatedElements.getActiveTextArea().
+        const element = createdElements.getActiveTextArea();                                   // TODO: Replace global variable use
 
         // Load computed font size to element property
-        element.style.fontSize = window.getComputedStyle(element).fontSize                           // Initial font size set in CSS will not be set in the inline font size automatically
+        element.style.fontSize = window.getComputedStyle(element).fontSize                     // Initial font size set in CSS will not be set in the inline font size automatically
 
         print("changeFontSize(): Called font size " + element.style.fontSize + " = " + window.getComputedStyle(element).fontSize + " change by " + size + " for: " + element.id);
 
