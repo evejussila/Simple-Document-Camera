@@ -10,7 +10,7 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
-const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector // TODO: Why not get element by id?
+const selector              = document.getElementById('selectorDevice');             // Camera feed selector
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
@@ -69,8 +69,8 @@ function addCoreListeners() {
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
     listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
-    listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));          // Font size decrease button
-    listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));            // Font size increase button
+    listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
+    listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
@@ -85,7 +85,7 @@ function addCoreListeners() {
     const collapseButton = document.getElementById('buttonCollapse');
     collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon));
 
-    // Fetch HTML element for freeze button and it's icon. Attach event listener to freeze button.
+    // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
     const freezeButton = document.getElementById('buttonFreeze');
     freezeButton.addEventListener('click', () => videoFreeze(freezeIcon));
@@ -1224,10 +1224,10 @@ function getElementCenter(element) {
     // Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
 
     const rect = element.getBoundingClientRect();
-    const x = rect.left + window.scrollX + rect.width / 2; // Rounding with Math.round() should not be necessary
+    const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
     const y = rect.top + window.scrollY + rect.height / 2;
 
-    return { x, y };           // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+    return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
 }
 
 
@@ -1238,7 +1238,6 @@ function getElementCenter(element) {
  */
 function addOverlay() {
     createdElements.createOverlay();
-    // new Overlay(); // Direct instantiation without management
 }
 
 /**
@@ -1246,7 +1245,6 @@ function addOverlay() {
  */
 function addText() {
     createdElements.createTextArea();
-    // new TextArea(); // Direct instantiation without management
 }
 
 
@@ -2021,23 +2019,6 @@ function dumpLocalStorage() {
 }
 
 /**
- * Deletes all cookies from the document
- */
-function deleteAllCookies() {
-    document.cookie.split(';').forEach(cookie => {
-        document.cookie = cookie.split('=')[0] + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-    });
-}
-
-/**
- * Deletes a specific cookie from the document
- * @param cookieName
- */
-function deleteSpecificCookie(cookieName) {
-    document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
-}
-
-/**
  * Stops all tracks of current video srcObject
  */
 function releaseVideoStream() {
@@ -2444,6 +2425,19 @@ function getViewportEdges() {
     const left = window.scrollX;
 
     return { top, right, bottom, left };
+
+    /*
+    Coordinate system has inverted y axis:
+                   y-
+                    |
+                    |
+                    |
+       x-   - - - - | - - - - -   x+
+                    |  PAGE
+                    |
+                    |
+                    y+
+     */
 }
 
 /**
@@ -2655,5 +2649,30 @@ function testUserInterfaceVersion() {
 
     // Append menuButtons to controlBar
     controlBar.appendChild(menuButtons);
+
+}
+
+
+function keepIslandVisible() {
+    let islandPosition = getElementCenter(island);
+    let {x: islandX, y:islandY} = islandPosition;
+
+    let viewportEdges = getViewportEdges();
+    let { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = viewportEdges;
+
+    if (islandX < leftEdge) {
+        // Island is to the left of viewport
+        island.style.left = '0';
+    }
+    if (islandX > rightEdge) {
+        // Island is to the right of viewport
+        island.style.left = '100vw';
+    }
+    if (islandY > bottomEdge) {
+        island.style.top = '100vh';
+    }
+    if (islandY < topEdge) {
+        island.style.top = '0';
+    }
 
 }
