@@ -1177,13 +1177,15 @@ function removeElement(element, fadeTime = 0.2) {
  * @param removeAfter Should the element be deleted after hiding
  */
 function hideElement(element, fadeTime = 0.3, removeAfter = false) {
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`; // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
     element.style.opacity = "0";
 
     setTimeout(() => {
         element.style.display = "none";
-        element.style.pointerEvents = "none";
-        if (removeAfter) { element.remove(); print("hideElement(): Removing element: " + removeAfter); }
+        // element.style.pointerEvents = "none";                    // TODO: Disable interactions during animations, but recover pointer event status (create toggleable class CSS)
+        if (removeAfter) {
+            element.remove();
+            print("hideElement(): Removing element: " + removeAfter); }
     }, fadeTime * 1000);
 }
 
@@ -1197,9 +1199,10 @@ function hideElement(element, fadeTime = 0.3, removeAfter = false) {
 function showElement(element, fadeTime = 0.4, displayStyle = "block") {
     element.style.opacity = "0";                                    // Ensures not visible
     element.style.display = displayStyle;                           // Renders element display
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`; // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    // element.style.pointerEvents = "all";                         // TODO: Pointer event recovery needs to use initial value
 
-    // requestAnimationFrame(() => {                           // Runs code after display is rendered
+    // requestAnimationFrame(() => {                                // Runs code after display is rendered
     //     element.style.opacity = '1';
     // });
 
@@ -1462,7 +1465,7 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "overlay", this.id);
+        this.element = super.createElement("div", "createdOverlay", this.id);
 
         // Add listeners
         this.handleListeners();
@@ -1550,29 +1553,6 @@ class Overlay extends MovableElement {
  */
 class TextArea extends MovableElement {
 
-    // Styles (TODO: deprecate inlines with CSS classes)
-    closeButtonStyle = {                 // Matches .className = "createdTextAreaRemoveButton"
-        left: "0",
-        background: "white",
-        borderColor: "grey",
-        width: "20px",
-        height: "20px",
-        marginTop: "-18px",
-        position: "absolute",
-        display: "none",
-        borderRadius: "10px",
-        paddingBottom: "10px"
-    };
-    containerStyle = {                     // Matches .className = "createdTextAreaContainer"
-        position: "absolute",
-        left: "300px",
-        top: "100px",
-        minWidth: "150px",
-        minHeight: "40px",
-        zIndex: "7"
-    };
-
-
     // Class shared variables (TODO: Deprecate)
     static activeTextArea;                                                                  // Shows which text area is currently active TODO: Deprecate, if this object class _instance_ is called by mouse event, currently active is always this.element
 
@@ -1597,12 +1577,12 @@ class TextArea extends MovableElement {
     }
 
     /**
-     * Creates new text area on top of feed.
+     * Creates new text area.
      * Draggable, resizable.
      */
     create() {
         // Create container
-        this.container = super.createElement("div", "createdTextAreaContainer", this.id + "Container", this.containerStyle, this.closeButtonStyle);
+        this.container = super.createElement("div", "createdTextAreaContainer", this.id + "Container");
 
         // Create main element
         this.element = document.createElement("textarea");
@@ -1611,7 +1591,7 @@ class TextArea extends MovableElement {
         this.element.placeholder = "Text";
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
-        if (TextArea.activeTextArea === undefined) TextArea.activeTextArea = this.element;                                             // Makes font size buttons work even when text area was not clicked TODO: Deprecate, activeTextArea, only functional dependency is right here, related to the font size modifier, see changeFontSize()
+        TextArea.activeTextArea = this.element;                                                                                        // Makes font size buttons target latest or last clicked text area
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
