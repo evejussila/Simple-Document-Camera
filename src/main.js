@@ -149,36 +149,40 @@ async function handlePrivacy() {
 
     // Load short texts if they exist
 
-    let privacyTextShort;
-    let tosTextShort;
-    let lookFor = currentLocale + "_privacy_short";
     let privacyTextExists;
+    let privacyTextShort;
+    let privacyTextTitle;
     let tosTextExists;
+    let tosTextShort;
+    let tosTextTitle;
 
-    // TODO: Remove duplicate code
+    let file = currentLocale + "_privacy_short";
+
     // TODO: Use titles in file
 
     try {                                                                       // Check if short privacy notice text xx_privacy_short exists
-        const text = await _fetchTranslations(lookFor);
+        const text = await _fetchTranslations(file);
         privacyTextExists = true;
         privacyTextShort = text.text;
-        print("handlePrivacy(): Found text: " + lookFor + " with title: " + text.title);
+        privacyTextTitle = text.title;
+        print("handlePrivacy(): Found text: " + file + " with title: " + text.title);
     } catch (e) {
         privacyTextExists = false;
-        console.warn("handlePrivacy(): Did not find text: " + lookFor + " : " + e);
+        console.warn("handlePrivacy(): Did not find text: " + file + " : " + e);
         // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
     }
 
-    lookFor = currentLocale + "_tos_short";
+    file = currentLocale + "_tos_short";
 
     try {                                                                       // Check if short terms of service text xx_tos_short exists
-        const text = await _fetchTranslations(lookFor);
+        const text = await _fetchTranslations(file);
         tosTextExists = true
         tosTextShort = text.text;
-        print("handlePrivacy(): Found text: " + lookFor + " with title: " + text.title);
+        tosTextTitle = text.title;
+        print("handlePrivacy(): Found text: " + file + " with title: " + text.title);
     } catch (e) {
         tosTextExists = false
-        console.warn("handlePrivacy(): Did not find text: " + lookFor + " : " + e);
+        console.warn("handlePrivacy(): Did not find text: " + file + " : " + e);
         // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
     }
 
@@ -273,9 +277,9 @@ async function handlePrivacy() {
      * Displays a privacy notice.
      */
     function privacyPrompt() {
-        console.log("privacyPrompt(): Displaying a notice");
+        console.log("privacyPrompt(): Displaying a notice: " + privacyTextTitle);
 
-        customPrompt("Privacy Notice", privacyTextShort, [                                                                                // Display prompt
+        customPrompt(privacyTextTitle, privacyTextShort, [                                                                                // Display prompt
             [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
             [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
@@ -286,9 +290,9 @@ async function handlePrivacy() {
      * Displays a full privacy and ToS (terms of service) notice.
      */
     function fullPrompt() {
-        console.log("fullPrompt(): Displaying a notice");
+        console.log("fullPrompt(): Displaying a notice: " + privacyTextTitle + " & " + tosTextTitle);
 
-        customPrompt("Privacy and Terms of Service", privacyTextShort + " " + tosTextShort, [                                 // Display prompt
+        customPrompt(privacyTextTitle + " & " + tosTextTitle, privacyTextShort + " " + tosTextShort, [                                 // Display prompt
             [   "Agree to all"                   , () => { handleLocalStorage(); }                                          , colorAccept  ],  // Prompt options
             [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
             [   "Reject terms"                   , () => { /* HALT SERVICE */ return false; }                               , colorReject  ]
@@ -299,9 +303,9 @@ async function handlePrivacy() {
      * Displays a ToS (terms of service) notice.
      */
     function tosPrompt() {
-        console.log("tosPrompt(): Displaying a notice");
+        console.log("tosPrompt(): Displaying a notice: " + tosTextTitle);
 
-        customPrompt("Terms of Service", tosTextShort, [                                                                                // Display prompt
+        customPrompt(tosTextTitle, tosTextShort, [                                                                                // Display prompt
             [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],  // Prompt options
             [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                     , colorReject  ]
         ], "50%", "350px");
@@ -350,6 +354,8 @@ function handleLocalStorage() {
  * @returns {Promise<void>}
  */
 async function videoStart() {
+
+    // TODO: Load text from translation files
 
     // Error prompt default content
     let genericPromptTitle = "No valid cameras could be accessed";
@@ -789,8 +795,9 @@ function toggleControlCollapse(collapseIcon) {
  * Assumes file path /locales/
  * @param {string} file File to load text from
  * @param modal Should the prompt be modal
+ * @param clickOut Should modal prompt exit when overlay is clicked
  */
-async function showContentBox(file, modal = false) {
+async function showContentBox(file, modal = false, clickOut = true) {
     print("showContentBox(): Showing content from file: " + file);
 
     // Load text from file
@@ -839,7 +846,9 @@ async function showContentBox(file, modal = false) {
         });
         document.body.appendChild(modalOverlay);
         showElement(modalOverlay, overlayFadeTime, "");
-        // TODO: Add onclick event to modal overlay: click should dismiss
+        if (clickOut) {
+            modalOverlay.addEventListener('click', removeModalPrompt);
+        }
     }
 
     const customPromptStyle = {
@@ -919,7 +928,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         // Positioning
         prompt.style.position = 'fixed';                                  // Mobility
         prompt.style.left = positionX;                                    // Position
-        // TODO: Automate prevention of overlap of concurrent prompts (turn into class?)
+        // TODO: Automate prevention of overlap of concurrent prompts (turn into class to determine overlap through instance management?)
 
         // Sizing
         prompt.style.width = width;                                        // Sizing
