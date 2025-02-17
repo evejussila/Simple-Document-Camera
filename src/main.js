@@ -1,3 +1,66 @@
+const defaultLocale = "en";
+let currentLocale;                      // The active locale
+let currentTranslations = {};       // Stores translations for the active language
+
+// Initialize when the page content is loaded.
+document.addEventListener("DOMContentLoaded", () => {
+    // Set the language to default and initialize language selector.
+    setLocale(defaultLocale);
+    bindLocaleSelector(defaultLocale);
+});
+
+// Function to set up the language selector and bind event listeners
+function bindLocaleSelector(initialLocale) {
+    const localeSelector = document.querySelector("[data-locale-selector]");
+    localeSelector.value = initialLocale;
+    localeSelector.onchange = (e) => {
+        // Set the language based on the selected value
+        setLocale(e.target.value);
+    };
+}
+
+// Function to load translations and apply them to the page.
+async function setLocale(newLocale) {
+
+    if (newLocale === currentLocale) return;
+    const newTranslations = await fetchTranslations(newLocale);
+
+    currentLocale = newLocale;
+    currentTranslations = newTranslations;
+    applyTranslations();
+}
+
+// Fetch the language translations file and return the JSON object
+async function fetchTranslations(newLocale) {
+    const response = await fetch(`/locales/${newLocale}.json`);
+    return await response.json();
+}
+
+// Apply translations to all elements with a translation key.
+function applyTranslations() {
+    document.querySelectorAll("[data-locale-key]").forEach(translateElement);
+}
+
+// Update the text for a specific element based on its translation key.
+function translateElement(element) {
+    const key = element.getAttribute("data-locale-key");
+    const translation = currentTranslations[key];
+
+    if (!translation) return; // Skip if no translation is available
+
+    // If element has title attribute, it gets translated.
+    if (element.hasAttribute("title")) {
+       element.setAttribute("title", translation);
+    }
+
+    // Check if the element has non-empty text content. If it does, update it with the translated text.
+    else if (element.textContent.trim().length > 0) {
+       element.textContent = translation;
+    }
+}
+
+//-----------------------------------------------------------
+
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
@@ -8,7 +71,7 @@ console.log("To activate debug mode, append parameter ?debug to URL or type to c
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
-const selector              = document.querySelector('select#selectorDevice');        // Camera feed selector // TODO: Why not get element by id?
+const selector                  = document.querySelector('select#selectorDevice');        // Camera feed selector // TODO: Why not get element by id?
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar

@@ -11,12 +11,12 @@
         <div id="island_controlBar">
 
             <!-- Rotate button -->
-            <button id="buttonRotate" title="Rotate">
+            <button data-locale-key="rotate" id="buttonRotate" title="Rotate">
                 <img class="icon" src="./images/rotate.png" alt="Rotate">
             </button>
 
             <!-- Flip button -->
-            <button id="buttonFlip" title="Flip">
+            <button data-locale-key="flip" id="buttonFlip" title="Flip">
                 <img class="icon" src="./images/flip.png" alt="Flip">
             </button>
 
@@ -61,7 +61,8 @@
         <canvas id="canvasMain"></canvas>
 
         <div id="controlBar">
-            <select id="selectorDevice" title="Select Camera"></select>
+            <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
+
             <!-- Zoom Controls -->
             <div id="zoomControls">
                 <button id="zoomOutButton">-</button>
@@ -70,6 +71,16 @@
                 <button id="zoomInButton">+</button>
                 <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
             </div>
+
+            <div id="languages">
+                <label>
+                    <select data-locale-selector class="locale-switcher">
+                        <option value="en">English</option>
+                        <option value="fi">Suomi</option>
+                    </select>
+                </label>
+            </div>
+
         </div>
     </div>
 
