@@ -164,23 +164,6 @@ button:not(:hover) {
 
 /* Specific controls */
 
-#buttonCollapse,
-#buttonFullScreen {
-    aspect-ratio: 1/1;
-    position: absolute;
-    margin: 5px;
-    z-index: 101;
-    bottom: 0;
-}
-
-#buttonCollapse {
-    right: 56px;        /* TODO: Create container with single easy position for both buttons */
-}
-
-#buttonFullScreen {
-    right: 6px;        /* TODO: Create container with single easy position for both buttons */
-}
-
 #buttonSmallerFont,
 #buttonBiggerFont {
     font-size: 21px;
@@ -218,12 +201,29 @@ button:not(:hover) {
 
 /* Core UI */
 
+#buttonCollapse,
+#buttonFullScreen {
+    aspect-ratio: 1/1;
+    position: absolute;
+    margin: 5px;
+    z-index: 899; /* TODO: Use variable, always on top of UI */
+    bottom: 0;
+}
+
+#buttonCollapse {
+    right: 56px;        /* TODO: Create container with single easy position for both buttons */
+}
+
+#buttonFullScreen {
+    right: 6px;        /* TODO: Create container with single easy position for both buttons */
+}
+
 #controlBar {
     display: inline-flex;
     position: absolute;
     height: 50px;
     width: 100%;
-    z-index: 99;
+    z-index: 898;  /* TODO: Use variable, almost always on top of UI */
     bottom: 0;
 
     align-items: center;
@@ -235,7 +235,7 @@ button:not(:hover) {
 #island_controlBar {
     position: absolute;
     cursor: move;
-    z-index: 100;
+    z-index: 897;  /* TODO: Use variable, usually on top of UI */
     display: flex;
     flex-direction: column;
     width: 120px;
@@ -279,7 +279,7 @@ button:not(:hover) {
     height: 100%;
     object-fit: cover;
     position: relative;
-    z-index: 1;
+    z-index: var(--zindex-visual-core);
     border-radius: 5px;
 
     transition: transform 130ms linear;      /* Slight smoothing for zoom */
@@ -292,12 +292,13 @@ button:not(:hover) {
     margin-left: auto;
     margin-right: auto;
     position: relative;
+    z-index: var(--zindex-visual-core);
 }
 
 #videoContainer {
     width: 100%;
     height: 100%;
-    z-index: 1;
+    z-index: var(--zindex-visual-core);
 }
 
 
@@ -308,7 +309,7 @@ button:not(:hover) {
     height: 105%;
     background: linear-gradient(to bottom, #e6e6e6, #222222);
     cursor: move;
-    z-index: 10;
+    z-index: var(--zindex-overlays);
     position: absolute;
     left: 2%;
     top: 2%;
@@ -329,7 +330,7 @@ button:not(:hover) {
     top: 100px;
     min-width: 150px;
     min-height: 40px;
-    z-index: 7;
+    z-index: 301; /* TODO: Use variable if possible */
 }
 
 .createdTextArea {
@@ -341,9 +342,10 @@ button:not(:hover) {
     resize: none; /* Prefer custom implementation for resize */
     overflow: auto;
     cursor: move; /* TODO: Will not allow for text selection cursor, related: drag handler interferes with text selection */
+    z-index: 301; /* TODO: Use variable if possible */
 }
 
-.createdTextAreaContainerRemoveButton { /* TODO: JS implementation breaks naming */
+.createdTextAreaContainerRemoveButton { /* TODO: JS implementation breaks class naming */
 
     width: 20px;
     height: 20px;
@@ -352,6 +354,7 @@ button:not(:hover) {
     display: none;
     border-radius: 10px;
     padding-bottom: 10px;
+    z-index: 300; /* TODO: Use variable if possible */
 
     background-color: var(--remove-button-bg-color)
 }
@@ -364,8 +367,9 @@ button:not(:hover) {
     right: 0;
     bottom: 0;
     cursor: se-resize;
-    z-index: 8;
     clip-path: polygon(100% 0, 0 100%, 100% 100%);
+    z-index: 302; /* TODO: Use variable if possible */
+
 }
 
 .createdContentBox {
@@ -377,7 +381,7 @@ button:not(:hover) {
     background-color: var(--bg-color-lightest);
     border-radius: 10px;
     padding: 10px;
-    z-index: 900;
+    z-index: var(--zindex-prompts);
 }
 
 .promptTitle {

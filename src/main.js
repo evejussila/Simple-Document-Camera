@@ -1514,7 +1514,8 @@ class MovableElement {
 
         // Add element to DOM
         newElement.appendChild(removeButton);
-        island.after(newElement);
+        // island.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
+        videoContainer.appendChild(newElement);
         newElement.style.opacity = "1";                           // TODO: Apply fade to creation
 
         return newElement;
@@ -1579,7 +1580,7 @@ class Overlay extends MovableElement {
     dragStart(e, overlay) {
         print("dragStart(): Overlay drag initiated");
 
-        overlay.style.zIndex = '10'
+        // overlay.style.zIndex = "499"                                                       // Get on top
         Overlay.isOverlayDragging = true;
 
         // Stores the initial mouse and overlay positions
@@ -1625,7 +1626,7 @@ class Overlay extends MovableElement {
     dragStop(overlay, mouseMoveHandler, mouseUpHandler) {
         print("dragStop(): Overlay drag stopped");
 
-        overlay.style.zIndex = '10';
+        // overlay.style.zIndex = "400";                                                       // Return z-index
         Overlay.isOverlayDragging = false;
 
         document.removeEventListener('mousemove', mouseMoveHandler);
@@ -1710,16 +1711,16 @@ class TextArea extends MovableElement {
     dragStart(e) {
         print("dragStart(): Text area drag initiated");
 
-        createdElements.setActiveTextArea(this.element, this);                         // TODO: Replace global variable use ; When this object class instance is called by mouse event, currently active is always this.element
+        createdElements.setActiveTextArea(this.element, this);                         // TODO: Replace global variable use, climb instance ladder or ask super class etc.
 
-        this.container.style.zIndex = '7';
+        // this.container.style.zIndex = "399";                                           // Get on top
 
-        if (e.target === this.element) {                           // Check is the mouse click event is on the text area
+        if (e.target === this.element) {                                               // Check is the mouse click event is on the text area
             this.isMoving = true;
             this.offsetXText = e.clientX - this.container.offsetLeft;
             this.offsetYText = e.clientY - this.container.offsetTop;
             this.container.style.cursor = "move";
-        } else {                                                    // Mouse click was (likely) on resize handle: this.resizeHandle
+        } else {                                                                       // Mouse click was (likely) on resize handle: this.resizeHandle
             this.isResizing = true;
             this.startWidth = this.container.offsetWidth;
             this.startHeight = this.container.offsetHeight;
@@ -1881,7 +1882,7 @@ class Menu extends MovableElement {
             background: '#454545',
             borderRadius: '5px',
             padding: '5px',
-            zIndex: '9999'
+            zIndex: '700'
         }
         Object.assign(this.element.style, menuStyle);
         this.element.style.bottom = '60px';                                                  // Initial position before animation, while in static/attached mode
@@ -2032,7 +2033,7 @@ function debug() {
     developerButton.title = 'Developer';
     developerButton.textContent = 'Developer Options';
     developerButton.addEventListener('click', developerMenu);
-    developerButton.style.zIndex = '9999';
+    developerButton.style.zIndex = '9000';
     // developerButton.style.border = "2px solid darkgray";
     developerButton.style.border = "none";
     // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
@@ -2317,7 +2318,7 @@ function debugVisualDrawElementTrackingIndicator(element, size, color, opacity) 
  * @param zindex
  * @returns {{ball: HTMLDivElement, label: HTMLDivElement}}
  */
-function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '100') {
+function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '9001') {
     let horizontalOffset = size / 2 * 1.05 + 10;                // Offset for label to place it next to indicator
     let {x: centerX, y: centerY} = getElementCenter(element);
     let text = centerX + " " + centerX  + " " + " is center of: " + (element.getAttribute('id') || 'id_undefined') + " " + (element.getAttribute('class') || '');
@@ -2340,7 +2341,7 @@ function drawCenterIndicator(element, size, color = 'green', opacity = '1', zind
  * @param zindex
  * @returns {HTMLDivElement}
  */
-function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity = '1', zindex = '100') {
+function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity = '1', zindex = '9002') {
     // print("Drew " + color + " ball at X: " + coordinateX + " Y: " + coordinateY);
 
     const ball = document.createElement('div');
@@ -2369,7 +2370,7 @@ function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity =
  * @param zindex
  * @returns {{b: HTMLDivElement, r: HTMLDivElement, t: HTMLDivElement, l: HTMLDivElement}}
  */
-function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '150') {
+function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '9003') {
     const {top: top, right: right, bottom: bottom, left: left} = getViewportEdges();
 
     const t = drawBall(right/2, top, size, color, opacity, zindex);
@@ -2392,7 +2393,7 @@ function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex
  * @param zindex
  * @returns {{labelTopLeft: HTMLDivElement, canvas: HTMLCanvasElement, labelBottomRight: HTMLDivElement, labelTopRight: HTMLDivElement, labelBottomLeft: HTMLDivElement}}
  */
-function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '100') {
+function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '9004') {
 
     const canvas = document.createElement('canvas');
     let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
@@ -2497,7 +2498,7 @@ function getElementDimensions(element) {
  * @param text
  * @returns {HTMLDivElement}
  */
-function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', opacity = '1', zindex = '100', text = "text") {
+function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', opacity = '1', zindex = '9005', text = "text") {
     // print("Drew " + backgroundColor + " label at X: " + coordinateX + " Y: " + coordinateY);
 
     const label = document.createElement('div');
