@@ -832,7 +832,6 @@ async function showContentBox(file, modal = false) {
             background: "rgba(255,255,255,0.4)",        // Transparent, white
             zIndex: "1000",
             pointerEvents: "all",                       // Will not let clicks "through"
-            // userSelect: "none"
 
             opacity: 0
 
@@ -852,7 +851,7 @@ async function showContentBox(file, modal = false) {
         bottom: "unset",                                // Remove default value that conflicts with purpose
         display: "flex",
         flexDirection: "column",
-        zIndex: "1050"
+        zIndex: "1050",
     };
 
     const prompt = customPrompt(title, contentToShow, [  // Display prompt

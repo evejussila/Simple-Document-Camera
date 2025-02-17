@@ -380,7 +380,7 @@ button:not(:hover) {
     transform: translateX(-50%);
     background-color: var(--bg-color-lightest);
     border-radius: 10px;
-    padding: 10px;
+    padding: 12px 7px 9px 7px;          /* Shorthand: top right bottom left */
     z-index: var(--zindex-prompts);
 }
 
@@ -395,8 +395,10 @@ button:not(:hover) {
 .promptText {
     text-align: justify;        /* Text fills horizontal space */
     margin-bottom: 10px;
-    max-height: 40%;
+    max-height: 100%;
     overflow: auto;
+    padding: 5px;               /*  In case of vertical scrollbar */
+    box-sizing: content-box;    /*  Prevents padding from affecting width */
 
     color: var(--text-color);
 }
@@ -406,6 +408,7 @@ button:not(:hover) {
     flex-direction: column;
     flex-grow: 1;
     justify-content: flex-end;
+    padding: 0 3px 0 3px;
 
     gap: 0;
 }
