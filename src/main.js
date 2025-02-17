@@ -7,6 +7,9 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 }
 
+// Localisation
+let currentLocale = "en";                                                                            // The active locale
+
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
@@ -44,13 +47,17 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Handle privacy notices and data storage
-    const tosAgreed = handlePrivacy();                                                       // Determines if user may continue using the service
+    // Handle notices, data storage, consent and video startup
+//     handlePrivacy().then((tosAgreed) => {
+//         if (tosAgreed) {                                                                     // Only start video if user agreed to terms
+//             videoStart().then(() => {   } );                                                     // Start video
+//         } } );
 
-    // Start video feed
-    if (tosAgreed) {                                                                         // Only start video if user agreed to terms
-        videoStart().then(() => {   } );                                                     // Start video
-    }
+     const tosAgreed = handlePrivacy();                                                       // Determines if user may continue using the service
+     // Start video feed
+     if (tosAgreed) {                                                                         // Only start video if user agreed to terms
+         videoStart().then(() => {   } );                                                     // Start video
+     }
 
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
@@ -118,7 +125,7 @@ function addCoreListeners() {
  * Handles privacy-related prompting, parameters, data storage and logical coordination
  * @returns {boolean} True if the service can be used
  */
-function handlePrivacy() {
+async function handlePrivacy() {
 
     // Fast exit: Check browser local storage for permissive privacy setting
     const privacyKey = localStorage.getItem('privacy');
@@ -145,17 +152,9 @@ function handlePrivacy() {
 
     // Check if notice text files exist and load short texts
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-    // TODO: Check that the appropriate files exist (" xx_privacy_short " and " xx_tos_short " where xx is the correct country code like en, fi, se, de)
-    // TODO: If the files exist, set the two boolean variables below accordingly to true or false
 
-    const privacyTextExists = true;                                              // Check if short privacy notice text xx_privacy_short exists
-    const tosTextExists = true;                                                  // Check if short terms of service text xx_tos_short exists
-    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
-
-    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below.
-    // TODO: Note that the code breaks using ' " + " ' are just for readability and that this text also contains escapes that may or may not be needed in a your implementation.
-
-    const privacyTextShort =                                                     // Load text from xx_privacy_short
+    // Temporary default texts
+    let privacyTextShort =                                                     // Load text from xx_privacy_short
         "This is a local service. " +
         "Your video and data remain only on your own device. " +
         "<br><br>" +
@@ -168,11 +167,49 @@ function handlePrivacy() {
         "<br><br>" +
         "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long', true)\">Privacy Statement</a>" +
         "<br><br>";
-    const tosTextShort =                                                         // Load text from xx_tos_short
+    let tosTextShort =                                                         // Load text from xx_tos_short
         "This service is provided as is. " +
         "<br><br>" +
         "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true)\">Terms of Service</a>" +
         "<br><br>";
+
+    let lookFor = currentLocale + "_privacy_short";
+    let privacyTextExists;
+    let tosTextExists;
+
+    try {                                                                       // Check if short privacy notice text xx_privacy_short exists
+        const text = await _fetchTranslations(lookFor);
+        privacyTextExists = true;
+        privacyTextShort = text.text;
+        print("handlePrivacy(): Found text: " + lookFor + " with title: " + text.title);
+    } catch (e) {
+        privacyTextExists = false;
+        console.warn("handlePrivacy(): Did not find text: " + lookFor);
+        // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
+    }
+
+    lookFor = currentLocale + "_tos_short";
+
+    try {                                                                       // Check if short terms of service text xx_tos_short exists
+        const text = await _fetchTranslations(lookFor);
+        tosTextExists = true
+        tosTextShort = text.text;
+        print("handlePrivacy(): Found text: " + lookFor + " with title: " + text.title);
+    } catch (e) {
+        tosTextExists = false
+        console.warn("handlePrivacy(): Did not find text: " + lookFor);
+        // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
+    }
+
+    async function _fetchTranslations(newLocale) {
+        const response = await fetch(`/locales/${newLocale}.json`);
+        return await response.json();
+    }
+
+    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
+
+    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below.
+    // TODO: Note that the code breaks using ' " + " ' are just for readability and that this text also contains escapes that may or may not be needed in a your implementation.
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
