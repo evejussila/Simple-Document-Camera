@@ -150,32 +150,15 @@ async function handlePrivacy() {
             print("handlePrivacy(): No fast exit (URL parameter)");
     }
 
-    // Check if notice text files exist and load short texts
-    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+    // Load short texts if they exist
 
-    // Temporary default texts
-    let privacyTextShort =                                                     // Load text from xx_privacy_short
-        "This is a local service. " +
-        "Your video and data remain only on your own device. " +
-        "<br><br>" +
-        "<b>Your video or data are not sent anywhere.</b> " +
-        "<br><br>" +
-        "This service remembers your consent and settings by storing them locally in your browser. " +
-        "Storing this information is optional. " +
-        "<br><br>" +
-        "If you agree to the storing of your consent and settings locally, you will not see this prompt on your device in the future. " +
-        "<br><br>" +
-        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long', true)\">Privacy Statement</a>" +
-        "<br><br>";
-    let tosTextShort =                                                         // Load text from xx_tos_short
-        "This service is provided as is. " +
-        "<br><br>" +
-        "<a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true)\">Terms of Service</a>" +
-        "<br><br>";
-
+    let privacyTextShort;
+    let tosTextShort;
     let lookFor = currentLocale + "_privacy_short";
     let privacyTextExists;
     let tosTextExists;
+
+    // TODO: Remove duplicate code
 
     try {                                                                       // Check if short privacy notice text xx_privacy_short exists
         const text = await _fetchTranslations(lookFor);
@@ -184,7 +167,7 @@ async function handlePrivacy() {
         print("handlePrivacy(): Found text: " + lookFor + " with title: " + text.title);
     } catch (e) {
         privacyTextExists = false;
-        console.warn("handlePrivacy(): Did not find text: " + lookFor);
+        console.warn("handlePrivacy(): Did not find text: " + lookFor + " : " + e);
         // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
     }
 
@@ -197,19 +180,20 @@ async function handlePrivacy() {
         print("handlePrivacy(): Found text: " + lookFor + " with title: " + text.title);
     } catch (e) {
         tosTextExists = false
-        console.warn("handlePrivacy(): Did not find text: " + lookFor);
+        console.warn("handlePrivacy(): Did not find text: " + lookFor + " : " + e);
         // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
     }
+
+    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
+
+    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+
+    // TODO: Remove nested duplicate function, update references above to actual equivalent function
 
     async function _fetchTranslations(newLocale) {
         const response = await fetch(`/locales/${newLocale}.json`);
         return await response.json();
     }
-
-    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
-
-    // TODO: Then load text from those files to the two variables below. Text can contain HTML, see example text below.
-    // TODO: Note that the code breaks using ' " + " ' are just for readability and that this text also contains escapes that may or may not be needed in a your implementation.
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
