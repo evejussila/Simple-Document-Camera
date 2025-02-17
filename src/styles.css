@@ -395,6 +395,8 @@ button:not(:hover) {
 .promptText {
     text-align: justify;        /* Text fills horizontal space */
     margin-bottom: 10px;
+    max-height: 40%;
+    overflow: auto;
 
     color: var(--text-color);
 }

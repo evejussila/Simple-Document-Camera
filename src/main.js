@@ -1,14 +1,17 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-13-alpha");
+const version = ("2025-02-17-alpha");
 console.log("Version: " + version);
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 }
 
 // Localisation
-let currentLocale = "en";                                                                            // The active locale
+// TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+// TODO: Privacy notices etc. require this to have a value. A value was given as a default for development. Default value here can be removed as long as it's set elsewhere.
+let currentLocale = "en";                                                                     // The active locale
+// TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -47,17 +50,11 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Handle notices, data storage, consent and video startup
-//     handlePrivacy().then((tosAgreed) => {
-//         if (tosAgreed) {                                                                     // Only start video if user agreed to terms
-//             videoStart().then(() => {   } );                                                     // Start video
-//         } } );
+    // Handle notices, consent and data storage
+    handlePrivacy();
 
-     const tosAgreed = handlePrivacy();                                                       // Determines if user may continue using the service
-     // Start video feed
-     if (tosAgreed) {                                                                         // Only start video if user agreed to terms
-         videoStart().then(() => {   } );                                                     // Start video
-     }
+    // Start video feed
+    videoStart().then(() => {   } );                                                         // Start video
 
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
@@ -159,6 +156,7 @@ async function handlePrivacy() {
     let tosTextExists;
 
     // TODO: Remove duplicate code
+    // TODO: Use titles in file
 
     try {                                                                       // Check if short privacy notice text xx_privacy_short exists
         const text = await _fetchTranslations(lookFor);
@@ -188,7 +186,7 @@ async function handlePrivacy() {
 
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
 
-    // TODO: Remove nested duplicate function, update references above to actual equivalent function
+    // TODO: Remove nested duplicate function here, update references above to use the actual equivalent function
 
     async function _fetchTranslations(newLocale) {
         const response = await fetch(`/locales/${newLocale}.json`);
@@ -277,7 +275,7 @@ async function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice");
 
-        customPrompt("Privacy notice", privacyTextShort, [                                                                                // Display prompt
+        customPrompt("Privacy Notice", privacyTextShort, [                                                                                // Display prompt
             [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
             [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
             [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
@@ -788,30 +786,43 @@ function toggleControlCollapse(collapseIcon) {
 /**
  * Creates a box with text or HTML from a file.
  * Can be used for showing terms, notices, tutorials and various content.
+ * Assumes file path /locales/
  * @param {string} file File to load text from
  * @param modal Should the prompt be modal
  */
-function showContentBox(file, modal = false) {
+async function showContentBox(file, modal = false) {
     print("showContentBox(): Showing content from file: " + file);
 
     // Load text from file
+
+    let title;
+    let contentToShow;
+
+    try {                                                                       // Check if short privacy notice text xx_privacy_short exists
+        const text = await _fetchTranslations(file);
+        title = text.title;
+        contentToShow = text.text;
+        print("showContentBox(): Found text: " + file + " with title: " + text.title);
+    } catch (e) {
+        console.warn("showContentBox(): Did not find text: " + file + " : " + e);
+        // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
+    }
+
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-    // TODO: Load text from a file. The file is named in the parameter ' file '. Expect it to be in the localisation folder. Store the text in the variable below.
 
-    const contentToShow =                                                                              // Content to show
-        "This text is not finished and will be added in a future update. " +
-        "In any case, rest assured that the developers have your privacy and rights in mind. " +
-        "The code in this program is public and can be fully inspected in your browser's developer tools and on GitHub.";
+    // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
 
-    // TODO: If the file has a way of containing a title for the text separately, load that title to this variable.
-    const title = "Title from file";
+    async function _fetchTranslations(newLocale) {
+        const response = await fetch(`/locales/${newLocale}.json`);
+        return await response.json();
+    }
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
-    const modalOverlay = document.createElement("div");    // Create container element
-    const overlayFadeTime = 0.3;                                    // Fade time for animations
+    const modalOverlay = document.createElement("div");     // Create container element
+    const overlayFadeTime = 0.3;                                     // Fade time for animations
 
-    if (modal) {                                                    // Create modal overlay if requested
+    if (modal) {                                                     // Create modal overlay if requested
         Object.assign(modalOverlay.style, {                  // Assigns CSS key-value pairs to element
             position: "fixed",
             top: "0",
@@ -824,10 +835,12 @@ function showContentBox(file, modal = false) {
             // userSelect: "none"
 
             opacity: 0
+
+
         });
         document.body.appendChild(modalOverlay);
         showElement(modalOverlay, overlayFadeTime, "");
-
+        // TODO: Add onclick event to modal overlay: click should dismiss
     }
 
     const customPromptStyle = {
@@ -842,13 +855,16 @@ function showContentBox(file, modal = false) {
         zIndex: "1050"
     };
 
-    customPrompt(title, contentToShow,                                                                [  // Display prompt
-        [   "Close"      , () => { hideElement(modalOverlay, overlayFadeTime/2, true) }   ]  // Only close button
+    const prompt = customPrompt(title, contentToShow, [  // Display prompt
+        ["Close", () => {
+            removeModalPrompt()
+        }]  // Only close button
     ], "50%", "500px", customPromptStyle);                                                        // Apply custom definitions
 
-
-
-
+    function removeModalPrompt() {
+        hideElement(modalOverlay, overlayFadeTime / 2, true);
+        prompt.remove();                                                                                        // Remove prompt when not dismissed
+    }
 
 }
 
