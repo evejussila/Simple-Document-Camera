@@ -167,21 +167,36 @@ async function handlePrivacy() {
             text.textExists = true;
             text.content = content;
             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
+            print("handlePrivacy(): Object JSON keys: " + Object.keys(content));
         } else {
             console.warn("handlePrivacy(): Did not find text: " + text.file);
         }
     }
 
-    print(texts[1].content.agreeToAll);
-    print(texts[1].content.agreeToTos);
-    print(texts[1].content.rejectTos);
+    // Console test
+    // (async () => {
+    //     for (const text of texts) {
+    //         const content = await _fetchJSON(text.file);
+    //         if (content) {
+    //             text.textExists = true;
+    //             text.content = content;
+    //             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
+    //             print("handlePrivacy(): Object JSON keys: " + Object.keys(content));
+    //         } else {
+    //             console.warn("handlePrivacy(): Did not find text: " + text.file);
+    //         }
+    //     }
+    // })();
 
-    print(texts[0].content.agreeStorage);
-    print(texts[0].content.notNow);
-    print(texts[0].content.rejectStorage);
+    {   // DEBUG
+        print(texts[1].content.agreeToAll);
+        print(texts[1].content.agreeToTos);
+        print(texts[1].content.rejectTos);
 
-    console.warn(Object.keys(texts[0].content));
-    console.warn(Object.keys(texts[1].content));
+        print(texts[0].content.agreeStorage);
+        print(texts[0].content.notNow);
+        print(texts[0].content.rejectStorage);
+    }
 
     print("handlePrivacy(): Privacy files: privacy text exists  = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
