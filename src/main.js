@@ -18,6 +18,9 @@ let rotation = 0;                                                               
 let currentZoom = 1;                                                                       // Current zoom level
 let flip = 1;                                                                              // State of image mirroring, 1 = no flip, -1 = horizontal flip
 let isFreeze = false;                                                                      // Video freeze on or off
+let isVideoDragging = false;                                                               // Dragging video
+let offsetX = 0, offsetY = 0;                                                      // User mousedown position
+let lastX = 0, lastY = 0;
 
 // UI state
 let isIslandDragging = false                                                               // Dragging island control bar
@@ -117,6 +120,38 @@ function addCoreListeners() {
     navigator.mediaDevices.addEventListener('devicechange', () => {
         backgroundUpdateInputList().then( () => {} );
     });
+
+    videoElement.addEventListener("mousedown", (event) => {
+        isVideoDragging = true;
+        lastX = event.clientX;
+        lastY = event.clientY;
+        videoElement.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", (event) => {
+        if (!isVideoDragging) return;
+        const moveX = event.clientX - lastX;
+        const moveY = event.clientY - lastY;
+        moveVideo(moveX, moveY);
+        lastX = event.clientX;
+        lastY = event.clientY;
+    });
+
+    window.addEventListener("mouseup", () => {
+        isVideoDragging = false;
+        videoElement.style.cursor = "grab";
+    });
+
+    /** TODO: Moving video with mouse works, but it should not move when writing in textarea.
+        window.addEventListener("keydown", (event) => {
+        const step = 50;
+        switch (event.key) {
+            case "ArrowLeft": moveVideo(-step, 0); break;
+            case "ArrowRight": moveVideo(step, 0); break;
+            case "ArrowUp": moveVideo(0, -step); break;
+            case "ArrowDown": moveVideo(0, step); break;
+        }
+    });*/
 }
 
 function handlePrivacy() {
@@ -511,6 +546,12 @@ function resetVideoState() {
     // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
 }
 
+function moveVideo(moveX, moveY) {
+    offsetX += moveX;
+    offsetY += moveY;
+    updateVideoTransform();
+}
+
 
 // UI functions
 
@@ -872,7 +913,7 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
+    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom}) translate(${offsetX}px, ${offsetY}px)`;    // Updates video rotation, flipping and current zoom
     canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
 }
 
