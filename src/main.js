@@ -172,12 +172,16 @@ async function handlePrivacy() {
         }
     }
 
-    print(texts[0].content.agreeStorage);
-    print(texts[0].content.notNow);
-    print(texts[0].content.rejectStorage);
     print(texts[1].content.agreeToAll);
     print(texts[1].content.agreeToTos);
     print(texts[1].content.rejectTos);
+
+    print(texts[0].content.agreeStorage);
+    print(texts[0].content.notNow);
+    print(texts[0].content.rejectStorage);
+
+    console.warn(Object.keys(texts[0].content));
+    console.warn(Object.keys(texts[1].content));
 
     print("handlePrivacy(): Privacy files: privacy text exists  = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
