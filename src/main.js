@@ -148,48 +148,35 @@ async function handlePrivacy() {
     }
 
     // Load short texts if they exist
+    let texts = [
+        {                                               // texts[0] is for privacy
+            file: currentLocale + "_privacy_short",
+            content: null,
+            textExists: false,
+        },
+        {                                               // texts[1] is for terms of service
+            file: currentLocale + "_tos_short",
+            content: null,
+            textExists: false,
+        }
+    ];
 
-    let privacyFile = currentLocale + "_privacy_short";
-    let privacyTextExists = false;
-    let privacyTextShort;
-    let privacyTextTitle;
-
-    let tosFile = currentLocale + "_tos_short";
-    let tosTextExists = false;
-    let tosTextShort;
-    let tosTextTitle;
-
-    // Check if short privacy notice text xx_privacy_short exists
-    {
-        const text = await _fetchJSON(privacyFile);
-        if (text) {
-            privacyTextExists = true;
-            privacyTextShort = text.text;
-            privacyTextTitle = text.title;
-            print("handlePrivacy(): Found text: " + privacyFile + " with title: " + text.title);
+    for (const text of texts) {
+        const content = await _fetchJSON(text.file);
+        if (content) {
+            text.textExists = true;
+            text.content = content;
+            print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
         } else {
-            console.warn("handlePrivacy(): Did not find text: " + privacyFile + " : " );
+            console.warn("handlePrivacy(): Did not find text: " + text.file);
         }
     }
 
-    // Check if short terms of service text xx_tos_short exists
-    {
-        const text = await _fetchJSON(tosFile);
-        if (text) {
-            tosTextExists = true;
-            tosTextShort = text.text;
-            tosTextTitle = text.title;
-            print("handlePrivacy(): Found text: " + tosFile + " with title: " + text.title);
-        } else {
-            console.warn("handlePrivacy(): Did not find text: " + tosFile + " : " );
-        }
-    }
-
-    print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
+    print("handlePrivacy(): Privacy files: privacy text exists  = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
 
-    // TODO: Remove nested duplicate function here, update references above to use the actual equivalent function
+    // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
 
     /**
      * Fetches JSON from .json file
@@ -246,7 +233,7 @@ async function handlePrivacy() {
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            if (privacyTextExists) {                                             // Privacy text exists -> Privacy prompt only
+            if (texts[0].textExists) {                                             // Privacy text exists -> Privacy prompt only
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
 
                 privacyPrompt();                                                 // Privacy prompt
@@ -259,10 +246,10 @@ async function handlePrivacy() {
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
 
-            if (tosTextExists) {                                                 // ToS text exists
+            if (texts[1].textExists) {                                                 // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
 
-                if (privacyTextExists) {                                         // Privacy text exists
+                if (texts[0].textExists) {                                         // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
 
                     fullPrompt();                                                // Full prompt
@@ -272,14 +259,13 @@ async function handlePrivacy() {
                     tosPrompt();                                                 // ToS prompt
                 }
             } else {                                                             // ToS text does not exist
-                if (privacyTextExists) {                                         // Privacy text does exist
+                if (texts[0].textExists) {                                         // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
 
                     privacyPrompt();                                              // Privacy prompt
                 } else {                                                          // No texts exist
                     print("handlePrivacy(): ... privacy text does not exist");
 
-                    // TODO: Might want a switch here that completely disables persistence and prompts, if that is what the hosting party wants
                     handleLocalStorage();                                         // Create local storage (assume local storage can be used if notice text is not provided)
                 }
             }
@@ -287,7 +273,7 @@ async function handlePrivacy() {
             break;
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
-            if (privacyTextExists && tosTextExists) {
+            if (texts[0].textExists && texts[1].textExists) {
                 fullPrompt();                                                    // Full prompt
             } // TODO: Not handling case where param is malformed but only one text exists
     }
@@ -298,12 +284,13 @@ async function handlePrivacy() {
      * Displays a privacy notice.
      */
     function privacyPrompt() {
-        console.log("privacyPrompt(): Displaying a notice: " + privacyTextTitle);
+        console.log("privacyPrompt(): Displaying a notice: " + texts[0].content.title);
 
-        customPrompt(privacyTextTitle, privacyTextShort, [                                                                                // Display prompt
-            [   "Accept"                          , () => { handleLocalStorage(); }                                                , colorAccept  ],  // Prompt options
-            [   "Not now"                         , () => { /* Only implicit rejection, ask again later */ }                                      ],
-            [   "Reject"                          , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
+        // noinspection JSUnresolvedReference
+        customPrompt(texts[0].content.title, texts[0].content.text, [
+            [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ],
+            [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                                      ],
+            [   texts[0].content.rejectStorage , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
         ], "50%", "350px");
     }
 
@@ -311,12 +298,13 @@ async function handlePrivacy() {
      * Displays a full privacy and ToS (terms of service) notice.
      */
     function fullPrompt() {
-        console.log("fullPrompt(): Displaying a notice: " + privacyTextTitle + " & " + tosTextTitle);
+        console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
 
-        customPrompt(privacyTextTitle + " & " + tosTextTitle, privacyTextShort + " " + tosTextShort, [                                 // Display prompt
-            [   "Agree to all"                   , () => { handleLocalStorage(); }                                          , colorAccept  ],  // Prompt options
-            [   "Agree to terms of service"      , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
-            [   "Reject terms"                   , () => { /* HALT SERVICE */ return false; }                               , colorReject  ]
+        // noinspection JSUnresolvedReference
+        customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + " " + texts[1].content.text, [
+            [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                          , colorAccept  ],
+            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
+            [   texts[1].content.rejectTos    , () => { haltService(); }                                                 , colorReject  ]
         ], "50%", "350px");
     }
 
@@ -324,15 +312,21 @@ async function handlePrivacy() {
      * Displays a ToS (terms of service) notice.
      */
     function tosPrompt() {
-        console.log("tosPrompt(): Displaying a notice: " + tosTextTitle);
+        console.log("tosPrompt(): Displaying a notice: " + texts[1].content.title);
 
-        customPrompt(tosTextTitle, tosTextShort, [                                                                                // Display prompt
-            [   "Agree to terms"                , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],  // Prompt options
-            [   "Reject terms"                  , () => { /* HALT SERVICE */ return false; }                                     , colorReject  ]
+        // noinspection JSUnresolvedReference
+        customPrompt(texts[1].content.title, texts[1].content.text, [
+            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],
+            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ]
         ], "50%", "350px");
     }
 
-    return true; // TODO: For return value to have an effect, function needs to be async and await prompt responses
+    function haltService() {
+        console.error("handlePrivacy(): Terms rejected, call to halt service");
+        // TODO: Trigger video freeze event
+    }
+
+    return true; // TODO: For return value to have an effect, function would need to await prompt responses
 }
 
 /**

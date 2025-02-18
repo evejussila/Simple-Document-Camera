@@ -1,4 +1,7 @@
 {
   "title": "Tietosuojailmoitus",
-  "text": "Tämä on paikallinen palvelu. Videosi ja tietosi säilyvät omalla laitteellasi. <br><br><b> Videotasi ja tietojasi ei lähetetä minnekään.</b> <br><br> Tämä palvelu muistaa hyväksyntäsi ja asetuksesi tallentamalla ne paikallisesti selaimeesi. Tämä tiedon tallentaminen on vapaaehtoista. <br><br>Jos sallit hyväksyntäsi ja asetustesi tallentamisen paikallisesti, et näe tätä ilmoitusta laitteellasi tulevaisuudessa. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('fi_privacy_long', true, true)\">Tietosuojailmoitus</a><br><br>"
+  "text": "Tämä on paikallinen palvelu. Videosi ja tietosi säilyvät omalla laitteellasi. <br><br><b> Videotasi ja tietojasi ei lähetetä minnekään.</b> <br><br> Tämä palvelu muistaa hyväksyntäsi ja asetuksesi tallentamalla ne paikallisesti selaimeesi. Tämä tiedon tallentaminen on vapaaehtoista. <br><br>Jos sallit hyväksyntäsi ja asetustesi tallentamisen paikallisesti, et näe tätä ilmoitusta laitteellasi tulevaisuudessa. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('fi_privacy_long', true, true)\">Tietosuojailmoitus</a><br><br>",
+  "agreeStorage": "Salli tallentaminen",
+  "notNow": "Ei nyt",
+  "rejectStorage": "Kiellä tallentaminen"
 }
