@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-17-alpha");
+const version = ("2025-02-18-alpha");
 console.log("Version: " + version);
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
@@ -200,11 +200,12 @@ async function handlePrivacy() {
      * @private
      */
     async function _fetchJSON(file) {
-        print("fetchJSON(): " + file);
+        print("fetchJSON(): File: " + file);
         const path = `${window.location.pathname}locales/${file}.json`
+        print("fetchJSON(): Path: " + path);
         const response = await fetch(path);
-        print("fetchJSON: " + await response.clone().text());
-        if (!response.ok) return false;
+        print("fetchJSON: Response text: " + await response.clone().text());
+        if (!response.ok) return false;         // DEV: Will not catch errors and exceptions
         return await response.json();
     }
 
