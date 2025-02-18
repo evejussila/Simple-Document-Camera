@@ -193,7 +193,9 @@ async function handlePrivacy() {
     // TODO: Remove nested duplicate function here, update references above to use the actual equivalent function
 
     async function _fetchTranslations(newLocale) {
+        print("Debug: " + newLocale);
         const response = await fetch(`/locales/${newLocale}.json`);
+        print("Debug: " + await response.text());
         return await response.json();
     }
 
@@ -216,14 +218,16 @@ async function handlePrivacy() {
     // Table:
     // Privacy text    Tos text        agreeTosInclusive        null                  agreeAll
     // ---------------------------------------------------------------------------------------------------
-    // true            -               privacyPrompt
-    // false           -               handleLocalStorage
-    // true            true                                     fullPrompt
-    // false           true                                     tosPrompt
-    // true            false                                    privacyPrompt
-    // false           false                                    handleLocalStorage
+    // true            -               privacyPrompt                                  handleLocalStorage
+    // false           -               handleLocalStorage                             handleLocalStorage
+    // true            true                                     fullPrompt            handleLocalStorage
+    // false           true                                     tosPrompt             handleLocalStorage
+    // true            false                                    privacyPrompt         handleLocalStorage
+    // false           false                                    handleLocalStorage    handleLocalStorage
 
     // TODO: Minimize table, compact logic
+
+    // TODO: Add no texts exist option here as fast exit
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
@@ -267,8 +271,10 @@ async function handlePrivacy() {
 
             break;
         default:                                                                 // Privacy agreement state value unexpected
-            console.error("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
-            fullPrompt();                                                        // Full prompt
+            console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
+            if (privacyTextExists && tosTextExists) {
+                fullPrompt();                                                    // Full prompt
+            }
     }
 
     // Nested functions for prompts
