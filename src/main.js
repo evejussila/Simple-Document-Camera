@@ -161,7 +161,7 @@ async function handlePrivacy() {
     // TODO: Use titles in file
 
     try {                                                                       // Check if short privacy notice text xx_privacy_short exists
-        const text = await _fetchTranslations(file);
+        const text = await _fetchJSON(file);
         privacyTextExists = true;
         privacyTextShort = text.text;
         privacyTextTitle = text.title;
@@ -175,7 +175,7 @@ async function handlePrivacy() {
     file = currentLocale + "_tos_short";
 
     try {                                                                       // Check if short terms of service text xx_tos_short exists
-        const text = await _fetchTranslations(file);
+        const text = await _fetchJSON(file);
         tosTextExists = true
         tosTextShort = text.text;
         tosTextTitle = text.title;
@@ -192,19 +192,19 @@ async function handlePrivacy() {
 
     // TODO: Remove nested duplicate function here, update references above to use the actual equivalent function
 
-    async function _fetchTranslations(newLocale) {
-        print("Debug: " + newLocale);
-
-        // Pathname might return "/sdc/deva/"
-        // Processed to "/sdc/deva"
-        // print(`${window.location.pathname}locales/${newLocale}.json`);
-        // print(`${window.location.pathname}locales/en_privacy_short.json`);
-        // const path = window.location.pathname.split('/').slice(0, -1).join('/');
-        const path = `${window.location.pathname}locales/${newLocale}.json`
-        print(await fetch(`${path}/locales/${newLocale}.json`));
-
-        const response = await fetch(`/locales/${newLocale}.json`);
-        print("Debug: " + await response.clone().text());
+    /**
+     * Fetches JSON from .json file
+     * Assumes file path ./locales/
+     * @param file
+     * @returns {Promise<any>}
+     * @private
+     */
+    async function _fetchJSON(file) {
+        print("fetchJSON(): " + file);
+        const path = `${window.location.pathname}locales/${file}.json`
+        const response = await fetch(path);
+        print("fetchJSON: " + await response.clone().text());
+        if (!response.ok) return false;
         return await response.json();
     }
 
@@ -807,7 +807,7 @@ function toggleControlCollapse(collapseIcon) {
 /**
  * Creates a box with text or HTML from a file.
  * Can be used for showing terms, notices, tutorials and various content.
- * Assumes file path /locales/
+ * Assumes file path ./locales/
  * @param {string} file File to load text from
  * @param modal Should the prompt be modal
  * @param clickOut Should modal prompt exit when overlay is clicked
