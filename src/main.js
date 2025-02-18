@@ -149,41 +149,40 @@ async function handlePrivacy() {
 
     // Load short texts if they exist
 
-    let privacyTextExists;
+    let privacyFile = currentLocale + "_privacy_short";
+    let privacyTextExists = false;
     let privacyTextShort;
     let privacyTextTitle;
-    let tosTextExists;
+
+    let tosFile = currentLocale + "_tos_short";
+    let tosTextExists = false;
     let tosTextShort;
     let tosTextTitle;
 
-    let file = currentLocale + "_privacy_short";
-
-    // TODO: Use titles in file
-
-    try {                                                                       // Check if short privacy notice text xx_privacy_short exists
-        const text = await _fetchJSON(file);
-        privacyTextExists = true;
-        privacyTextShort = text.text;
-        privacyTextTitle = text.title;
-        print("handlePrivacy(): Found text: " + file + " with title: " + text.title);
-    } catch (e) {
-        privacyTextExists = false;
-        console.warn("handlePrivacy(): Did not find text: " + file + " : " + e);
-        // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
+    // Check if short privacy notice text xx_privacy_short exists
+    {
+        const text = await _fetchJSON(privacyFile);
+        if (text) {
+            privacyTextExists = true;
+            privacyTextShort = text.text;
+            privacyTextTitle = text.title;
+            print("handlePrivacy(): Found text: " + privacyFile + " with title: " + text.title);
+        } else {
+            console.warn("handlePrivacy(): Did not find text: " + privacyFile + " : " );
+        }
     }
 
-    file = currentLocale + "_tos_short";
-
-    try {                                                                       // Check if short terms of service text xx_tos_short exists
-        const text = await _fetchJSON(file);
-        tosTextExists = true
-        tosTextShort = text.text;
-        tosTextTitle = text.title;
-        print("handlePrivacy(): Found text: " + file + " with title: " + text.title);
-    } catch (e) {
-        tosTextExists = false
-        console.warn("handlePrivacy(): Did not find text: " + file + " : " + e);
-        // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
+    // Check if short terms of service text xx_tos_short exists
+    {
+        const text = await _fetchJSON(tosFile);
+        if (text) {
+            tosTextExists = true;
+            tosTextShort = text.text;
+            tosTextTitle = text.title;
+            print("handlePrivacy(): Found text: " + tosFile + " with title: " + text.title);
+        } else {
+            console.warn("handlePrivacy(): Did not find text: " + tosFile + " : " );
+        }
     }
 
     print("handlePrivacy(): Privacy files: tosTextExists = " + tosTextExists + " & privacyTextExists = " + privacyTextExists);
@@ -200,21 +199,19 @@ async function handlePrivacy() {
      */
     async function _fetchJSON(file) {
         const path = `${window.location.pathname}locales/${file}.json`
-        print("fetchJSON(): Path: " + path);
+        print("fetchJSON(): Fetching: " + path);
 
         let response;
-        try {                                           // Catch exceptions
-            response = await fetch(path);
+        let responseJSON;
+        try {
+            response = await fetch(path);               // Fetch file
+            responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
         } catch (e) {
-            print("fetchJSON: Failed to fetch: " + e);
-            return false;
-        }
-        if (!response.ok) {                             // Catch soft fail
-            print("fetchJSON: Response text: " + await response.clone().text());
+            console.error("fetchJSON: Failed to fetch: " + e);
             return false;
         }
 
-        return await response.json();
+        return responseJSON;
     }
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
@@ -292,7 +289,7 @@ async function handlePrivacy() {
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
             if (privacyTextExists && tosTextExists) {
                 fullPrompt();                                                    // Full prompt
-            }
+            } // TODO: Not handling case where param is malformed but only one text exists
     }
 
     // Nested functions for prompts
@@ -851,21 +848,19 @@ async function showContentBox(file, modal = false, clickOut = true) {
      */
     async function _fetchJSON(file) {
         const path = `${window.location.pathname}locales/${file}.json`
-        print("fetchJSON(): Path: " + path);
+        print("fetchJSON(): Fetching: " + path);
 
         let response;
-        try {                                           // Catch exceptions
-            response = await fetch(path);
+        let responseJSON;
+        try {
+            response = await fetch(path);               // Fetch file
+            responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
         } catch (e) {
-            print("fetchJSON: Failed to fetch: " + e);
-            return false;
-        }
-        if (!response.ok) {                             // Catch soft fail
-            print("fetchJSON: Response text: " + await response.clone().text());
+            console.error("fetchJSON: Failed to fetch: " + e);
             return false;
         }
 
-        return await response.json();
+        return responseJSON;
     }
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
