@@ -195,7 +195,12 @@ async function handlePrivacy() {
     async function _fetchTranslations(newLocale) {
         print("Debug: " + newLocale);
 
-        const path = window.location.pathname.split('/').slice(0, -1).join('/');
+        // Pathname might return "/sdc/deva/"
+        // Processed to "/sdc/deva"
+        // print(`${window.location.pathname}locales/${newLocale}.json`);
+        // print(`${window.location.pathname}locales/en_privacy_short.json`);
+        // const path = window.location.pathname.split('/').slice(0, -1).join('/');
+        const path = `${window.location.pathname}locales/${newLocale}.json`
         print(await fetch(`${path}/locales/${newLocale}.json`));
 
         const response = await fetch(`/locales/${newLocale}.json`);
