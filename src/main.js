@@ -167,7 +167,8 @@ async function handlePrivacy() {
             text.textExists = true;
             text.content = content;
             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
-            print("handlePrivacy(): Object JSON keys: " + Object.keys(content));
+            console.warn("handlePrivacy(): DEBUG Object JSON keys: " + Object.keys(content));
+            console.warn("handlePrivacy(): DEBUG Object: " + JSON.stringify(content));
         } else {
             console.warn("handlePrivacy(): Did not find text: " + text.file);
         }
@@ -189,13 +190,13 @@ async function handlePrivacy() {
     // })();
 
     {   // DEBUG
-        print(texts[1].content.agreeToAll);
-        print(texts[1].content.agreeToTos);
-        print(texts[1].content.rejectTos);
+        console.warn("DEBUG: " + texts[1].content.agreeToAll);
+        console.warn("DEBUG: " + texts[1].content.agreeToTos);
+        console.warn("DEBUG: " + texts[1].content.rejectTos);
 
-        print(texts[0].content.agreeStorage);
-        print(texts[0].content.notNow);
-        print(texts[0].content.rejectStorage);
+        console.warn("DEBUG: " + texts[0].content.agreeStorage);
+        console.warn("DEBUG: " + texts[0].content.notNow);
+        console.warn("DEBUG: " + texts[0].content.rejectStorage);
     }
 
     print("handlePrivacy(): Privacy files: privacy text exists  = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
@@ -218,6 +219,7 @@ async function handlePrivacy() {
         let responseJSON;
         try {
             response = await fetch(path);               // Fetch file
+            console.warn("DEBUG JSON text content: " + await response.clone().text());
             responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
         } catch (e) {
             console.error("fetchJSON: Failed to fetch: " + e);
