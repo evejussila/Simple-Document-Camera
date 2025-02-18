@@ -195,17 +195,25 @@ async function handlePrivacy() {
     /**
      * Fetches JSON from .json file
      * Assumes file path ./locales/
-     * @param file
-     * @returns {Promise<any>}
-     * @private
+     * @param file File to fetch JSON from
+     * @returns {Promise<any>} JSON output or boolean false for failure
      */
     async function _fetchJSON(file) {
-        print("fetchJSON(): File: " + file);
         const path = `${window.location.pathname}locales/${file}.json`
         print("fetchJSON(): Path: " + path);
-        const response = await fetch(path);
-        print("fetchJSON: Response text: " + await response.clone().text());
-        if (!response.ok) return false;         // DEV: Will not catch errors and exceptions
+
+        let response;
+        try {                                           // Catch exceptions
+            response = await fetch(path);
+        } catch (e) {
+            print("fetchJSON: Failed to fetch: " + e);
+            return false;
+        }
+        if (!response.ok) {                             // Catch soft fail
+            print("fetchJSON: Response text: " + await response.clone().text());
+            return false;
+        }
+
         return await response.json();
     }
 
@@ -822,7 +830,7 @@ async function showContentBox(file, modal = false, clickOut = true) {
     let contentToShow;
 
     try {                                                                       // Check if short privacy notice text xx_privacy_short exists
-        const text = await _fetchTranslations(file);
+        const text = await _fetchJSON(file);
         title = text.title;
         contentToShow = text.text;
         print("showContentBox(): Found text: " + file + " with title: " + text.title);
@@ -835,8 +843,28 @@ async function showContentBox(file, modal = false, clickOut = true) {
 
     // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
 
-    async function _fetchTranslations(newLocale) {
-        const response = await fetch(`/locales/${newLocale}.json`);
+    /**
+     * Fetches JSON from .json file
+     * Assumes file path ./locales/
+     * @param file File to fetch JSON from
+     * @returns {Promise<any>} JSON output or boolean false for failure
+     */
+    async function _fetchJSON(file) {
+        const path = `${window.location.pathname}locales/${file}.json`
+        print("fetchJSON(): Path: " + path);
+
+        let response;
+        try {                                           // Catch exceptions
+            response = await fetch(path);
+        } catch (e) {
+            print("fetchJSON: Failed to fetch: " + e);
+            return false;
+        }
+        if (!response.ok) {                             // Catch soft fail
+            print("fetchJSON: Response text: " + await response.clone().text());
+            return false;
+        }
+
         return await response.json();
     }
 
