@@ -481,16 +481,18 @@ async function setVideoInput(input = selector.value) {
             // Tarkista, mitä asetuksia selain todella käyttää
             console.log("Camera settings:", stream.getVideoTracks()[0].getSettings());
             await stream.getVideoTracks()[0].applyConstraints({
-                width: 1920,
-                height: 1080,
-                frameRate: 60
+                width: 1280,
+                height: 720,
+                frameRate: 30
             });
-            // JONNA
+            console.log(stream.getVideoTracks()[0].getSettings());
 
             videoElement.srcObject = stream;
+            console.log("Kamera toimii! Käytössä olevat asetukset:", videoElement.srcObject?.getTracks()[0]?.getSettings());
             // TODO: Debug low video quality
             // printStreamInformation(stream);
             // bruteForceVideoStream(input); // Accessible from developer menu, is intensive if used here
+            //await enableAutoFocus();
 
             break;
         } catch (error) {                                                                          // Failure
@@ -526,7 +528,7 @@ async function testCameraResolutions() {
     const track = stream.getVideoTracks()[0];  // Hakee videoraidan
     const deviceId = track.getSettings().deviceId;  // Hakee deviceId:n
 
-    console.log("Testataan kameran resoluutioita:", deviceId);
+    console.log("Testataan kameran (deviceId) resoluutioita:", deviceId);
     await getSupportedResolutions(deviceId);  // Kutsutaan funktiota oikealla kameralla
 }
 
@@ -536,6 +538,7 @@ async function getSupportedResolutions(deviceId) {
         { width: 1920, height: 1080 },
         { width: 1280, height: 720 },
         { width: 1024, height: 768 },
+        { width: 1280, height: 1024 },
         { width: 800, height: 600 },
         { width: 640, height: 480 }
     ];
@@ -558,6 +561,28 @@ async function getSupportedResolutions(deviceId) {
     }
 }
 
+// 🔹 Automaattinen tarkennus JONNA
+async function enableAutoFocus() {
+    let stream = videoElement.srcObject;
+    if (!stream) {
+        console.warn("Ei aktiivista kameravirtaa.");
+        return;
+    }
+
+    let track = stream.getVideoTracks()[0];
+    let capabilities = track.getCapabilities();
+
+    if (capabilities.focusMode) {
+        try {
+            await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+            console.log("Automaattinen tarkennus aktivoitu.");
+        } catch (error) {
+            console.error("Automaattitarkennuksen asettaminen epäonnistui:", error);
+        }
+    } else {
+        console.warn("Kamera ei tue automaattista tarkennusta.");
+    }
+}
 
 /**
  * Reset video feed back to its default state.
