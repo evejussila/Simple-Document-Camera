@@ -965,9 +965,6 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
     }
 
-    // Logo
-    // TODO: Create container and getter logic for logo
-
     // Create title text
     const textTitleElement = document.createElement('div');
     const textTitle = document.createTextNode(title);
@@ -990,7 +987,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         print("customPrompt(): Prompt text identified as plain string");
         textBody.textContent = text;                                     // Plain string text to text content of div
     }
-    // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed should be fine and won't throw any errors but should be noticed
+    // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed can be fine and won't throw errors but should be noticed
 
     // Styling
     textBody.className = 'promptText';                                   // Set basic CSS class
@@ -999,10 +996,10 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     prompt.appendChild(textBody);
 
     // Create button container
-    const buttonContainer = document.createElement('div');
+    const optionContainer = document.createElement('div');
 
     // Styling
-    buttonContainer.className = 'promptOptionContainer';                   // Set basic CSS class
+    optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
 
     // Create buttons
     options.forEach((optionButton) => {
@@ -1018,7 +1015,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
             print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
 
             // Set base color
-            button.style.backgroundColor = optionButton[2];          // Overrides CSS background color (including hover) // DEV temp: `${optionButton[2]}`
+            button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
 
             // Custom hover
             let customHoverColor = optionButton[2];
@@ -1034,7 +1031,6 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
             button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
             button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
-            // TODO: Make sure event listeners are orphaned completely for GC
         }
 
         // Attach action listener
@@ -1044,11 +1040,11 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         });
 
         // Append
-        buttonContainer.appendChild(button);
+        optionContainer.appendChild(button);
     });
 
     // Append
-    prompt.appendChild(buttonContainer);
+    prompt.appendChild(optionContainer);
 
     print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
@@ -1332,12 +1328,11 @@ function showElement(element, fadeTime = 0.4, displayStyle = "block") {
  * @returns {{x: number, y: number}} Object with x, y coordinates
  */
 function getElementCenter(element) {
-    // Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
-
     const rect = element.getBoundingClientRect();
     const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
     const y = rect.top + window.scrollY + rect.height / 2;
 
+    // DEV: Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
     return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
 }
 
