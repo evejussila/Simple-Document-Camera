@@ -860,30 +860,18 @@ async function showContentBox(file, modal = false, clickOut = true) {
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
     const modalOverlay = document.createElement("div");      // Create container element
-    modalOverlay.classList.add("modalOverlay");                      // Add CSS class for styling
     const overlayFadeTime = 0.3;                                     // Fade time for animations
 
     if (modal) {                                                     // Create modal overlay if requested
-        Object.assign(modalOverlay.style, {                   // Assigns CSS key-value pairs to element
-            position: "fixed",
-            top: "0",
-            left: "0",
-            width: "100vw",                             // Match viewport width (fill)
-            height: "100vh",                            // Match viewport height (fill)
-            background: "rgba(255,255,255,0.4)",        // Transparent, white
-            zIndex: "1000",
-            pointerEvents: "all",                       // Will not let clicks "through"
-
-            opacity: 0
-        });
-        document.body.appendChild(modalOverlay);
+        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
+        document.body.appendChild(modalOverlay);                     // Append
         showElement(modalOverlay, overlayFadeTime, "");
         if (clickOut) {
             modalOverlay.addEventListener('click', removeModalPrompt);
         }
     }
 
-    const customPromptStyle = {
+    const customPromptStyle = {                         // Style overrides for prompt
         position: "fixed",
         top: "50%",                                     // Centering
         left: "50%",                                    // Centering
@@ -895,15 +883,15 @@ async function showContentBox(file, modal = false, clickOut = true) {
         zIndex: "1050",
     };
 
-    const prompt = customPrompt(title, contentToShow, [  // Display prompt
-        ["Close", () => {
-            removeModalPrompt()
-        }]  // Only close button
-    ], "50%", "500px", customPromptStyle);                                                        // Apply custom definitions
+    const prompt = customPrompt(title, contentToShow, [
+        ["Close", () => { removeModalPrompt() }]
+    ], "50%", "500px", customPromptStyle);        // Apply custom definitions
+
+    // Nested functions for options
 
     function removeModalPrompt() {
         hideElement(modalOverlay, overlayFadeTime / 2, true);
-        prompt.remove();                                                                                        // Remove prompt when not dismissed
+        prompt.remove();                                        // Remove prompt when not dismissed
     }
 
 }
@@ -949,13 +937,13 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // ], "70%", "100px");
 
     // Create prompt container
-    const prompt = document.createElement('div');                // Create element
-    prompt.id = String(Date.now());                                      // Assign a (pseudo) unique id
+    const prompt = document.createElement('div');                 // Create element
+    prompt.id = String(Date.now());                                       // Assign a (pseudo) unique id
 
     // CSS block for prompt container
     {
         // Styling
-        prompt.className = 'prompt';                                     // Set basic CSS class
+        prompt.className = 'prompt';                                      // Set basic CSS class
 
         // Positioning
         prompt.style.position = 'fixed';                                  // Mobility
@@ -974,7 +962,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Potential CSS overrides
     if (containerCSSOverrides != null) {
         print("customPrompt(): Applying CSS overrides to prompt");
-        Object.assign(prompt.style, containerCSSOverrides);               // Assigns CSS key-value pairs to element from argument for custom styles
+        Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
     }
 
     // Logo
