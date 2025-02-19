@@ -30,12 +30,12 @@
                 <img class="icon" src="./images/downloadImage.png" alt="Download Image">
             </button>
 
-            <!-- Add overlay button -->
+            <!-- Overlay button -->
             <button id="buttonOverlay" title="Add Overlay">
                 <img id="iconOverlay" class="icon" src="./images/overlay.png" alt="Overlay">
             </button>
 
-            <!-- Add text button -->
+            <!-- Text button -->
             <button id="buttonAddText" title="Add Text">
                 <img id="iconText" class="icon" src="./images/text.png" alt="Add Text">
             </button>
@@ -47,15 +47,17 @@
             </div>
         </div>
 
-        <!-- Full screen button -->
-        <button id="buttonFullScreen" title="Full Screen">
-            <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
-        </button>
-
-        <!-- Button for hiding control bar and island -->
-        <button id="buttonCollapse" title="Hide Controls">
-            <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
-        </button>
+        <!-- Always visible buttons -->
+        <div id="avButtons">
+        </div>
+            <!-- Full screen button -->
+            <button id="buttonFullScreen" title="Full Screen">
+             <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+            </button>
+            <!-- Button for hiding control bar and island -->
+            <button id="buttonCollapse" title="Hide Controls">
+                <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
+            </button>
 
         <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
         <canvas id="canvasMain"></canvas>
@@ -69,6 +71,12 @@
                 <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
                 <button id="zoomInButton" class="buttonSmall">+</button>
                 <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
+            </div>
+            <!-- Container for programmatic menus -->
+            <div id="menuContainer">
+            </div>
+            <!-- Spacer under always visible buttons -->
+            <div id="controlBarSpacer">
             </div>
         </div>
     </div>

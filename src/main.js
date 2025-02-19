@@ -56,6 +56,9 @@ function start() {
     // Start video feed
     videoStart().then(() => {   } );                                                         // Start video
 
+    // Create menus
+    createMenus();
+
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
@@ -358,6 +361,11 @@ function handleLocalStorage() {
  */
 function handleSettingStorage() {
     // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage)
+}
+
+function createMenus() {
+    // Get elements
+
 }
 
 
