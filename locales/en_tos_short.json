@@ -1,10 +1,7 @@
 {
-  "Ttest1": "1",
   "title": "Terms of Service",
   "text": "This service is provided as is. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true, true)\">Terms of Service</a><br><br>",
-  "Ttest2": "2",
   "agreeToAll": "Agree to all",
   "agreeToTos": "Agree to terms of service",
-  "rejectTos": "Reject terms",
-  "Ttest3": "3"
+  "rejectTos": "Reject terms"
 }

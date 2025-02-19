@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-18-alpha");
+const version = ("2025-02-19-alpha");
 console.log("Version: " + version);
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
@@ -60,7 +60,7 @@ function start() {
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
     // Keep control island visible
-    setInterval( () => {moveElementToView(island) }, 5000);
+    setInterval( () => { moveElementToView(island) }, 5000);
 }
 
 /**
@@ -167,37 +167,12 @@ async function handlePrivacy() {
             text.textExists = true;
             text.content = content;
             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
-            console.warn("handlePrivacy(): DEBUG Object JSON keys: " + Object.keys(content));
-            console.warn("handlePrivacy(): DEBUG Object: " + JSON.stringify(content));
         } else {
             console.warn("handlePrivacy(): Did not find text: " + text.file);
         }
     }
 
-    // Console test
-    // (async () => {
-    //     for (const text of texts) {
-    //         const content = await _fetchJSON(text.file);
-    //         if (content) {
-    //             text.textExists = true;
-    //             text.content = content;
-    //             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
-    //             print("handlePrivacy(): Object JSON keys: " + Object.keys(content));
-    //         } else {
-    //             console.warn("handlePrivacy(): Did not find text: " + text.file);
-    //         }
-    //     }
-    // })();
 
-    {   // DEBUG
-        console.warn("DEBUG: " + texts[1].content.agreeToAll);
-        console.warn("DEBUG: " + texts[1].content.agreeToTos);
-        console.warn("DEBUG: " + texts[1].content.rejectTos);
-
-        console.warn("DEBUG: " + texts[0].content.agreeStorage);
-        console.warn("DEBUG: " + texts[0].content.notNow);
-        console.warn("DEBUG: " + texts[0].content.rejectStorage);
-    }
 
     print("handlePrivacy(): Privacy files: privacy text exists  = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
@@ -219,7 +194,6 @@ async function handlePrivacy() {
         let responseJSON;
         try {
             response = await fetch(path);               // Fetch file
-            console.warn("DEBUG JSON text content: " + await response.clone().text());
             responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
         } catch (e) {
             console.error("fetchJSON: Failed to fetch: " + e);
