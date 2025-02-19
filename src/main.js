@@ -60,7 +60,7 @@ function start() {
     setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
 
     // Keep control island visible
-    setInterval( () => { moveElementToView(island) }, 5000);
+    setInterval( () => { moveElementToView(island) }, 5000);                   // Periodically ensures control island is visible
 }
 
 /**
@@ -174,7 +174,7 @@ async function handlePrivacy() {
 
 
 
-    print("handlePrivacy(): Privacy files: privacy text exists  = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
+    print("handlePrivacy(): Privacy files: privacy text exists = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
 
@@ -1104,35 +1104,37 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 }
 
 /**
- * Moves the control island to view if it is outside the viewport
+ * Moves an element to view if it is outside the viewport
  *
  */
 async function moveElementToView(element) {
-    const {x: islandX, y: islandY} = getElementCenter(element);
-    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();
+    const {x: islandX, y: islandY} = getElementCenter(element);                                             // Get center of element
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();      // Get viewport edges
 
-    if (islandX < leftEdge || islandX > rightEdge || islandY > bottomEdge || islandY < topEdge) { // TODO: Replace dirty solution
-        console.warn("moveElementToView(): Island outside viewport, x = " + islandX + " y = " + islandY + ", moving to view");
+    if (islandX < leftEdge || islandX > rightEdge || islandY > bottomEdge || islandY < topEdge) {           // Check if element is outside viewport (crude)
+        console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + islandX + " y = " + islandY + ", moving to view");
         element.classList.toggle("animate_move");
 
+        // TODO: Add value for clearance from edges
+
         if (islandX < leftEdge) {
-            // "Island is to the left of viewport"
+            // Element is to the left of viewport
             element.style.left = "0";
         }
         if (islandX > rightEdge) {
-            // "Island is to the right of viewport"
-            element.style.left = "50vw"; // 100vw will probably work if translated to align center
+            // Element is to the right of viewport
+            element.style.left = "100vw";
         }
         if (islandY > bottomEdge) {
-            // Island is below viewport edge
-            element.style.top = "50vh"; // 100vh will probably work if translated to align center
+            // Element is below viewport edge
+            element.style.top = `${80}vh`;                     // TODO: Ideally would calculate a position on the top edge of bottom bar
         }
         if (islandY < topEdge) {
-            // Island is above viewport edge
+            // Element is above viewport edge
             element.style.top = "0";
         }
 
-        setTimeout(() => {
+        setTimeout(() => {                              // Animate movement
             element.classList.toggle('animate_move');
         }, 1000);
 
@@ -1141,6 +1143,7 @@ async function moveElementToView(element) {
     return false;
 
 }
+
 
 // Functionality functions
 
@@ -2147,7 +2150,6 @@ function developerMenu() {
     //  [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
-        [   "Move island to view"              , () => { moveElementToView();                                            }],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
         // Template:
     //  [   "Text for button"                  , () => { function_or_code_block();                                      }],

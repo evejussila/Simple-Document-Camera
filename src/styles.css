@@ -234,6 +234,9 @@ button:not(:hover) {
 
 #island_controlBar {
     position: absolute;
+    left: 75px;
+    top: 177px;
+    transform: translateX(-50%) translateY(-50%);
     cursor: move;
     z-index: 897;  /* TODO: Use variable, usually on top of UI */
     display: flex;
