@@ -379,6 +379,10 @@ button:not(:hover) {
     overflow: scroll;
 }
 
+.modalOverlay {
+
+}
+
 .prompt {
     transform: translateX(-50%);
     background-color: var(--bg-color-lightest);

@@ -125,56 +125,61 @@ function addCoreListeners() {
 async function handlePrivacy() {
 
     // Fast exit: Check browser local storage for permissive privacy setting
-    const privacyKey = localStorage.getItem('privacy');
+    const privacyKey = localStorage.getItem('privacy');                     // Get expected privacy key value from local storage
     switch (privacyKey) {
         case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
             handleLocalStorage();
-            return true;
+            return true;                                                         // Fast exit
         default:
             print("handlePrivacy(): No fast exit (local storage)");
     }
 
     // Fast exit: Check URL privacy parameter for permissive privacy setting
-    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");
+    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");  // Get expected privacy parameter value from URL
     print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
     switch (privacyParameter) {
-        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+        case "agreeAll":                                                                  // User agrees to ToS and local storage -> No prompt, create local storage
             handleLocalStorage();
             return true;
-        case "agreeTosExclusive":                                                // User agrees to ToS, has forbidden local storage -> No prompt, no action
-            return true;
+        case "agreeTosExclusive":                                                         // User agrees to ToS, has forbidden local storage -> No prompt, no action
+            return true;                                                                  // Fast exit
         default:
             print("handlePrivacy(): No fast exit (URL parameter)");
     }
 
     // Load short texts if they exist
-    let texts = [
-        {                                               // texts[0] is for privacy
+    let texts = [                                       // Define texts and property storage
+        {                                               // texts[0] is for privacy notice
             file: currentLocale + "_privacy_short",
             content: null,
             textExists: false,
         },
-        {                                               // texts[1] is for terms of service
+        {                                               // texts[1] is for terms of service notice
             file: currentLocale + "_tos_short",
             content: null,
             textExists: false,
         }
     ];
 
-    for (const text of texts) {
-        const content = await _fetchJSON(text.file);
-        if (content) {
-            text.textExists = true;
-            text.content = content;
+    for (const text of texts) {                         // Iterate through texts
+        const content = await _fetchJSON(text.file);    // Get JSON
+        if (content) {                                  // If JSON accessible
+            text.textExists = true;                     // Set boolean for conditional logics
+            text.content = content;                     // Store content (DEV: Alternative is to ingest and declare the same properties, avoiding issues with JSUnresolvedReference)
             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
         } else {
             console.warn("handlePrivacy(): Did not find text: " + text.file);
         }
     }
-
-
-
     print("handlePrivacy(): Privacy files: privacy text exists = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
+
+    // Fast exit: Check if no texts exist
+    if (!texts[0].textExists && !texts[1].textExists) {  // No texts exist -> assume local storage can be used
+        handleLocalStorage();                            // Create local storage
+        return true;
+    } else {
+        print("handlePrivacy(): No fast exit (texts exist)");
+    }
 
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
 
@@ -220,55 +225,43 @@ async function handlePrivacy() {
 
     // Table of actions
     // Table:
-    // Privacy text    Tos text        agreeTosInclusive        null                  agreeAll
-    // ---------------------------------------------------------------------------------------------------
+    // Privacy text    Tos text        agreeTosInclusive        null                  (agreeAll)            (malformed)
+    // ------------------------------------------------------------------------------------------------------------------------
     // true            -               privacyPrompt                                  handleLocalStorage
     // false           -               handleLocalStorage                             handleLocalStorage
-    // true            true                                     fullPrompt            handleLocalStorage
-    // false           true                                     tosPrompt             handleLocalStorage
-    // true            false                                    privacyPrompt         handleLocalStorage
-    // false           false                                    handleLocalStorage    handleLocalStorage
+    // true            true                                     fullPrompt            handleLocalStorage    fullPrompt
+    // false           true                                     tosPrompt             handleLocalStorage    tosPrompt
+    // true            false                                    privacyPrompt         handleLocalStorage    privacyPrompt
+    // false           false                                    handleLocalStorage    handleLocalStorage    handleLocalStorage
 
     // TODO: Minimize table, compact logic
 
-    // TODO: Add no texts exist option here as fast exit
-
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            if (texts[0].textExists) {                                             // Privacy text exists -> Privacy prompt only
+            if (texts[0].textExists) {                                           // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
-
                 privacyPrompt();                                                 // Privacy prompt
-            } else {                                                             // Privacy text does not exist -> No prompt, create local storage
+            } else {                                                             // Privacy text does not exist
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
                 handleLocalStorage();                                            // Create local storage (assume local storage can be used if privacy notice text is not provided)
             }
-
             break;
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
-
-            if (texts[1].textExists) {                                                 // ToS text exists
+            if (texts[1].textExists) {                                           // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
-
-                if (texts[0].textExists) {                                         // Privacy text exists
+                if (texts[0].textExists) {                                       // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
-
                     fullPrompt();                                                // Full prompt
                 } else {                                                         // Privacy text does not exist
                     print("handlePrivacy(): ... privacy text does not exist");
-
                     tosPrompt();                                                 // ToS prompt
                 }
             } else {                                                             // ToS text does not exist
-                if (texts[0].textExists) {                                         // Privacy text does exist
+                print("handlePrivacy(): ... ToS text does not exist");
+                if (texts[0].textExists) {                                       // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
-
-                    privacyPrompt();                                              // Privacy prompt
-                } else {                                                          // No texts exist
-                    print("handlePrivacy(): ... privacy text does not exist");
-
-                    handleLocalStorage();                                         // Create local storage (assume local storage can be used if notice text is not provided)
+                    privacyPrompt();                                             // Privacy prompt
                 }
             }
 
@@ -277,7 +270,7 @@ async function handlePrivacy() {
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
             if (texts[0].textExists && texts[1].textExists) {
                 fullPrompt();                                                    // Full prompt
-            } // TODO: Not handling case where param is malformed but only one text exists
+            } // TODO: Not handling case where param is malformed but only one text exists. This section behaves exactly the same as null, should combine.
     }
 
     // Nested functions for prompts
@@ -325,7 +318,7 @@ async function handlePrivacy() {
 
     function haltService() {
         console.error("handlePrivacy(): Terms rejected, call to halt service");
-        // TODO: Trigger video freeze event
+        // TODO: Trigger video freeze event or other halt
     }
 
     return true; // TODO: For return value to have an effect, function would need to await prompt responses
@@ -347,7 +340,6 @@ function updateUrlParam(paramName, paramValue) {
  * Performs related actions to apply settings.
  */
 function handleLocalStorage() {
-
     console.log("handleLocalStorage(): Using browser local storage");
 
     // Write privacy switch to local storage
@@ -356,9 +348,16 @@ function handleLocalStorage() {
     // Update URL parameter
     updateUrlParam("privacy", "agreeAll");
 
-    // Load expected local storage keys
-    // TODO: Setting loads and saves (saves should only be possible if user has agreed, likely needs separate function)
+    // Handle settings
+    handleSettingStorage();
+}
 
+/**
+ * Writes or reads persistent settings.
+ *
+ */
+function handleSettingStorage() {
+    // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage)
 }
 
 
@@ -372,7 +371,7 @@ function handleLocalStorage() {
  */
 async function videoStart() {
 
-    // TODO: Load text from translation files
+    // TODO: Load text and buttons from translation files
 
     // Error prompt default content
     let genericPromptTitle = "No valid cameras could be accessed";
@@ -822,14 +821,13 @@ async function showContentBox(file, modal = false, clickOut = true) {
     let title;
     let contentToShow;
 
-    try {                                                                       // Check if short privacy notice text xx_privacy_short exists
+    try {
         const text = await _fetchJSON(file);
         title = text.title;
         contentToShow = text.text;
         print("showContentBox(): Found text: " + file + " with title: " + text.title);
     } catch (e) {
         console.warn("showContentBox(): Did not find text: " + file + " : " + e);
-        // Likely error: SyntaxError: JSON.parse: unexpected character at line 1 column 1 of the JSON data
     }
 
     // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
@@ -861,11 +859,12 @@ async function showContentBox(file, modal = false, clickOut = true) {
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
-    const modalOverlay = document.createElement("div");     // Create container element
+    const modalOverlay = document.createElement("div");      // Create container element
+    modalOverlay.classList.add("modalOverlay");                      // Add CSS class for styling
     const overlayFadeTime = 0.3;                                     // Fade time for animations
 
     if (modal) {                                                     // Create modal overlay if requested
-        Object.assign(modalOverlay.style, {                  // Assigns CSS key-value pairs to element
+        Object.assign(modalOverlay.style, {                   // Assigns CSS key-value pairs to element
             position: "fixed",
             top: "0",
             left: "0",
@@ -876,8 +875,6 @@ async function showContentBox(file, modal = false, clickOut = true) {
             pointerEvents: "all",                       // Will not let clicks "through"
 
             opacity: 0
-
-
         });
         document.body.appendChild(modalOverlay);
         showElement(modalOverlay, overlayFadeTime, "");
