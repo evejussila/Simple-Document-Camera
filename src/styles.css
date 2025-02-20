@@ -201,13 +201,15 @@ button:not(:hover) {
 
 /* Core UI */
 
-#avButtons, #controlBarEndSpacer { /* Container for always visible buttons, matching spacer for bottom bar */
+#avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
     display: flex;
-    flex-direction: row;
+    flex-direction: row-reverse;
     margin: 0 5px 0 5px;
-    right: 0;
+    height: 50px;
+    right: 5px;
     bottom: 0;
-    width: 100px;
+    width: 100px; /* Width must apply to spacer in bottom bar */
+    gap: 0;
 
     align-items: center;
 }
@@ -218,7 +220,7 @@ button:not(:hover) {
 
 #buttonCollapse, #buttonFullScreen {
     aspect-ratio: 1/1;
-    margin: 5px;
+    margin: 4px;
     z-index: 899; /* TODO: Use variable, always on top of UI */
     visibility: visible;
 }
@@ -227,9 +229,13 @@ button:not(:hover) {
     display: inline-flex;
     position: absolute;
     height: 50px;
-    width: 100%;
+    max-width: 100%;
     z-index: 898;  /* TODO: Use variable, almost always on top of UI */
     bottom: 0;
+    left: 7px;
+    right: 7px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 
     align-items: center;
 
