@@ -201,30 +201,26 @@ button:not(:hover) {
 
 /* Core UI */
 
-#avButtons, #controlBarSpacer { /* Container for always visible buttons, matching spacer for bottom bar */
+#avButtons, #controlBarEndSpacer { /* Container for always visible buttons, matching spacer for bottom bar */
     display: flex;
     flex-direction: row;
-    position: fixed;
-    margin: 5px;
+    margin: 0 5px 0 5px;
     right: 0;
-    width: max-content;
+    bottom: 0;
+    width: 100px;
+
+    align-items: center;
 }
 
-#buttonCollapse,
-#buttonFullScreen {
-    aspect-ratio: 1/1;
+#avButtons {
     position: absolute;
+}
+
+#buttonCollapse, #buttonFullScreen {
+    aspect-ratio: 1/1;
     margin: 5px;
     z-index: 899; /* TODO: Use variable, always on top of UI */
-    bottom: 0;
-}
-
-#buttonCollapse {
-    right: 56px;        /* TODO: Create container with single easy position for both buttons */
-}
-
-#buttonFullScreen {
-    right: 6px;        /* TODO: Create container with single easy position for both buttons */
+    visibility: visible;
 }
 
 #controlBar {
@@ -276,13 +272,6 @@ button:not(:hover) {
 }
 
 
-/* Special behavior */
-
-#island_controlBar.animate_move {
-    transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
-}
-
-
 /* Core elements */
 
 #cameraFeed {
@@ -313,8 +302,29 @@ button:not(:hover) {
     z-index: var(--zindex-visual-core);
 }
 
-#menuContainer {
+#menuContainerLeft, #menuContainerRight {
+    display: flex;
+    margin: 0 5px 0 5px;
+    align-items: center;
+    visibility: visible;
 
+}
+
+#menuContainerLeft {
+    justify-content: flex-start;
+}
+
+#menuContainerRight {
+    justify-content: flex-end;
+}
+
+
+/* Layout elements */
+
+#controlBarMidSpacer {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
 }
 
 
@@ -441,3 +451,9 @@ button:not(:hover) {
     gap: 0;
 }
 
+
+/* Special behavior */
+
+#island_controlBar.animate_move {
+    transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
+}

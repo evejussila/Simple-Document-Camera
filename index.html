@@ -49,15 +49,15 @@
 
         <!-- Always visible buttons -->
         <div id="avButtons">
-        </div>
-            <!-- Full screen button -->
-            <button id="buttonFullScreen" title="Full Screen">
-             <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
-            </button>
-            <!-- Button for hiding control bar and island -->
+            <!-- Button for hiding bottom bar -->
             <button id="buttonCollapse" title="Hide Controls">
                 <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
             </button>
+            <!-- Full screen button -->
+            <button id="buttonFullScreen" title="Full Screen">
+                <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+            </button>
+        </div>
 
         <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
         <canvas id="canvasMain"></canvas>
@@ -73,10 +73,22 @@
                 <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
             </div>
             <!-- Container for programmatic menus -->
-            <div id="menuContainer">
+            <div id="menuContainerLeft">
+                <!-- Test button -->
+                <button id="buttonTest" title="Test">
+                    <img id="iconTest" class="icon" src="./images/draw.png" alt="Hide Controls">
+                </button>
+            </div>
+            <div id="controlBarMidSpacer">
+            </div>
+            <div id="menuContainerRight">
+                <!-- Settings button -->
+                <button id="buttonSettings" title="Settings">
+                    <img id="iconSettings" class="icon" src="./images/draw.png" alt="Settings">
+                </button>
             </div>
             <!-- Spacer under always visible buttons -->
-            <div id="controlBarSpacer">
+            <div id="controlBarEndSpacer">
             </div>
         </div>
     </div>
