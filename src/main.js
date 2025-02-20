@@ -365,61 +365,65 @@ function handleSettingStorage() {
 
 function createMenus() {
 
-    // Get elements
+    // Get container elements
     const menuContainerLeft           = document.getElementById('menuContainerLeft');
     const menuContainerRight          = document.getElementById('menuContainerRight');
 
     // Create buttons (left)
-    const buttonTest = createButton("draw.png", "buttonTest", "iconTest", "Test button");
-    menuContainerLeft.appendChild(buttonTest);
+    const buttonTest = createButton("draw.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
 
     // Create buttons (right)
-    const buttonSettings = createButton("draw.png", "buttonSettings", "iconSettings", "Settings");
-    menuContainerRight.appendChild(buttonSettings);
+    const buttonSettings = createButton("draw.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
 
     // Create menus
-
     const menuDefinitions = [
-        [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate                           , null           ],
-        [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip                             , null           ],
-        [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage                             , null           ],
-        [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay                            , null           ],
-        [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText                               , null           ]
-        // [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , createdElements.createOverlay      , null           ], // TODO: Diagnose error from these
-        // [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , createdElements.createTextArea     , null           ]
-    ];
+        {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,        customHTML: ""},
+        {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,          customHTML: ""},
+        {id: "buttonCollapseTest" ,  text: "Save img",  img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png",      customHTML: ""}, // TODO: Unfinished
+        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
+        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
+        {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,            customHTML: ""}
+    ]
 
     const buttonTestMenu = createdElements.createMenu(menuDefinitions, buttonTest, "above");
-    buttonTest.addEventListener('click', () => buttonTestMenu.toggleVisibility() );
 
     const buttonSettingsMenu = createdElements.createMenu(menuDefinitions, buttonSettings, "above");
-    buttonSettings.addEventListener('click', () => buttonSettingsMenu.toggleVisibility() );
 
 
     // Nested functions
 
     /**
-     * Creates and returns a button.
+     * Creates, returns and appends a button.
      *
      * @param img Image for icon
      * @param buttonId Id for button element
      * @param iconId Id for icon element (useful for icon dynamics)
      * @param text Text for title and alt text
+     * @param appendTo Element to append button to
      * @returns {HTMLButtonElement} HTML element for button
      */
-    function createButton(img, buttonId, iconId, text) {
+    function createButton(img, buttonId, iconId, text, appendTo) {
         const button = document.createElement("button");
+        hideElement(button);
 
         button.id = buttonId;
         button.title = text;
 
+        // Add icon
         const icon = document.createElement("img");
         icon.src = "./images/" + img;
         icon.id = iconId;
         icon.alt = text;
         icon.classList.add("icon");
-
         button.appendChild(icon);
+
+        if (appendTo) {            // Check for truthy parameter value
+            appendTo.appendChild(button);
+        }
+
+        icon.onload = () => {    // TODO: Button should eventually be visible even if load fails
+            showElement(button);
+        };
         return button;
     }
 
@@ -641,7 +645,7 @@ function updateInputList(inputs) {
     // Select a camera in dropdown
     if (inputs.some(input => input[0] === originalSelection)) {                                     // TODO: Should check selector, not array, if readily possible
         selector.value = originalSelection;                                                         // Select original value
-        print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
+        // print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
     } else {                                                                                        // Original value invalid or not available
         selector.selectedIndex = 0;                                                                 // Select first option
         console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
@@ -1961,17 +1965,20 @@ class Menu extends MovableElement {
     // Generic
     menuDefinitions;                    // Contains definitions for the menu contents in an array
     // Example
-    // [
-    // [ "id"             , "title"         , "imgSrc"                       , buttonActions     , toggleHandler         ]
-    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , videoRotate();    , null                  ]
-    // ];
+    // const menuDefinitions = [
+    //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  iconToggle: "",      customHTML: ""},
+    //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    iconToggle: "",      customHTML: ""},
+    //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    iconToggle: "",      customHTML: ""},
+    //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   iconToggle: "",      customHTML: ""},
+    //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      iconToggle: "",      customHTML: ""}
+    // ]
 
     // Caller relations
-    callerElement;                          // Element the menu is called from, eg. a button
+    callerElement;                      // Element the menu is called from, eg. a button
 
     // Positioning
-    positionRelation;                       // Position type of menu in relation to caller element
-    position;                               // Last set position for the menu
+    positionRelation;                   // Position type of menu in relation to caller element
+    position;                           // Last set position for the menu
 
 
     // Initialization
@@ -1983,11 +1990,11 @@ class Menu extends MovableElement {
     constructor(menuDefinitions, callerElement, positionRelation = "above") {
         super('menu');
 
-        this.visible = false;
-
         this.menuDefinitions = menuDefinitions;
         this.callerElement = callerElement;
         this.positionRelation = positionRelation;
+
+        this.visible = false;
         // this.updatePosition();   // TODO: Should run periodically or tactically
 
         this.create();
@@ -1997,11 +2004,12 @@ class Menu extends MovableElement {
 
 
     create() {
-        print("Menu: Testing menu construction");
 
         // Create core div element
         this.element = document.createElement('div');
-        this.element.id = this.id = String(Date.now());                                      // Assign a (pseudo) unique id
+        this.element.id = this.id = String(Date.now());         // Assign a (pseudo) unique id
+
+        print("Menu: create(): Creating menu" + this.id);
 
         // Styling
         this.element.classList.add("createdMenu");
@@ -2011,32 +2019,36 @@ class Menu extends MovableElement {
         this.updatePosition();
         console.warn(JSON.stringify(this.position));
 
-        // Parse definition array, create buttons
-        this.menuDefinitions.forEach( ([id, text, img, action, toggleHandler]) => {
-            const button = createButton(id, text, img);
-            button.addEventListener('click', action);
+        // Create controls
+        this.menuDefinitions.forEach( (control) => {           // Parse definitions
+            if (!control.customHTML) {                         // Check for falsy parameter value
+                const button = createButton(control.id, control.text, control.img);
+            button.addEventListener('click', control.action);
             this.element.appendChild(button);
+            } else {
+                // TODO: Process custom HTML
+                this.element.appendChild(control.customHTML);
+            }
         });
 
         // Append
         document.getElementById('videoContainer').appendChild(this.element);
 
-        // Nested functions
+        // Attach click listener
+        this.callerElement.addEventListener('click', () => this.toggleVisibility() );
 
+        // Nested functions
         function createButton(id, text, img) {
             // Create element
             const button = document.createElement("button");
             button.id = id;
+            button.title = text;
 
             // Add icon
             const icon = document.createElement("img");
-            // icon.src = "./images/" + png;
-            icon.src = img;
-            icon.alt = "Alt";
-            icon.className = "icon";
+            icon.src = "./images/" + img;
+            icon.alt = text;
             icon.classList.add("icon");
-            // Dark theme application with dev function currently only works with button.id = "exampleButton";
-            icon.style.filter = 'invert(1) grayscale(100%)'; // will mess hover if dev dark mode function used
             button.appendChild(icon);
 
             return button;
