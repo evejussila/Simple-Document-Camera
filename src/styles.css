@@ -96,6 +96,11 @@ body {
     color: var(--text-color);
 }
 
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
 
 /* Buttons, options, icons */
 
@@ -335,6 +340,10 @@ button:not(:hover) {
 
 
 /* Programmatically created elements */
+
+.createdMenu {
+
+}
 
 .createdOverlay {
     width: 105%;

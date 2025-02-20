@@ -378,11 +378,22 @@ function createMenus() {
     menuContainerRight.appendChild(buttonSettings);
 
     // Create menus
-    const buttonTestMenu = createdElements.createMenu();
-    buttonTest.addEventListener('click', buttonTestMenu.toggleVisibility() );
 
-    const buttonSettingsMenu = createdElements.createMenu();
-    buttonSettings.addEventListener('click', buttonSettingsMenu.toggleVisibility() );
+    const menuDefinitions = [
+        [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate                           , null           ],
+        [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip                             , null           ],
+        [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage                             , null           ],
+        [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay                            , null           ],
+        [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText                               , null           ]
+        // [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , createdElements.createOverlay      , null           ], // TODO: Diagnose error from these
+        // [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , createdElements.createTextArea     , null           ]
+    ];
+
+    const buttonTestMenu = createdElements.createMenu(menuDefinitions, buttonTest, "above");
+    buttonTest.addEventListener('click', () => buttonTestMenu.toggleVisibility() );
+
+    const buttonSettingsMenu = createdElements.createMenu(menuDefinitions, buttonSettings, "above");
+    buttonSettings.addEventListener('click', () => buttonSettingsMenu.toggleVisibility() );
 
 
     // Nested functions
@@ -1481,10 +1492,10 @@ class CreatedElements {
     /**
      * Creates a menu and registers it to management.
      */
-    createMenu() {
-        const classReference = new Menu();
+    createMenu(menuDefinitions, callerElement, positionRelation) {
+        const classReference = new Menu(menuDefinitions, callerElement, positionRelation);
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
-        print("createMenu(): Created and registered " + classReference.getType() + ": " + classReference.getElementId());
+        print("createMenu(): Created and registered " + classReference.getType() + " : " + classReference.getElementId());
         return classReference;
     }
 
@@ -1944,12 +1955,19 @@ class TextArea extends MovableElement {
 class Menu extends MovableElement {
 
     // Generic
-    menuDefinition = [];                    // Contains definitions for the menu contents in an array
+    menuDefinitions;                    // Contains definitions for the menu contents in an array
     // Example
     // [
     // [ "id"             , "title"         , "imgSrc"                       , buttonActions     , toggleHandler         ]
     // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , videoRotate();    , null                  ]
     // ];
+
+    // Caller relations
+    callerElement;                          // Element the menu is called from, eg. a button
+
+    // Positioning
+    positionRelation;                       // Position type of menu in relation to caller element
+    position;                               // Currently intended position for the menu
 
 
     // Initialization
@@ -1958,12 +1976,17 @@ class Menu extends MovableElement {
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor() {
+    constructor(menuDefinitions, callerElement, positionRelation = "above") {
         super('menu');
 
         this.visible = false;
 
-        this.element = this.create();
+        this.menuDefinitions = menuDefinitions;
+        this.callerElement = callerElement;
+        this.positionRelation = positionRelation;
+        // this.updatePosition();   // TODO: Should run periodically or tactically
+
+        // this.element = this.create();
         this.testing();
     }
 
@@ -1975,68 +1998,47 @@ class Menu extends MovableElement {
     testing() {
         print("Testing menu construction (illustration)");
 
-        // Definition
-        this.menuDefinition = [
-            [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate                           , null           ],
-            [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip                             , null           ],
-            [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage                             , null           ],
-            [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay                            , null           ],
-            [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText                               , null           ]
-            // [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , createdElements.createOverlay      , null           ], // TODO: Diagnose error from these
-            // [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , createdElements.createTextArea     , null           ]
-        ];
+        this.updatePosition();
+        console.warn(JSON.stringify(this.position));
 
         // Create core div element
         this.element = document.createElement('div');
-        this.element.id = String(Date.now());                                      // Assign a (pseudo) unique id
+        this.element.id = this.id = String(Date.now());                                      // Assign a (pseudo) unique id
+        this.element.classList.add("createdMenu");
+        this.element.classList.toggle('hidden');
 
         // Basic styling and positioning
+        this.element.style.visibility = "none";
         const menuStyle = {
-            position: 'fixed',
-            left: '85%',                                                           // TODO: Positioning must be programmatic or relative, should be above pressed button
-            transform: 'translateX(-50%)',                                         // What was the logic?, also 'translate(-50%, -50%)'?
+            position: 'absolute',
+            transform: 'translateX(-50%)',
             width: '60px',
             background: '#454545',
             borderRadius: '5px',
             padding: '5px',
             zIndex: '700'
         }
+
+
         Object.assign(this.element.style, menuStyle);
-        this.element.style.bottom = '60px';                                                  // Initial position before animation, while in static/attached mode
-        this.element.style.display = 'none';                                                 // Initial visibility
-        this.element.style.opacity = '0';                                                    // Initial opacity before animation
+        this.element.style.left = `${this.position.x+20}px`;
+        this.element.style.bottom = "60px";
+
+        let rect = this.callerElement.getBoundingClientRect();
+        let newPosition = { x: rect.left, y: rect.top };
+        console.error(JSON.stringify(newPosition));
+
+
+
         this.element.style.display = 'flex';
         this.element.style.flexDirection = 'column';
         this.element.style.alignItems = 'center';
-        // this.menuDiv.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';    // First animation style, obsolete
-        // this.menuDiv.style.backgroundColor = 'rgba(186,20,20,0.5)';                       // backgroundColor vs. background
-        // this.menuDiv.classList.add('island_controlBar');                                  // TODO: Create and apply generic shared style to CSS
-
-        const buttonStyle = {                                                                // Base styling for buttons (deed object when assigning CSS from variable (assigning to CSSStyleDeclaration))
-            width: "40px",
-            height: "40px",
-            backgroundColor: "rgba(128, 128, 128, 0.5)",
-            borderRadius: "5px",
-            // border: "2px solid darkgray",
-            // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
-            padding: "0",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            margin: "5px"
-        };
 
         // Button creation function (nested)
         function createButton(id, text, img) {
             // Create element
             const button = document.createElement("button");
             button.id = id;
-
-
-            // Apply base styling
-            Object.assign(button.style, buttonStyle);
-
-            // TODO: Add hover
 
             // Add icon
             const icon = document.createElement("img");
@@ -2053,7 +2055,7 @@ class Menu extends MovableElement {
         }
 
         // Parse definition array, create buttons
-        this.menuDefinition.forEach( ([id, text, img, action, toggleHandler]) => {
+        this.menuDefinitions.forEach( ([id, text, img, action, toggleHandler]) => {
             const button = createButton(id, text, img);
             button.addEventListener('click', action); // usual is problematic: listenerToElement(id, 'click', action);
             this.element.appendChild(button);
@@ -2107,6 +2109,8 @@ class Menu extends MovableElement {
      * Toggles visibility of menu.
      */
     toggleVisibility() {
+        print("Menu: toggleVisibility(): Toggling: " + this.id);
+        this.element.classList.toggle('hidden');
         if (this.visible) {
             hideElement(this.element, 0.2);
         } else {
@@ -2114,6 +2118,14 @@ class Menu extends MovableElement {
         }
         this.visible = !this.visible;
     }
+
+    updatePosition() {
+        let rect = this.callerElement.getBoundingClientRect();
+        let newPosition = { x: rect.left, y: rect.bottom };
+        this.position = newPosition;
+        return newPosition;
+    }
+
 
     /**
      * Detaches menu from static position, making it movable.
@@ -2162,7 +2174,7 @@ function debug() {
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
-    document.getElementById('controlBar').appendChild(developerButton); // May run before DOM loaded
+    document.getElementById('controlBarMidSpacer').appendChild(developerButton); // May run before DOM loaded
 
 }
 
