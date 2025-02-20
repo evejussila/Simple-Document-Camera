@@ -66,10 +66,10 @@
             <select id="selectorDevice" title="Select Camera"></select>
             <!-- Zoom Controls -->
             <div id="zoomControls">
-                <button id="zoomOutButton" class="buttonSmall">-</button>
+                <button id="buttonZoomOut" class="buttonSmall">-</button>
                 <label for ="zoomSlider"></label>
                 <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
-                <button id="zoomInButton" class="buttonSmall">+</button>
+                <button id="buttonZoomIn" class="buttonSmall">+</button>
                 <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
             </div>
             <!-- Container for programmatic menus -->
@@ -94,7 +94,7 @@
     </div>
 
     <!-- Load camera feed -->
-    <script src="src/main.js"></script> <!-- When script not within html, https:// or file:/// may be required to run scripts -->
+    <script src="src/main.js"></script>
 
 </body>
 </html>

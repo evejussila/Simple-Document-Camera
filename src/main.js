@@ -81,8 +81,8 @@ function addCoreListeners() {
     listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
     listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
-    listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
-    listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
+    listenerToElement('buttonZoomIn', 'click', () => adjustZoom(0.1));              // Zoom in button
+    listenerToElement('buttonZoomOut', 'click', () => adjustZoom(-0.1));            // Zoom out button
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -364,7 +364,31 @@ function handleSettingStorage() {
 }
 
 function createMenus() {
+
     // Get elements
+    const menuContainerRight          = document.getElementById('menuContainerRight');
+
+    // Create buttons
+    const buttonSettings = createButton("draw.png", "buttonSettings", "iconSettings", "Settings");
+
+    function createButton(img, buttonId, iconId, text) {
+        const button = document.createElement("button");
+
+        button.id = buttonId;
+        button.title = text;
+
+        const icon = document.createElement("img");
+        icon.src = "./images/" + img;
+        icon.id = iconId;
+        icon.alt = text;
+        icon.classList.add("icon");
+
+        button.appendChild(icon);
+        return button;
+    }
+
+    menuContainerRight.appendChild(buttonSettings);
+    return true;
 
 }
 
@@ -2135,7 +2159,6 @@ function developerMenu() {
         [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
         [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                   }],
         [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
-    //  [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
@@ -2587,182 +2610,4 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
     document.body.appendChild(label);
 
     return label;
-}
-
-/**
- * Applies another testing version of UI.
- * Dirty implementation!
- */
-function testUserInterfaceVersion() {
-
-    // Vision:
-    // Bottom control bar visibility toggle button always visible, full screen mode has button always visible.
-    // Main control island visibility is controlled from within bottom bar.
-    // Every menu has a button on bottom bar. Only main control island is visible by default.
-    // Menus have buttons that detach or reattach them to positions above their buttons on bottom control bar.
-
-    // Remove standalone label
-    // document.getElementById("textSizeLabel").style.display = "none";
-    document.getElementById("textSizeLabel").remove();
-
-    // Remove current collapse button
-    let label = document.getElementById("buttonCollapse");
-    label.style.display = "none";
-    label.style.width = '0px';
-
-    // Give fullscreen button a background
-    let buttonFullscreen = document.getElementById("buttonFullScreen");
-
-    let iconFullscreen = document.getElementById("iconFullScreen");
-
-    buttonFullscreen.style.position = "absolute";
-    buttonFullscreen.style.margin = "0";
-    buttonFullscreen.style.padding = "0";
-    buttonFullscreen.style.border = "none";
-    buttonFullscreen.style.zIndex = "101";
-    buttonFullscreen.style.bottom = "5px";
-    buttonFullscreen.style.right = "13px";
-    buttonFullscreen.style.width = "40px";
-    buttonFullscreen.style.height = "40px";
-    buttonFullscreen.style.backgroundSize = "40px 40px";
-    buttonFullscreen.style.backgroundPosition = "center";
-    buttonFullscreen.style.background = "rgba(128, 128, 128, 0.5)";
-    buttonFullscreen.style.borderRadius = "5px";
-
-    iconFullscreen.style.width = "30px";
-    iconFullscreen.style.height = "30px";
-    iconFullscreen.style.objectFit = "contain";
-
-    // Create bar visibility button element and icon
-    let buttonCollapseBar = document.createElement("button");
-    buttonCollapseBar.id = "buttonCollapseBar";
-    buttonCollapseBar.title = "Hide Control Bar";
-
-    let iconCollapseBar = document.createElement("img");
-    iconCollapseBar.id = "iconCollapseBar";
-    iconCollapseBar.classList.add("icon");
-    iconCollapseBar.src = "./images/hideControls.png";
-    iconCollapseBar.alt = "Hide Controls";
-    iconCollapseBar.style.transform = "rotate(-90deg)";
-
-    buttonCollapseBar.appendChild(iconCollapseBar);
-
-    buttonCollapseBar.style.position = "absolute";
-    buttonCollapseBar.style.margin = "0";
-    buttonCollapseBar.style.padding = "0";
-    buttonCollapseBar.style.border = "none";
-    buttonCollapseBar.style.zIndex = "101";
-    buttonCollapseBar.style.bottom = "5px";
-    buttonCollapseBar.style.right = "58px";                 // Manual position, 13px (border + margin) + 40 px (button size) + margin
-    buttonCollapseBar.style.width = "40px";
-    buttonCollapseBar.style.height = "40px";
-    buttonCollapseBar.style.backgroundSize = "40px 40px";
-    buttonCollapseBar.style.backgroundPosition = "center";
-    buttonCollapseBar.style.background = "rgba(128, 128, 128, 0.5)";
-    buttonCollapseBar.style.borderRadius = "5px";
-
-    iconCollapseBar.style.width = "30px";
-    iconCollapseBar.style.height = "30px";
-    iconCollapseBar.style.objectFit = "contain";
-
-    document.body.appendChild(buttonCollapseBar);
-
-    // Handle control bar collapse and expand
-    let controlBar = document.getElementById("controlBar");
-    let isCollapsed = false;
-
-    iconCollapseBar.style.transition = "transform 0.3s ease-in-out";  // Add transition for the icon flip
-
-    buttonCollapseBar.addEventListener("click", () => {
-        if (isCollapsed) {
-            controlBar.style.transition = "transform 0.4s ease-in-out, opacity 0.5s ease-in-out";
-
-            controlBar.style.transform = "translateX(0)";
-            controlBar.style.opacity = "1";
-            isCollapsed = false;
-
-            // Force reflow
-            controlBar.offsetHeight; // Accessing this forces a reflow
-
-        } else {
-            controlBar.style.transition = "transform 0.3s ease-in-out, opacity 0.2s ease-in-out";
-
-            controlBar.style.transform = "translateX(100%)";
-            controlBar.style.opacity = "0";
-            isCollapsed = true;
-
-            // Force reflow
-            controlBar.offsetHeight; // Accessing this forces a reflow
-        }
-        iconCollapseBar.style.transform += " scaleY(-1)";
-    });
-
-    // Create menu buttons as examples
-
-    const buttonStyle = {
-        width: "40px",
-        height: "40px",
-        backgroundColor: "rgba(128, 128, 128, 0.5)",
-        borderRadius: "5px",
-        // border: "2px solid darkgray",
-        border: "none",
-        // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
-        padding: "0",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        margin: "5px"
-    };
-
-    // Create menuButtons div
-    const menuButtons = document.createElement("div");
-    menuButtons.id = "menuButtons";
-    menuButtons.style.position = "absolute";
-    menuButtons.style.right = "180px";
-    menuButtons.style.display = "flex";
-    menuButtons.style.flexDirection = "row";
-    menuButtons.style.justifyContent = "center";
-    menuButtons.style.height = "100%";
-
-    // Create buttons
-    const createButton = (png = "draw.png") => {
-        const button = document.createElement("button");
-        Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
-
-        button.id = "exampleButton";
-
-        const icon = document.createElement("img");
-        icon.src = "./images/" + png;
-        icon.alt = "Draw";
-        // icon.className = "icon";
-        icon.classList.add("icon");
-
-        // icon.style.filter = 'invert(1) grayscale(100%)'; // messes hover if inline here
-
-        button.appendChild(icon);
-        return button;
-    };
-
-    // Create and append buttons
-
-    const testDrawMenu = createdElements.createMenu();
-    const testTextMenu = createdElements.createMenu();
-    const testVideoMenu = createdElements.createMenu();
-
-    let buttons = [
-      ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
-      ["text.png"       , () => { testTextMenu.toggleVisibility(); }],
-      ["showVideo.png"  , () => { testVideoMenu.toggleVisibility(); }]
-    ];
-
-    buttons.forEach( ([img, action]) => {
-        const button = createButton(img);
-        button.addEventListener('click', action);
-        menuButtons.appendChild(button);
-
-    });
-
-    // Append menuButtons to controlBar
-    controlBar.appendChild(menuButtons);
-
 }
