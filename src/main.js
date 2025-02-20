@@ -65,7 +65,7 @@ function start() {
     // Keep control island visible
     setInterval( () => { moveElementToView(island) }, 5000);                   // Periodically ensures control island is visible
 
-    // Control visible rendering
+    // Control visible initial rendering
     showElement(island);                                                                      // TODO: Should run when ToS agreed to
     showElement(controlBar);
     showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
@@ -375,11 +375,11 @@ function createMenus() {
     const menuContainerLeft           = document.getElementById('menuContainerLeft');
     const menuContainerRight          = document.getElementById('menuContainerRight');
 
-    // Create buttons (left)
-    const buttonTest = createButton("draw.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
+    // Create menu opener buttons (left)
+    const buttonTest = Menu.createButton("draw.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
 
-    // Create buttons (right)
-    const buttonSettings = createButton("draw.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
+    // Create menu opener buttons (right)
+    const buttonSettings = Menu.createButton("draw.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
 
     // Create menus
     const menuDefinitions = [
@@ -388,50 +388,21 @@ function createMenus() {
         {id: "buttonCollapseTest" ,  text: "Save img",  img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png",      customHTML: ""}, // TODO: Unfinished
         {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
         {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
+        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
+        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
+        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
+        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
+        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
+        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
+        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
+        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
         {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,            customHTML: ""}
     ]
 
-    const buttonTestMenu = createdElements.createMenu(menuDefinitions, buttonTest, "above");
+    createdElements.createMenu(menuDefinitions, buttonTest, "above");
+    createdElements.createMenu(menuDefinitions, buttonSettings, "above");
 
-    const buttonSettingsMenu = createdElements.createMenu(menuDefinitions, buttonSettings, "above");
 
-
-    // Nested functions
-
-    /**
-     * Creates, returns and appends a button.
-     *
-     * @param img Image for icon
-     * @param buttonId Id for button element
-     * @param iconId Id for icon element (useful for icon dynamics)
-     * @param text Text for title and alt text
-     * @param appendTo Element to append button to
-     * @returns {HTMLButtonElement} HTML element for button
-     */
-    function createButton(img, buttonId, iconId, text, appendTo) {
-        const button = document.createElement("button");
-        hideElement(button);
-
-        button.id = buttonId;
-        button.title = text;
-
-        // Add icon
-        const icon = document.createElement("img");
-        icon.src = "./images/" + img;
-        icon.id = iconId;
-        icon.alt = text;
-        icon.classList.add("icon");
-        button.appendChild(icon);
-
-        if (appendTo) {            // Check for truthy parameter value
-            appendTo.appendChild(button);
-        }
-
-        icon.onload = () => {    // TODO: Button should eventually be visible even if load fails
-            showElement(button);
-        };
-        return button;
-    }
 
 }
 
@@ -1983,8 +1954,8 @@ class Menu extends MovableElement {
     callerElement;                      // Element the menu is called from, eg. a button
 
     // Positioning
-    positionRelation;                   // Position type of menu in relation to caller element
-    position;                           // Last set position for the menu
+    positionRelation;                   // Position type of menu in relation to caller element TODO: Not used yet
+    position = {x: null, y: null};      // Last set position for the menu TODO: Currently redundant
 
 
     // Initialization
@@ -2000,14 +1971,11 @@ class Menu extends MovableElement {
         this.callerElement = callerElement;
         this.positionRelation = positionRelation;
 
-        this.visible = false;
-        // this.updatePosition();   // TODO: Should run periodically or tactically
-
         this.create();
 
+        // this.updatePosition();   // TODO: Should run periodically or tactically
+
     }
-
-
 
     create() {
 
@@ -2020,10 +1988,10 @@ class Menu extends MovableElement {
         // Styling
         this.element.classList.add("createdMenu");
         this.element.classList.add('hidden');
+        this.visible = false;
 
         // Positioning
         this.updatePosition();
-        console.warn(JSON.stringify(this.position));
 
         // Create controls
         this.menuDefinitions.forEach( (control) => {           // Parse definitions
@@ -2062,10 +2030,6 @@ class Menu extends MovableElement {
 
     }
 
-    toggleHandler() {
-        // Handle case where icon changes on button press
-    }
-
 
     // Drag handling (TODO: Replace with generic in MovableElement)
 
@@ -2099,22 +2063,18 @@ class Menu extends MovableElement {
 
     updatePosition() {
         // Get position of caller element
-        let rect = this.callerElement.getBoundingClientRect();
-        let newPosition = { x: rect.left, y: rect.bottom };
-        this.position = newPosition;
+        let rectCaller = this.callerElement.getBoundingClientRect();
+        let buttonPosition = { x: (rectCaller.left + rectCaller.width / 2), y: rectCaller.top };
+
+        // Get rect for actual height of menu
+        let rectMenu = this.element.getBoundingClientRect();
 
         // Set position for menu
-        const offsetUpwards = 60;           // TODO: Replace literals with calculated
-        const horizontalOffset = 20;        // TODO: Replace literals with calculated, 20px results from caller element width 40px and reference being left instead of center
-        this.element.style.left = `${this.position.x + horizontalOffset}px`;
-        this.element.style.bottom = `${offsetUpwards}px`;
-
-        // Debug: check position of menu after being set
-        let rectMenu = this.callerElement.getBoundingClientRect();
-        let menuPosition = { x: rectMenu.left, y: rectMenu.top };
-        console.error(JSON.stringify(menuPosition));
+        const offsetUpwards = 300; // TODO: Fix, solve why static createButton changed behavior
+        const horizontalOffset = 0;
+        this.element.style.left = this.position.x = `${buttonPosition.x + horizontalOffset}px`;
+        this.element.style.top = this.position.y = `${buttonPosition.y - rectMenu.height - offsetUpwards}px`;  // TODO: Top-height=bottom, set .style.bottom instead if possible
     }
-
 
     /**
      * Detaches menu from static position, making it movable.
@@ -2128,6 +2088,44 @@ class Menu extends MovableElement {
      */
     attach() {
 
+    }
+
+
+    // Related
+
+    /**
+     * Creates, appends and returns a button.
+     *
+     * @param img Image for icon
+     * @param buttonId Id for button element
+     * @param iconId Id for icon element (useful for icon dynamics)
+     * @param text Text for title and alt text
+     * @param appendTo Element to append button to
+     * @returns {HTMLButtonElement} HTML element for button
+     */
+    static createButton(img, buttonId, iconId, text, appendTo) {
+        const button = document.createElement("button");
+        hideElement(button);           // Start invisible
+
+        button.id = buttonId;
+        button.title = text;
+
+        // Add icon
+        const icon = document.createElement("img");
+        icon.src = "./images/" + img;
+        icon.id = iconId;
+        icon.alt = text;
+        icon.classList.add("icon");
+        button.appendChild(icon);
+
+        if (appendTo) {                 // Check for truthy parameter value
+            appendTo.appendChild(button);
+        }
+
+        icon.onload = () => {           // TODO: Button should eventually be visible even if load fails
+            showElement(button);        // Load when icon ready
+        };
+        return button;
     }
 
 }
