@@ -366,11 +366,36 @@ function handleSettingStorage() {
 function createMenus() {
 
     // Get elements
+    const menuContainerLeft           = document.getElementById('menuContainerLeft');
     const menuContainerRight          = document.getElementById('menuContainerRight');
 
-    // Create buttons
-    const buttonSettings = createButton("draw.png", "buttonSettings", "iconSettings", "Settings");
+    // Create buttons (left)
+    const buttonTest = createButton("draw.png", "buttonTest", "iconTest", "Test button");
+    menuContainerLeft.appendChild(buttonTest);
 
+    // Create buttons (right)
+    const buttonSettings = createButton("draw.png", "buttonSettings", "iconSettings", "Settings");
+    menuContainerRight.appendChild(buttonSettings);
+
+    // Create menus
+    const buttonTestMenu = createdElements.createMenu();
+    buttonTest.addEventListener('click', buttonTestMenu.toggleVisibility() );
+
+    const buttonSettingsMenu = createdElements.createMenu();
+    buttonSettings.addEventListener('click', buttonSettingsMenu.toggleVisibility() );
+
+
+    // Nested functions
+
+    /**
+     * Creates and returns a button.
+     *
+     * @param img Image for icon
+     * @param buttonId Id for button element
+     * @param iconId Id for icon element (useful for icon dynamics)
+     * @param text Text for title and alt text
+     * @returns {HTMLButtonElement} HTML element for button
+     */
     function createButton(img, buttonId, iconId, text) {
         const button = document.createElement("button");
 
@@ -386,9 +411,6 @@ function createMenus() {
         button.appendChild(icon);
         return button;
     }
-
-    menuContainerRight.appendChild(buttonSettings);
-    return true;
 
 }
 
