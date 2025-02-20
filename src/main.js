@@ -1349,11 +1349,13 @@ function removeElement(element, fadeTime = 0.2) {
  * @param removeAfter Should the element be deleted after hiding
  */
 function hideElement(element, fadeTime = 0.3, removeAfter = false) {
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
-    element.style.opacity = "0";
+    element.classList.add("hidden");
+
+    // element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
+    // element.style.opacity = "0";
 
     setTimeout(() => {
-        element.style.display = "none";
+        // element.style.display = "none";
         // element.style.pointerEvents = "none";                    // TODO: Disable interactions during animations, but recover pointer event status (create toggleable class CSS)
         if (removeAfter) {
             element.remove();
@@ -1369,8 +1371,10 @@ function hideElement(element, fadeTime = 0.3, removeAfter = false) {
  * @param displayStyle Display style (optional)
  */
 function showElement(element, fadeTime = 0.4, displayStyle = "block") {
-    element.style.opacity = "0";                                    // Ensures not visible
-    element.style.display = displayStyle;                           // Renders element display
+    element.classList.remove("hidden");
+
+    // element.style.opacity = "0";                                    // Ensures not visible
+    // element.style.display = displayStyle;                           // Renders element display
     element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
     // element.style.pointerEvents = "all";                         // TODO: Pointer event recovery needs to use initial value
 
@@ -1381,9 +1385,9 @@ function showElement(element, fadeTime = 0.4, displayStyle = "block") {
     // TODO: Animation not working on FF even when it works on Chrome
 
     // DEV: Testing alternative
-    setTimeout(() => {
-        element.style.opacity = '1';
-    }, 10);
+    // setTimeout(() => {
+    //     element.style.opacity = '1';
+    // }, 10);
 
 }
 
@@ -1967,7 +1971,7 @@ class Menu extends MovableElement {
 
     // Positioning
     positionRelation;                       // Position type of menu in relation to caller element
-    position;                               // Currently intended position for the menu
+    position;                               // Last set position for the menu
 
 
     // Initialization
@@ -1986,55 +1990,39 @@ class Menu extends MovableElement {
         this.positionRelation = positionRelation;
         // this.updatePosition();   // TODO: Should run periodically or tactically
 
-        // this.element = this.create();
-        this.testing();
+        this.create();
+
     }
 
-    /**
-     * Testing function for illustration.
-     * Temporary!
-     * Serves as a basis for developing class functionality.
-     */
-    testing() {
-        print("Testing menu construction (illustration)");
 
-        this.updatePosition();
-        console.warn(JSON.stringify(this.position));
+
+    create() {
+        print("Menu: Testing menu construction");
 
         // Create core div element
         this.element = document.createElement('div');
         this.element.id = this.id = String(Date.now());                                      // Assign a (pseudo) unique id
+
+        // Styling
         this.element.classList.add("createdMenu");
-        this.element.classList.toggle('hidden');
+        this.element.classList.add('hidden');
 
-        // Basic styling and positioning
-        this.element.style.visibility = "none";
-        const menuStyle = {
-            position: 'absolute',
-            transform: 'translateX(-50%)',
-            width: '60px',
-            background: '#454545',
-            borderRadius: '5px',
-            padding: '5px',
-            zIndex: '700'
-        }
+        // Positioning
+        this.updatePosition();
+        console.warn(JSON.stringify(this.position));
 
+        // Parse definition array, create buttons
+        this.menuDefinitions.forEach( ([id, text, img, action, toggleHandler]) => {
+            const button = createButton(id, text, img);
+            button.addEventListener('click', action);
+            this.element.appendChild(button);
+        });
 
-        Object.assign(this.element.style, menuStyle);
-        this.element.style.left = `${this.position.x+20}px`;
-        this.element.style.bottom = "60px";
+        // Append
+        document.getElementById('videoContainer').appendChild(this.element);
 
-        let rect = this.callerElement.getBoundingClientRect();
-        let newPosition = { x: rect.left, y: rect.top };
-        console.error(JSON.stringify(newPosition));
+        // Nested functions
 
-
-
-        this.element.style.display = 'flex';
-        this.element.style.flexDirection = 'column';
-        this.element.style.alignItems = 'center';
-
-        // Button creation function (nested)
         function createButton(id, text, img) {
             // Create element
             const button = document.createElement("button");
@@ -2054,33 +2042,6 @@ class Menu extends MovableElement {
             return button;
         }
 
-        // Parse definition array, create buttons
-        this.menuDefinitions.forEach( ([id, text, img, action, toggleHandler]) => {
-            const button = createButton(id, text, img);
-            button.addEventListener('click', action); // usual is problematic: listenerToElement(id, 'click', action);
-            this.element.appendChild(button);
-        });
-
-        // Append
-        document.getElementById('videoContainer').appendChild(this.element);
-
-    }
-
-    create() {
-        this.constructMenu();
-        this.handleListeners();
-
-        return null; // Return main element?
-    }
-
-    constructMenu() {
-        // Parse array, create elements, append to DOM
-
-        // Create and handle detach, reattach function
-    }
-
-    handleListeners() {
-        // Use listenerToElement() to attach action to button
     }
 
     toggleHandler() {
@@ -2110,7 +2071,6 @@ class Menu extends MovableElement {
      */
     toggleVisibility() {
         print("Menu: toggleVisibility(): Toggling: " + this.id);
-        this.element.classList.toggle('hidden');
         if (this.visible) {
             hideElement(this.element, 0.2);
         } else {
@@ -2120,10 +2080,21 @@ class Menu extends MovableElement {
     }
 
     updatePosition() {
+        // Get position of caller element
         let rect = this.callerElement.getBoundingClientRect();
         let newPosition = { x: rect.left, y: rect.bottom };
         this.position = newPosition;
-        return newPosition;
+
+        // Set position for menu
+        const offsetUpwards = 60;           // TODO: Replace literals with calculated
+        const horizontalOffset = 20;        // TODO: Replace literals with calculated, 20px results from caller element width 40px and reference being left instead of center
+        this.element.style.left = `${this.position.x + horizontalOffset}px`;
+        this.element.style.bottom = `${offsetUpwards}px`;
+
+        // Debug: check position of menu after being set
+        let rectMenu = this.callerElement.getBoundingClientRect();
+        let menuPosition = { x: rectMenu.left, y: rectMenu.top };
+        console.error(JSON.stringify(menuPosition));
     }
 
 

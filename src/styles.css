@@ -342,7 +342,16 @@ button:not(:hover) {
 /* Programmatically created elements */
 
 .createdMenu {
-
+    position: absolute;
+    transform: translateX(-50%);
+    width: 60px;
+    background: #454545;
+    border-radius: 5px;
+    padding: 5px;
+    z-index: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .createdOverlay {
