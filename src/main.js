@@ -64,6 +64,12 @@ function start() {
 
     // Keep control island visible
     setInterval( () => { moveElementToView(island) }, 5000);                   // Periodically ensures control island is visible
+
+    // Control visible rendering
+    showElement(island);                                                                      // TODO: Should run when ToS agreed to
+    showElement(controlBar);
+    showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
+
 }
 
 /**

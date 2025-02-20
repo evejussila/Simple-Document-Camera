@@ -8,7 +8,7 @@
 </head>
 <body>
     <div id="videoContainer">
-        <div id="island_controlBar">
+        <div id="island_controlBar" class="hidden">
 
             <!-- Rotate button -->
             <button id="buttonRotate" title="Rotate">
@@ -58,10 +58,10 @@
             </button>
         </div>
 
-        <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
+        <video id="cameraFeed" class="hidden" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
         <canvas id="canvasMain"></canvas>
 
-        <div id="controlBar">
+        <div id="controlBar" class="hidden">
             <select id="selectorDevice" title="Select Camera"></select>
             <!-- Zoom Controls -->
             <div id="zoomControls">
