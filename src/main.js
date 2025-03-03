@@ -632,17 +632,14 @@ function islandDragStop() {
  */
 function setZoomLevel(value) {
     const previousZoom = currentZoom;
-    currentZoom = value / 100;
+    currentZoom = value / 100;                                                                  // Update zoom value
 
-    // Skaalaa siirtymät suhteessa zoomiin
-    offsetX = (offsetX / previousZoom) * currentZoom;
+
+    offsetX = (offsetX / previousZoom) * currentZoom;                                           // Scale translations relative to zoom
     offsetY = (offsetY / previousZoom) * currentZoom;
 
     updateVideoTransform();
-    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;
-    //currentZoom = value / 100;                                                                      // Update zoom value
-    //updateVideoTransform();
-    //document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
+    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`; // Update zoom percentage label
 }
 
 /**
@@ -943,13 +940,9 @@ function updateVideoTransform() {
     const videoElement = document.getElementById("cameraFeed");
     const canvasElement = document.getElementById("canvasMain");
 
-    limitTranslation(); // 🔹 Lisätään rajat ennen päivittämistä
-    videoElement.style.transform = `translate(${offsetX}px, ${offsetY}px) scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;
-
-    // Synkronoi muutokset myös canvakseen
-    canvasElement.style.transform = videoElement.style.transform;
-    //videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom}) translate(${offsetX}px, ${offsetY}px)`;    // Updates video rotation, flipping and current zoom
-    //canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+    limitTranslation(); // Add boundaries to moving video
+    videoElement.style.transform = `translate(${offsetX}px, ${offsetY}px) scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`; // Updates video position (translation), rotation, flipping and current zoom
+    canvasElement.style.transform = videoElement.style.transform; // Updates transformations to the canvas (still frame)
 }
 
 /**
