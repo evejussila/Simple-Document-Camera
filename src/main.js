@@ -121,26 +121,31 @@ function addCoreListeners() {
         backgroundUpdateInputList().then( () => {} );
     });
 
-    videoElement.addEventListener("mousedown", (event) => {
+    window.addEventListener("mousedown", (event) => {
         isVideoDragging = true;
-        lastX = event.clientX;
-        lastY = event.clientY;
-        videoElement.style.cursor = "grabbing";
-    });
-
-    window.addEventListener("mousemove", (event) => {
-        if (!isVideoDragging) return;
-        const moveX = event.clientX - lastX;
-        const moveY = event.clientY - lastY;
-        moveVideo(moveX, moveY);
         lastX = event.clientX;
         lastY = event.clientY;
     });
 
     window.addEventListener("mouseup", () => {
         isVideoDragging = false;
-        videoElement.style.cursor = "grab";
     });
+
+    window.addEventListener("mousemove", (event) => {
+        if (!isVideoDragging) return;
+
+        const dx = event.clientX - lastX;
+        const dy = event.clientY - lastY;
+
+        offsetX += dx;
+        offsetY += dy;
+
+        lastX = event.clientX;
+        lastY = event.clientY;
+
+        updateVideoTransform();
+    });
+
 
     /** TODO: Moving video with mouse works, but it should not move when writing in textarea.
         window.addEventListener("keydown", (event) => {
@@ -153,6 +158,25 @@ function addCoreListeners() {
         }
     });*/
 }
+
+function limitTranslation() {
+    const videoElement = document.getElementById("cameraFeed");
+    const container = document.getElementById("videoContainer");
+
+    const zoomFactor = currentZoom;
+    const videoWidth = videoElement.videoWidth * zoomFactor;
+    const videoHeight = videoElement.videoHeight * zoomFactor;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    const maxOffsetX = Math.max(0, (videoWidth - containerWidth) / 2);
+    const maxOffsetY = Math.max(0, (videoHeight - containerHeight) / 2);
+
+    offsetX = Math.min(maxOffsetX, Math.max(-maxOffsetX, offsetX));
+    offsetY = Math.min(maxOffsetY, Math.max(-maxOffsetY, offsetY));
+}
+
 
 function handlePrivacy() {
 
@@ -546,12 +570,6 @@ function resetVideoState() {
     // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
 }
 
-function moveVideo(moveX, moveY) {
-    offsetX += moveX;
-    offsetY += moveY;
-    updateVideoTransform();
-}
-
 
 // UI functions
 
@@ -613,9 +631,18 @@ function islandDragStop() {
  * @param value Zoom value
  */
 function setZoomLevel(value) {
-    currentZoom = value / 100;                                                                      // Update zoom value
+    const previousZoom = currentZoom;
+    currentZoom = value / 100;
+
+    // Skaalaa siirtymät suhteessa zoomiin
+    offsetX = (offsetX / previousZoom) * currentZoom;
+    offsetY = (offsetY / previousZoom) * currentZoom;
+
     updateVideoTransform();
-    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
+    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;
+    //currentZoom = value / 100;                                                                      // Update zoom value
+    //updateVideoTransform();
+    //document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
 }
 
 /**
@@ -913,8 +940,16 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom}) translate(${offsetX}px, ${offsetY}px)`;    // Updates video rotation, flipping and current zoom
-    canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+    const videoElement = document.getElementById("cameraFeed");
+    const canvasElement = document.getElementById("canvasMain");
+
+    limitTranslation(); // 🔹 Lisätään rajat ennen päivittämistä
+    videoElement.style.transform = `translate(${offsetX}px, ${offsetY}px) scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;
+
+    // Synkronoi muutokset myös canvakseen
+    canvasElement.style.transform = videoElement.style.transform;
+    //videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom}) translate(${offsetX}px, ${offsetY}px)`;    // Updates video rotation, flipping and current zoom
+    //canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
 }
 
 /**

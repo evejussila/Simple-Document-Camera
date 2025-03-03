@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4ea896a0-a79d-4f59-b546-c21f1015ede6" name="Changes" comment="" />
+    <list default="true" id="4ea896a0-a79d-4f59-b546-c21f1015ede6" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.js" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -37,7 +40,7 @@
   &quot;keyToString&quot;: {
     &quot;JavaScript Debug.index.html.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;video-feed-quality&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;moving-and-zooming-video&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/Jonna/WebstormProjects/testaus&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
@@ -68,6 +71,11 @@
       <workItem from="1739323634202" duration="8863000" />
       <workItem from="1739333320419" duration="1004000" />
       <workItem from="1739914694109" duration="3213000" />
+      <workItem from="1739918353349" duration="3013000" />
+      <workItem from="1739966281219" duration="4200000" />
+      <workItem from="1739977500792" duration="1508000" />
+      <workItem from="1740446752972" duration="8000" />
+      <workItem from="1741019128202" duration="4019000" />
     </task>
     <servers />
   </component>
