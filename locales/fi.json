@@ -1,5 +1,19 @@
 {
+  "bigger": "Suurempi tekstikoko",
+  "downloadimg": "Lataa kuva",
+  "english": "Englanti",
+  "finnish": "Suomi",
   "flip": "Peilaa",
+  "freeze": "Pysäytä kuva",
+  "fullscreen": "Koko näytön tila",
+  "hide": "Piilota hallintapaneelit",
+  "language": "Vaihda kieltä",
+  "overlay": "Lisää peittokalvo",
   "rotate": "Kierrä",
-  "selectCamera": "Valitse kamera"
+  "selectCamera": "Valitse kamera",
+  "smaller": "Pienempi tekstikoko",
+  "text": "Lisää tekstikenttä",
+  "zoom": "Muuta kuvan kokoa",
+  "zoomin": "Lähennä",
+  "zoomout": "Loitonna"
 }

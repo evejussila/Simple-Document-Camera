@@ -1,6 +1,6 @@
 const defaultLocale = "en";
-let currentLocale;                      // The active locale
-let currentTranslations = {};       // Stores translations for the active language
+let currentLocale;                          // The active locale
+let currentTranslations = {};           // Stores translations for the active language
 
 // Initialize when the page content is loaded.
 document.addEventListener("DOMContentLoaded", () => {
@@ -72,8 +72,7 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
 
 // Localisation
 // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-// TODO: Privacy notices etc. require this to have a value. A value was given as a default for development. Default value here can be removed as long as it's set elsewhere.
-let currentLocale = "en";                                                                     // The active locale
+// TODO: Privacy notices etc. require this to have a value. A value was given as a default for development. Default value here can be removed as long as it's set elsewhere. // The active locale
 // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
 // Fetch core HTML elements

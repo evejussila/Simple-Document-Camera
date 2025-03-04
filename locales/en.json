@@ -1,5 +1,19 @@
 {
+  "bigger": "Bigger Text Size",
+  "downloadimg": "Download Image",
+  "english": "English",
+  "finnish": "Finnish",
   "flip": "Flip",
+  "freeze": "Freeze",
+  "fullscreen": "Full Screen",
+  "hide": "Hide Controls",
+  "language": "Change Language",
+  "overlay": "Add Overlay",
   "rotate": "Rotate",
-  "selectCamera": "Select Camera"
+  "selectCamera": "Select Camera",
+  "smaller": "Smaller Text Size",
+  "text": "Add Text",
+  "zoom": "Zoom",
+  "zoomin": "Zoom In",
+  "zoomout": "Zoom Out"
 }
