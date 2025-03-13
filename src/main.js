@@ -84,6 +84,17 @@ function addCoreListeners() {
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
+    listenerToElement('buttonFit', 'click', () => {
+        let video = document.getElementById("cameraFeed");
+        video.style.width = "100vw";
+        video.style.height = "auto";
+    });
+
+    listenerToElement('buttonFill', 'click', () => {
+        let video = document.getElementById("cameraFeed");
+        video.style.width = "100%";
+        video.style.height = "100vh";
+    });
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
