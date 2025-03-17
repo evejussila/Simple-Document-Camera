@@ -1,6 +1,6 @@
 {
   "bigger": "Suurempi tekstikoko",
-  "downloadimg": "Lataa kuva",
+  "downloadImg": "Lataa kuva",
   "english": "Englanti",
   "finnish": "Suomi",
   "flip": "Peilaa",
@@ -13,7 +13,7 @@
   "rotate": "Kierrä",
   "selectCamera": "Valitse kamera",
   "smaller": "Pienempi tekstikoko",
-  "text": "Lisää tekstikenttä",
+  "text": "Lisää tekstiä",
   "zoom": "Muuta kuvan kokoa",
   "zoomin": "Lähennä",
   "zoomout": "Loitonna"

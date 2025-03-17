@@ -52,7 +52,10 @@ function translateElement(element) {
     if (element.hasAttribute("title")) {
        element.setAttribute("title", translation);
     }
-
+    // Else if element has placeholder attribute, it gets translated.
+    else if (element.hasAttribute("placeholder")) {
+        element.setAttribute("placeholder", translation);
+    }
     // Check if the element has non-empty text content. If it does, update it with the translated text.
     else if (element.textContent.trim().length > 0) {
        element.textContent = translation;
@@ -1798,11 +1801,14 @@ class TextArea extends MovableElement {
         // Create main element
         this.element = document.createElement("textarea");
         this.element.className = "createdTextArea";
-        this.element.id = this.id;
         this.element.placeholder = "Text";
+        this.element.setAttribute("data-locale-key", "text"); // Assign translation key
+        this.element.id = this.id;
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
         createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
+
+        translateElement(this.element); // Translate placeholder text.
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
