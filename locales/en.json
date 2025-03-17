@@ -1,20 +1,23 @@
 {
   "bigger": "Bigger Text Size",
+  "controlsHide": "Hide Controls",
+  "controlsShow": "Show Controls",
   "downloadImg": "Download Image",
   "english": "English",
   "finnish": "Finnish",
   "flip": "Flip",
   "freeze": "Freeze",
   "fullscreen": "Full Screen",
-  "hide": "Hide Controls",
+  "fullscreenExit": "Exit Full Screen",
   "language": "Change Language",
   "overlay": "Add Overlay",
+  "play": "Show video",
   "remove": "Remove",
   "rotate": "Rotate",
   "selectCamera": "Select Camera",
   "smaller": "Smaller Text Size",
   "text": "Add Text",
   "zoom": "Zoom",
-  "zoomin": "Zoom In",
-  "zoomout": "Zoom Out"
+  "zoomIn": "Zoom In",
+  "zoomOut": "Zoom Out"
 }

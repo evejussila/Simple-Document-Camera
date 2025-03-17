@@ -149,12 +149,12 @@ function addCoreListeners() {
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
     const fullScreenButton = document.getElementById('buttonFullScreen');
-    fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon));
+    fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
 
     // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
     const collapseIcon = document.getElementById("iconCollapse");
     const collapseButton = document.getElementById('buttonCollapse');
-    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon));
+    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon, collapseButton));
 
     // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -822,13 +822,15 @@ function adjustZoom(increment) {
 /**
  * Switches the full screen mode on or off.
  * @param fullScreenIcon Full screen icon element
+ * @param fullScreenButton Button for fullscreen mode
  */
-function switchToFullscreen(fullScreenIcon) {
+function switchToFullscreen(fullScreenIcon, fullScreenButton) {
 
     if(!document.fullscreenElement) {                                   // Is fullscreen active?
         videoContainer.requestFullscreen().then(() => {
             print("switchToFullscreen(): Full screen mode activated");
-            fullScreenIcon.title = 'Close full screen';
+            fullScreenButton.setAttribute("data-locale-key", "fullscreenExit");
+            translateElement(fullScreenButton);
             fullScreenIcon.src = "./images/closeFullScreen.png";
         }).catch(error => {
             alert(`Error attempting to switch to fullscreen mode: ${error.message}`);
@@ -836,7 +838,8 @@ function switchToFullscreen(fullScreenIcon) {
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
             print("switchToFullscreen(): Full screen mode closed");
-            fullScreenIcon.title = 'Full screen';
+            fullScreenButton.setAttribute("data-locale-key", "fullscreen");
+            translateElement(fullScreenButton);
             fullScreenIcon.src = "./images/fullscreen.png";
             // island.style.top = '';                                       // UI island to starting position
             // island.style.left = '';
@@ -850,21 +853,24 @@ function switchToFullscreen(fullScreenIcon) {
 /**
  * Hides or shows control bar and island when collapseButton is clicked.
  * @param collapseIcon Icon for collapseButton
+ * @param collapseButton Button for control visibility toggle
  */
-function toggleControlCollapse(collapseIcon) {
+function toggleControlCollapse(collapseIcon, collapseButton) {
     isControlCollapsed = !isControlCollapsed;
 
     collapseIcon.style.transform += "scaleY(-1)";
 
     if (isControlCollapsed) {
-        collapseIcon.title = 'Show controls';
-        // collapseIcon.src = "./images/showControls.png";
+        collapseButton.setAttribute("data-locale-key", "controlsShow");
+        translateElement(collapseButton);
+
         hideElement(controlBar);
         hideElement(island);
     }
     else {
-        collapseIcon.title = 'Hide controls';
-        // collapseIcon.src = "./images/hideControls.png";
+        collapseButton.setAttribute("data-locale-key", "controlsHide");
+        translateElement(collapseButton);
+
         showElement(controlBar, undefined, 'inline-flex');
         showElement(island, undefined, 'flex');
     }
@@ -1255,6 +1261,8 @@ function videoFreeze(freezeIcon) {
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
+        freezeIcon.setAttribute("data-locale-key", "play");
+        translateElement(freezeIcon);
         isFreeze = true;                                                                            // Freeze is on
     } else {
         videoStart();
@@ -1262,6 +1270,8 @@ function videoFreeze(freezeIcon) {
         canvasElement.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
         freezeIcon.title = "Freeze";
+        freezeIcon.setAttribute("data-locale-key", "freeze");
+        translateElement(freezeIcon);
         isFreeze = false;                                                                           // Freeze is off
     }
 }
