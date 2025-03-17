@@ -1624,6 +1624,7 @@ class MovableElement {
         removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
         removeButton.id = id + "RemoveButton";                    // Forms id for remove button
         removeButton.title = "Remove";
+        removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
         removeButton.textContent = "X";
         Object.assign(removeButton.style, removeButtonStyle);     // TODO: Only assign if anything defined (set default to null and add conditional for != null)
         removeButton.addEventListener('click', () => removeElement(newElement));
@@ -1639,6 +1640,7 @@ class MovableElement {
 
         // Add element to DOM
         newElement.appendChild(removeButton);
+        translateElement(removeButton);
         // island.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
         videoContainer.appendChild(newElement);
         newElement.style.opacity = "1";                           // TODO: Apply fade to creation
