@@ -379,6 +379,7 @@ function createMenus() {
 
     // Create menu buttons (right)
     const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
+    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerRight);
 
     // Create settings menu
 
@@ -386,12 +387,17 @@ function createMenus() {
     // TODO: Put language selector here. Can either create selector here or simply get an existing element and use it. Listeners etc. can be created here if they are not already defined elsewhere.
 
     const selectLanguageContainer = document.createElement("div");
-    selectLanguageContainer.textContent = "Language";
-    selectLanguageContainer.style.textAlign = "center";
+    selectLanguageContainer.style.display = "flex";
+    selectLanguageContainer.style.flexDirection = "column";
+
+    const languageImg = document.createElement("img");
+    languageImg.src = "/images/language.png";
+    languageImg.style.display = "block";
+    languageImg.style.width = "40px";
+    selectLanguageContainer.appendChild(languageImg);
 
     const selectLanguage = document.createElement("select");
     selectLanguage.style.width = "50px";
-
     selectLanguageContainer.appendChild(selectLanguage);
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
@@ -413,11 +419,26 @@ function createMenus() {
     switchThemeContainer.appendChild(switchTheme);
 
     const menuSettings = [
-        {id: "languageSelector" ,    text: "Language"  , action: {},  customHTML: selectLanguageContainer},
-        {id: "themeSwitch"      ,    text: "Theme"     ,  customHTML: switchThemeContainer} // document.documentElement.classList.toggle("lightMode")
+        {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer},
+        {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
     ]
 
     createdElements.createMenu(menuSettings, buttonSettings, "above");
+
+    // Create info menu
+
+    const menuInfo = [
+        {id: "buttonInfoPrompt",     text: "Show information",    img: "info.png", action: showInfo}
+    ]
+
+    createdElements.createMenu(menuInfo, buttonInfo, "above");
+
+    /**
+     * Nested function to show info prompt
+     */
+    function showInfo() {
+
+    }
 
 }
 
@@ -1949,25 +1970,28 @@ class TextArea extends MovableElement {
 /**
  * Class for creating a menu programmatically.
  * Used for multiple or custom menus.
- * Replaces static HTML definitions.
  */
 class Menu extends MovableElement {
 
     // Generic
     menuDefinitions;                    // Contains definitions for the menu contents in an array
 
-    // Example
+    // Examples
     // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
     // const menuTest = [
-    //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  },
-    //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    },
-    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished
-    //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    },
-    //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   },
-    //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      }
+    //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
+    //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip    },
+    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished function for toggle icon
+    //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage    },
+    //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay   },
+    //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText      }
     // ]
     // createdElements.createMenu(menuTest, buttonTest, "above");
-    // TODO: Example of custom html
+    //
+    // const menuTest = [
+    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // WHere customHTML refers to any variable pointing to an HTML element
+    //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
+    // ]
 
     // Caller relations
     callerElement;                      // Element the menu is called from, eg. a button
