@@ -84,7 +84,10 @@ function addCoreListeners() {
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
-    listenerToElement('buttonFit', 'click', () => {
+    listenerToElement('buttonFit', 'click', fitVideo);
+    listenerToElement('buttonFill', 'click', fillVideo);
+
+    /*listenerToElement('buttonFit', 'click', () => {
         let video = document.getElementById("cameraFeed");
         video.style.width = "100vw";
         video.style.height = "auto";
@@ -94,7 +97,7 @@ function addCoreListeners() {
         let video = document.getElementById("cameraFeed");
         video.style.width = "100%";
         video.style.height = "100vh";
-    });
+    });*/
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -132,17 +135,17 @@ function addCoreListeners() {
         backgroundUpdateInputList().then( () => {} );
     });
 
-    window.addEventListener("mousedown", (event) => {
+    videoElement.addEventListener("mousedown", (event) => {
         isVideoDragging = true;
         lastX = event.clientX;
         lastY = event.clientY;
     });
 
-    window.addEventListener("mouseup", () => {
+    videoElement.addEventListener("mouseup", () => {
         isVideoDragging = false;
     });
 
-    window.addEventListener("mousemove", (event) => {
+    videoElement.addEventListener("mousemove", (event) => {
         if (!isVideoDragging) return;
 
         const dx = event.clientX - lastX;
@@ -159,15 +162,15 @@ function addCoreListeners() {
 
 
     /** TODO: Moving video with mouse works, but it should not move when writing in textarea.
-        window.addEventListener("keydown", (event) => {
-        const step = 50;
-        switch (event.key) {
-            case "ArrowLeft": moveVideo(-step, 0); break;
-            case "ArrowRight": moveVideo(step, 0); break;
-            case "ArrowUp": moveVideo(0, -step); break;
-            case "ArrowDown": moveVideo(0, step); break;
-        }
-    });*/
+     window.addEventListener("keydown", (event) => {
+     const step = 50;
+     switch (event.key) {
+     case "ArrowLeft": moveVideo(-step, 0); break;
+     case "ArrowRight": moveVideo(step, 0); break;
+     case "ArrowUp": moveVideo(0, -step); break;
+     case "ArrowDown": moveVideo(0, step); break;
+     }
+     });*/
 }
 
 function limitTranslation() {
@@ -304,7 +307,7 @@ async function videoStart() {
             error = true;                                                                                        // Flag error
             errorDescription = "No media permission or access"                                                   // Give specific readable error description
             console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);             // Log error
-    });                                                                                                          // End catch for getMediaPermission()
+        });                                                                                                          // End catch for getMediaPermission()
 
     if (!error) {                                                                                                // Only run if no errors
         inputs = await getVideoInputs()                                                                          // Get inputs
@@ -441,8 +444,8 @@ async function getVideoInputs() {
                 } else {
                     // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
                     videoInputs.push([device.deviceId, device.label]);                                  // Assign device id to index 0 of inner array, label to index 1 of inner array, push inner array to outer array as one row
-                    }
                 }
+            }
         });
 
         if (videoInputs.length > 0) {                                                                    // Success
@@ -663,6 +666,31 @@ function adjustZoom(increment) {
     setZoomLevel(newZoom);                                                                          // Zoom in percent %
     document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
 }
+
+function fitVideo() {
+    videoElement.style.width = "100vw";
+    videoElement.style.height = "auto";
+    currentZoom = 1;
+    offsetX = 0;
+    offsetY = 0;
+
+    updateVideoTransform();
+    document.getElementById('zoomSlider').value = 100;
+    document.getElementById('zoomPercentageLabel').innerText = "100%";
+}
+
+function fillVideo() {
+    videoElement.style.width = "100%";
+    videoElement.style.height = "100vh";
+    currentZoom = 1;
+    offsetX = 0;
+    offsetY = 0;
+
+    updateVideoTransform();
+    document.getElementById('zoomSlider').value = 100;
+    document.getElementById('zoomPercentageLabel').innerText = "100%";
+}
+
 
 /**
  * Switches the full screen mode on or off.
@@ -1883,22 +1911,22 @@ async function bruteForceBestVideoStream(input = selector.value) {
                 print(`Trying: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
                 // noinspection JSCheckFunctionSignatures
                 const stream = await navigator.mediaDevices.getUserMedia({
-                     video: {
-                         deviceId: { exact: String(input) },
-                         facingMode: { ideal: String(facingMode) },
-                         width: { ideal: Number(width) },
-                         height: { ideal: Number(height) },
-                         frameRate: { ideal: Number(frameRate) }
-                     }
-                     // If this function is not producing expected results, try alternative below.
-                     // Function will work with or without all types forced to correct ones.
-                     // video: {
-                     //     deviceId: { exact: input },
-                     //     facingMode: { ideal: facingMode },
-                     //     width: { ideal: width },
-                     //     height: { ideal: height },
-                     //     frameRate: { ideal: frameRate }
-                     // }
+                    video: {
+                        deviceId: { exact: String(input) },
+                        facingMode: { ideal: String(facingMode) },
+                        width: { ideal: Number(width) },
+                        height: { ideal: Number(height) },
+                        frameRate: { ideal: Number(frameRate) }
+                    }
+                    // If this function is not producing expected results, try alternative below.
+                    // Function will work with or without all types forced to correct ones.
+                    // video: {
+                    //     deviceId: { exact: input },
+                    //     facingMode: { ideal: facingMode },
+                    //     width: { ideal: width },
+                    //     height: { ideal: height },
+                    //     frameRate: { ideal: frameRate }
+                    // }
                 });
 
                 temporaryCameraFeed.srcObject = stream;
@@ -2378,9 +2406,9 @@ function testUserInterfaceVersion() {
     const testVideoMenu = createdElements.createMenu();
 
     let buttons = [
-      ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
-      ["text.png"       , () => { testTextMenu.toggleVisibility(); }],
-      ["showVideo.png"  , () => { testVideoMenu.toggleVisibility(); }]
+        ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
+        ["text.png"       , () => { testTextMenu.toggleVisibility(); }],
+        ["showVideo.png"  , () => { testVideoMenu.toggleVisibility(); }]
     ];
 
     buttons.forEach( ([img, action]) => {
