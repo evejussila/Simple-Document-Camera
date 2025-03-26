@@ -8,6 +8,30 @@
 </head>
 <body>
     <div id="videoContainer">
+
+        <!-- Main UI -->
+        <div id="controlBar" class="hidden">
+            <select id="selectorDevice" title="Select Camera"></select>
+            <!-- Zoom Controls -->
+            <div id="zoomControls">
+                <button id="buttonZoomOut" class="buttonSmall">-</button>
+                <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
+                <button id="buttonZoomIn" class="buttonSmall">+</button>
+                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
+            </div>
+            <!-- Container for items on the left -->
+            <div id="menuContainerLeft">
+            </div>
+            <!-- Spacer to compact surrounding containers -->
+            <div id="controlBarMidSpacer">
+            </div>
+            <!-- Container for items on the right -->
+            <div id="menuContainerRight">
+            </div>
+            <!-- Spacer under always visible buttons -->
+            <div id="controlBarEndSpacer">
+            </div>
+        </div>
         <div id="island_controlBar" class="hidden">
 
             <!-- Rotate button -->
@@ -45,9 +69,7 @@
                 <button id="buttonBiggerFont" class="buttonSmall">+</button>
             </div>
         </div>
-
-        <!-- Always visible buttons -->
-        <div id="avButtons">
+        <div id="avButtons">  <!-- Always visible buttons -->
             <!-- Full screen button -->
             <button id="buttonFullScreen" title="Full Screen">
                 <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
@@ -58,34 +80,13 @@
             </button>
         </div>
 
+        <!-- Core visuals -->
         <video id="cameraFeed" class="hidden" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
         <canvas id="canvasMain"></canvas>
 
-        <div id="controlBar" class="hidden">
-            <select id="selectorDevice" title="Select Camera"></select>
-            <!-- Zoom Controls -->
-            <div id="zoomControls">
-                <button id="buttonZoomOut" class="buttonSmall">-</button>
-                <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
-                <button id="buttonZoomIn" class="buttonSmall">+</button>
-                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
-            </div>
-            <!-- Container for programmatic menus on the left -->
-            <div id="menuContainerLeft">
-            </div>
-            <!-- Spacer to compact surrounding containers -->
-            <div id="controlBarMidSpacer">
-            </div>
-            <!-- Container for programmatic menus on the right -->
-            <div id="menuContainerRight">
-            </div>
-            <!-- Spacer under always visible buttons -->
-            <div id="controlBarEndSpacer">
-            </div>
-        </div>
     </div>
 
-    <!-- Load camera feed -->
+    <!-- Start scripts -->
     <script src="src/main.js"></script>
 
 </body>

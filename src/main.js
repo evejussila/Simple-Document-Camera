@@ -65,9 +65,9 @@ function start() {
     // Keep control island visible
     setInterval( () => { moveElementToView(island) }, 5000);                   // Periodically ensures control island is visible
 
-    // Control visible initial rendering
-    showElement(island);                                                                      // TODO: Should run when ToS agreed to
+    // Render UI
     showElement(controlBar);
+    showElement(island);                                                                      // TODO: Should run when ToS agreed to
     showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
 
 }
@@ -382,27 +382,30 @@ function createMenus() {
     const buttonSettings = Menu.createButton("draw.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
 
     // Create menus
-    const menuDefinitions = [
-        {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,        customHTML: ""},
-        {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,          customHTML: ""},
-        {id: "buttonCollapseTest" ,  text: "Save img",  img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png",      customHTML: ""}, // TODO: Unfinished
-        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
-        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
-        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
-        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
-        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
-        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
-        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
-        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
-        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,          customHTML: ""},
-        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,         customHTML: ""},
-        {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,            customHTML: ""}
+
+
+    const menuTest = [
+        {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  },
+        {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    },
+        {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished
+        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    },
+        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   },
+        {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      }
     ]
 
-    createdElements.createMenu(menuDefinitions, buttonTest, "above");
-    createdElements.createMenu(menuDefinitions, buttonSettings, "above");
+    const selectLanguage = document.createElement("select");
+    selectLanguage.style.width = "50px";
 
+    const switchTheme = document.createElement("checkbox");
+    switchTheme.style.width = "50px";
 
+    const menuSettings = [
+        {id: "languageSelector" ,    text: "Language"  , action: {},  customHTML: selectLanguage},
+        {id: "themeSwitch"      ,    text: "Theme"     ,  customHTML: switchTheme} // document.documentElement.classList.toggle("lightMode")
+    ]
+
+    createdElements.createMenu(menuTest, buttonTest, "above");
+    createdElements.createMenu(menuSettings, buttonSettings, "above");
 
 }
 
@@ -1380,9 +1383,8 @@ function showElement(element, fadeTime = 0.4, displayStyle = "block") {
 function getElementCenter(element) {
     const rect = element.getBoundingClientRect();
     const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
-    const y = rect.top + window.scrollY + rect.height / 2;
+    const y = rect.top + window.scrollY + rect.height / 2;  // TODO: Reconsider scroll values
 
-    // DEV: Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
     return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
 }
 
@@ -1943,11 +1945,12 @@ class Menu extends MovableElement {
     menuDefinitions;                    // Contains definitions for the menu contents in an array
     // Example
     // const menuDefinitions = [
-    //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  iconToggle: "",      customHTML: ""},
-    //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    iconToggle: "",      customHTML: ""},
-    //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    iconToggle: "",      customHTML: ""},
-    //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   iconToggle: "",      customHTML: ""},
-    //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      iconToggle: "",      customHTML: ""}
+    //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  },
+    //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    },
+    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png",      customHTML: ""}, // TODO: Unfinished
+    //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    },
+    //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   },
+    //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      }
     // ]
 
     // Caller relations
@@ -1983,7 +1986,7 @@ class Menu extends MovableElement {
         this.element = document.createElement('div');
         this.element.id = this.id = String(Date.now());         // Assign a (pseudo) unique id
 
-        print("Menu: create(): Creating menu" + this.id);
+        print("Menu: create(): Creating menu: " + this.id);
 
         // Styling
         this.element.classList.add("createdMenu");
@@ -2000,8 +2003,9 @@ class Menu extends MovableElement {
             button.addEventListener('click', control.action);
             this.element.appendChild(button);
             } else {
-                // TODO: Process custom HTML
-                this.element.appendChild(control.customHTML);
+                const div = document.createElement("div");     // Contain custom menu element
+                div.appendChild(control.customHTML);
+                this.element.appendChild(div);
             }
         });
 
@@ -2059,21 +2063,21 @@ class Menu extends MovableElement {
             showElement(this.element, 0.1, "flex");
         }
         this.visible = !this.visible;
+
+        this.updatePosition(); // TODO: Excessive here
     }
 
     updatePosition() {
-        // Get position of caller element
-        let rectCaller = this.callerElement.getBoundingClientRect();
-        let buttonPosition = { x: (rectCaller.left + rectCaller.width / 2), y: rectCaller.top };
 
-        // Get rect for actual height of menu
-        let rectMenu = this.element.getBoundingClientRect();
+        // Get position of caller element
+        const buttonPosition = getElementCenter(this.callerElement);
 
         // Set position for menu
-        const offsetUpwards = 300; // TODO: Fix, solve why static createButton changed behavior
-        const horizontalOffset = 0;
-        this.element.style.left = this.position.x = `${buttonPosition.x + horizontalOffset}px`;
-        this.element.style.top = this.position.y = `${buttonPosition.y - rectMenu.height - offsetUpwards}px`;  // TODO: Top-height=bottom, set .style.bottom instead if possible
+        const offsetX = 0;
+        const offsetY = 60;
+        this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
+        this.element.style.bottom = this.position.y = `${offsetY}px`;
+
     }
 
     /**
