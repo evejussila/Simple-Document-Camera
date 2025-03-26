@@ -394,15 +394,18 @@ function createMenus() {
     languageImg.src = "/images/language.png";
     languageImg.style.display = "block";
     languageImg.style.width = "40px";
+    languageImg.classList.add("icon");
     selectLanguageContainer.appendChild(languageImg);
 
     const selectLanguage = document.createElement("select");
-    selectLanguage.style.width = "50px";
+    selectLanguage.style.width = "40px";
     selectLanguageContainer.appendChild(selectLanguage);
 
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
     const switchThemeContainer = document.createElement("div");
+    switchThemeContainer.style.display = "flex";
+    switchThemeContainer.style.flexDirection = "column";
 
     const switchThemeLabel = document.createElement("div");
     switchThemeLabel.textContent = "Light Theme";
@@ -428,7 +431,7 @@ function createMenus() {
     // Create info menu
 
     const menuInfo = [
-        {id: "buttonInfoPrompt",     text: "Show information",    img: "info.png", action: showInfo}
+        {id: "buttonLegalInfoPrompt",     text: "Show legal information",    img: "terms.png", action: showLegalInfo}
     ]
 
     createdElements.createMenu(menuInfo, buttonInfo, "above");
@@ -436,8 +439,8 @@ function createMenus() {
     /**
      * Nested function to show info prompt
      */
-    function showInfo() {
-
+    function showLegalInfo() {
+        showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
     }
 
 }
