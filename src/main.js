@@ -174,7 +174,7 @@ async function handlePrivacy() {
         const content = await _fetchJSON(text.file);    // Get JSON
         if (content) {                                  // If JSON accessible
             text.textExists = true;                     // Set boolean for conditional logics
-            text.content = content;                     // Store content (DEV: Alternative is to ingest and declare the same properties, avoiding issues with JSUnresolvedReference)
+            text.content = content;
             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
         } else {
             console.warn("handlePrivacy(): Did not find text: " + text.file);
@@ -330,7 +330,7 @@ async function handlePrivacy() {
         // TODO: Trigger video freeze event or other halt
     }
 
-    return true; // TODO: For return value to have an effect, function would need to await prompt responses
+    return true; // TODO: For return value to have a relevant effect, function would need to await prompt responses
 }
 
 /**
@@ -375,36 +375,48 @@ function createMenus() {
     const menuContainerLeft           = document.getElementById('menuContainerLeft');
     const menuContainerRight          = document.getElementById('menuContainerRight');
 
-    // Create menu opener buttons (left)
-    const buttonTest = Menu.createButton("draw.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
+    // Create menu buttons (left)
 
-    // Create menu opener buttons (right)
-    const buttonSettings = Menu.createButton("draw.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
+    // Create menu buttons (right)
+    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
 
-    // Create menus
+    // Create settings menu
 
+    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
+    // TODO: Put language selector here. Can either create selector here or simply get an existing element and use it. Listeners etc. can be created here if they are not already defined elsewhere.
 
-    const menuTest = [
-        {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  },
-        {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    },
-        {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished
-        {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    },
-        {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   },
-        {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      }
-    ]
+    const selectLanguageContainer = document.createElement("div");
+    selectLanguageContainer.textContent = "Language";
+    selectLanguageContainer.style.textAlign = "center";
 
     const selectLanguage = document.createElement("select");
     selectLanguage.style.width = "50px";
 
-    const switchTheme = document.createElement("checkbox");
-    switchTheme.style.width = "50px";
+    selectLanguageContainer.appendChild(selectLanguage);
+
+    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
+
+    const switchThemeContainer = document.createElement("div");
+
+    const switchThemeLabel = document.createElement("div");
+    switchThemeLabel.textContent = "Light Theme";
+    switchThemeLabel.style.textAlign = "center";
+
+    const switchTheme = document.createElement("input");
+    switchTheme.type = "checkbox";
+
+    switchTheme.addEventListener("change", () => {
+        document.documentElement.classList.toggle("lightMode");
+    });
+
+    switchThemeContainer.appendChild(switchThemeLabel);
+    switchThemeContainer.appendChild(switchTheme);
 
     const menuSettings = [
-        {id: "languageSelector" ,    text: "Language"  , action: {},  customHTML: selectLanguage},
-        {id: "themeSwitch"      ,    text: "Theme"     ,  customHTML: switchTheme} // document.documentElement.classList.toggle("lightMode")
+        {id: "languageSelector" ,    text: "Language"  , action: {},  customHTML: selectLanguageContainer},
+        {id: "themeSwitch"      ,    text: "Theme"     ,  customHTML: switchThemeContainer} // document.documentElement.classList.toggle("lightMode")
     ]
 
-    createdElements.createMenu(menuTest, buttonTest, "above");
     createdElements.createMenu(menuSettings, buttonSettings, "above");
 
 }
@@ -1943,15 +1955,19 @@ class Menu extends MovableElement {
 
     // Generic
     menuDefinitions;                    // Contains definitions for the menu contents in an array
+
     // Example
-    // const menuDefinitions = [
+    // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
+    // const menuTest = [
     //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate,  },
     //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip,    },
-    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png",      customHTML: ""}, // TODO: Unfinished
+    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished
     //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage,    },
     //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay,   },
     //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText,      }
     // ]
+    // createdElements.createMenu(menuTest, buttonTest, "above");
+    // TODO: Example of custom html
 
     // Caller relations
     callerElement;                      // Element the menu is called from, eg. a button
@@ -1998,11 +2014,12 @@ class Menu extends MovableElement {
 
         // Create controls
         this.menuDefinitions.forEach( (control) => {           // Parse definitions
-            if (!control.customHTML) {                         // Check for falsy parameter value
+            if (!control.customHTML) {                         // No custom HTML (falsy parameter value)
+                // noinspection JSUnresolvedReference
                 const button = createButton(control.id, control.text, control.img);
-            button.addEventListener('click', control.action);
-            this.element.appendChild(button);
-            } else {
+                button.addEventListener('click', control.action);
+                this.element.appendChild(button);
+            } else {                                           // Custom HTML
                 const div = document.createElement("div");     // Contain custom menu element
                 div.appendChild(control.customHTML);
                 this.element.appendChild(div);
