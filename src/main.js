@@ -87,18 +87,6 @@ function addCoreListeners() {
     listenerToElement('buttonFit', 'click', fitVideo);
     listenerToElement('buttonFill', 'click', fillVideo);
 
-    /*listenerToElement('buttonFit', 'click', () => {
-        let video = document.getElementById("cameraFeed");
-        video.style.width = "100vw";
-        video.style.height = "auto";
-    });
-
-    listenerToElement('buttonFill', 'click', () => {
-        let video = document.getElementById("cameraFeed");
-        video.style.width = "100%";
-        video.style.height = "100vh";
-    });*/
-
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
     const fullScreenButton = document.getElementById('buttonFullScreen');
@@ -160,19 +148,28 @@ function addCoreListeners() {
         updateVideoTransform();
     });
 
-
-    /** TODO: Moving video with mouse works, but it should not move when writing in textarea.
      window.addEventListener("keydown", (event) => {
      const step = 50;
-     switch (event.key) {
-     case "ArrowLeft": moveVideo(-step, 0); break;
-     case "ArrowRight": moveVideo(step, 0); break;
-     case "ArrowUp": moveVideo(0, -step); break;
-     case "ArrowDown": moveVideo(0, step); break;
-     }
-     });*/
+     const isInputFocused = document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT';
+        if (!isInputFocused) {                                                                                                          // Only allow video movement if no input field is focused
+            switch (event.key) {
+                case "ArrowLeft": moveVideo(-step, 0); break;
+                case "ArrowRight": moveVideo(step, 0); break;
+                case "ArrowUp": moveVideo(0, -step); break;
+                case "ArrowDown": moveVideo(0, step); break;
+            }
+        }
+     });
 }
 
+function moveVideo(dx, dy) {
+    offsetX += dx; // Move video horizontally
+    offsetY += dy; // Move video vertically
+
+    updateVideoTransform(); // Apply the changes
+}
+
+//Rajat toimii vaan zoomin ollessa täysi??
 function limitTranslation() {
     const videoElement = document.getElementById("cameraFeed");
     const container = document.getElementById("videoContainer");
