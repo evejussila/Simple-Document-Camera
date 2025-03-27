@@ -1,6 +1,7 @@
-const defaultLocale = "en";
-let currentLocale;                          // The active locale
-let currentTranslations = {};           // Stores translations for the active language
+const defaultLocale = "en";                  // Default locale is english
+const allowedLocales = ["en", "fi"];        // Only these locales are allowed
+let currentLocale;                                  // The active locale
+let currentTranslations = {};                   // Stores translations for the active locale
 
 // Initialize when the page content is loaded.
 document.addEventListener("DOMContentLoaded", () => {
@@ -21,19 +22,50 @@ function bindLocaleSelector(initialLocale) {
 
 // Function to load translations and apply them to the page.
 async function setLocale(newLocale) {
+    // Checks if new locale is in allowed locales
+    if (!allowedLocales.includes(newLocale)) {
+        console.error(`setLocale(): Attempted to load unsupported locale: ${newLocale}`);
+        return;
+    }
 
     if (newLocale === currentLocale) return;
-    const newTranslations = await fetchTranslations(newLocale);
+
+    const newTranslations = await fetchJSON(newLocale);
+    if (!newTranslations || typeof newTranslations !== 'object') {
+        console.error("setLocale(): Invalid translations received for locale:", newLocale);
+        return;
+    }
 
     currentLocale = newLocale;
     currentTranslations = newTranslations;
     applyTranslations();
 }
 
-// Fetch the language translations file and return the JSON object
-async function fetchTranslations(newLocale) {
-    const response = await fetch(`/locales/${newLocale}.json`);
-    return await response.json();
+/**
+ * Fetches JSON from .json file
+ * Assumes file path ./locales/
+ * @param file File to fetch JSON from
+ * @returns {Promise<any>} JSON output or boolean false for failure
+ */
+async function fetchJSON(file) {
+    const path = `${window.location.origin}/locales/${file}.json`;
+    console.log("fetchJSON(): Fetching:", path);
+
+    try {
+        const response = await fetch(path);
+
+        // Check for http response status
+        if (!response.ok) {
+            console.error(`fetchJSON(): HTTP error! Status: ${response.status}`);
+            return false;
+        }
+
+        return await response.json();
+
+    } catch (e) {
+        console.error("fetchJSON(): Failed to fetch or parse JSON:", e);
+        return false;
+    }
 }
 
 // Apply translations to all elements with a translation key.
