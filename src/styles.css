@@ -1,3 +1,89 @@
+/* Variables */
+
+:root {
+    /* Core colors */
+    --text-color: #ffffff;
+    --bg-color-darkest: #171717;
+    --bg-color-basic: #212121;
+    --bg-color-lightest: #454545;
+    --general-accent-color: rgba(255, 141, 44, 0.5);
+
+    /* Other colors */
+    --button-bg-color: rgba(151, 151, 151, 0.25);            /* Must have contrast to background, must have transparency */
+    --remove-button-bg-color: rgba(151, 151, 151, 0.6);      /* Likely requires more visibility than other buttons */
+    --link-color: #ff7633;
+    --link-hover: #ffa400;
+    --link-visited: #b35729;
+    --link-active: #ffcc00;
+    --option-bg-color: var(--button-bg-color);
+    --icon-filter: invert(1);                                /* Color inversion for icons (black-white) */
+
+    /* Animations and hovers */
+    --general-transitions: opacity 400ms ease, background-color 25ms linear, transform 300ms ease-in-out;
+    --button-bg-color-hover: var(--general-accent-color);
+    --general-hover-filter: opacity(1) brightness(1);
+
+    /* z-index default for various elements (starting values of ranges, 100 values reserved for each) */
+    --zindex-visual-core: 0;               /* Core visual elements like video */
+    --zindex-drawings: 200;                /* Created element */
+    --zindex-textAreas: 300;               /* Created element */
+    --zindex-overlays: 400;                /* Created element */
+
+    --zindex-interface-dynamic: 700;       /* Interface elements that can go under other interface elements */
+    --zindex-interface-core: 800;          /* Interface elements that must not be covered */
+    --zindex-prompts: 900;                 /* Prompts that should almost always be possible to interact with */
+    --zindex-modals: 1000;                 /* Modal elements that can cover everything else */
+
+    --zindex-dev: 9000;                    /* Developer elements */
+
+}
+
+.lightMode {                               /* Toggleable light mode */
+    --text-color: #000000;
+
+    --bg-color-darkest: #dadada;
+    --bg-color-basic: #ececec;
+    --bg-color-lightest: #ffffff;
+
+    --button-bg-color: rgba(255, 255, 255, 0.43);
+    --button-bg-color-hover: var(--general-accent-color);
+
+    --option-bg-color: rgba(173, 231, 255, 0.51);
+
+    --icon-filter: invert(0);
+
+    --general-accent-color: rgba(0, 178, 255, 0.6);
+
+    --link-color: #1111ff;
+    --link-hover: #4141ff;
+    --link-visited: #6811ff;
+    --link-active: #6161ff;
+}
+
+
+/* Generic styles */
+
+* {
+    user-select: none;                     /* Almost nothing should be possible to select */
+    transition: var(--general-transitions);
+}
+
+a {
+    color: var(--link-color);
+}
+
+a:active {
+    color: var(--link-active);
+}
+
+a:hover {
+    color: var(--link-hover);
+}
+
+a:visited {
+    color: var(--link-visited);
+}
+
 body {
     height:100%;
     overflow: hidden;
@@ -5,27 +91,131 @@ body {
     margin: 0;
 
     font-family: 'Noto Sans', sans-serif;
+
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
 }
+
+
+/* Buttons, options, icons */
 
 button {
     width: max-content;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 5px;
     margin: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     border: none;
-    background-color: transparent;
+
+    filter: var(--general-hover-filter);
+
+    background-size: cover;
+    background-position: center;
+    border-radius: 5px;
+
+    background-color: var(--button-bg-color);
+    color: var(--text-color);
+
+    transition: var(--general-transitions);
+}
+
+button:hover {
+    background-color: var(--button-bg-color-hover);
+}
+
+button:not(:hover) {
+    transition: background-color 100ms ease-out;
+}
+
+.buttonSmall {
+    color: var(--text-color);
+
+    min-width: 23px;
+    min-height: 23px;
 }
 
 .icon {
     width: 30px;
     height: 30px;
     object-fit: contain; /* Ensures the icon fits within defined width and height */
+
+    filter: var(--icon-filter);
 }
 
 .icon:hover {
-    filter: opacity(0.6) brightness(0.9) drop-shadow(0 0 0px rgba(30, 150, 255, 0.7));
+    filter: var(--general-hover-filter) var(--icon-filter);
+}
+
+.promptOption {
+    width: 100%;
+    margin: 4px 0;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+
+    background-color: var(--option-bg-color);
+    color: var(--text-color);
+}
+
+
+/* Specific controls */
+
+#buttonSmallerFont,
+#buttonBiggerFont {
+    font-size: 21px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
+#textControls {
+    display: flex;
+    gap: 5px;
+
+    justify-content: center;
+    align-items: center;
+
+    color: var(--text-color);
+}
+
+#zoomControls {
+    display: flex;
+    margin-left: 15px;
+    margin-right: 15px;
+    align-items: center;
+
+    gap: 5px;   /* FF: 2px looks good, Chrome needs more */
+
+    color: var(--text-color);
+}
+
+#zoomSlider {
+    accent-color: var(--general-accent-color);
+}
+
+
+/* Core UI */
+
+#buttonCollapse,
+#buttonFullScreen {
+    aspect-ratio: 1/1;
+    position: absolute;
+    margin: 5px;
+    z-index: 899; /* TODO: Use variable, always on top of UI */
+    bottom: 0;
+}
+
+#buttonCollapse {
+    right: 56px;        /* TODO: Create container with single easy position for both buttons */
+}
+
+#buttonFullScreen {
+    right: 6px;        /* TODO: Create container with single easy position for both buttons */
 }
 
 #controlBar {
@@ -33,60 +223,70 @@ button {
     position: absolute;
     height: 50px;
     width: 100%;
-    z-index: 99;
+    z-index: 898;  /* TODO: Use variable, almost always on top of UI */
     bottom: 0;
-    background-color: #ffffff;
+
+    align-items: center;
+
+    background-color: var(--bg-color-darkest);
+    color: var(--text-color);
 }
 
 #island_controlBar {
     position: absolute;
+    left: 75px;
+    top: 177px;
+    transform: translateX(-50%) translateY(-50%);
     cursor: move;
-    background-color: #ffffff;
-    z-index: 100;
+    z-index: 897;  /* TODO: Use variable, usually on top of UI */
     display: flex;
     flex-direction: column;
     width: 120px;
-    height: 250px;
+    height: max-content;
     border-radius: 10px;
     padding-bottom: 10px;
     padding-top: 10px;
+
+    gap: 7px;
+
+    background-color: var(--bg-color-lightest);
+    color: var(--text-color);
+
+
 }
 
-#textButtons {
-    display: flex;
-    padding-top: 5px;
+#selectorDevice {
+    width: 200px;
+    height: 40px;
+    border-radius: 8px;
+    outline: none;
+    border: 1px solid var(--text-color);
+
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
 }
 
-#buttonSmallerFont,
-#buttonBiggerFont {
-    width: 23px;
-    height: 23px;
-    font-size: 21px;
-    align-items: center;
-    padding: 0;
+
+/* Special behavior */
+
+#island_controlBar.animate_move {
+    transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
 }
 
-#buttonSmallerFont:hover,
-#buttonBiggerFont:hover {
-    filter: opacity(0.6) brightness(0.9) drop-shadow(0 0 0px rgba(30, 150, 255, 0.7));
-}
 
-#textControls {
-    display: flex;
-    gap: 5px;
-}
-
-#textSizeLabel {
-    font-size: 15px;
-}
+/* Core elements */
 
 #cameraFeed {
     display: block;
     min-width: 100%;
     height: 100%;
-    object-fit: contain;
+    /*object-fit: contain; TESTAA */
+    object-fit: cover;
     position: relative;
-    z-index: 1;
+    z-index: var(--zindex-visual-core);
+    border-radius: 5px;
+
+    transition: transform 130ms linear;      /* Slight smoothing for zoom */
 }
 
 #canvasMain {
@@ -96,47 +296,138 @@ button {
     margin-left: auto;
     margin-right: auto;
     position: relative;
+    z-index: var(--zindex-visual-core);
 }
 
-/* Frame around the video */
 #videoContainer {
     width: 100%;
     height: 100%;
-    z-index: 1;
+    z-index: var(--zindex-visual-core);
+    /*z-index: 1;*/
     display: contents;
 }
 
-#zoomControls {
-    display: flex;
-    margin-left: 20px;
-    align-items: center;
-}
 
-#zoomSlider {
-    accent-color: rgba(93, 149, 191, 0.45);
-}
+/* Programmatically created elements */
 
-#buttonCollapse,
-#buttonFullScreen {
+.createdOverlay {
+    width: 105%;
+    height: 105%;
+    background: linear-gradient(to bottom, #e6e6e6, #222222);
+    cursor: move;
+    z-index: var(--zindex-overlays);
     position: absolute;
-    width: 30px;
-    height: 30px;
-    margin: 5px;
-    padding: 0;
-    border: none;
-    background: none;
-    z-index: 101;
-    bottom: 6px;
+    left: 2%;
+    top: 2%;
 }
 
-#buttonCollapse {
-    right: 46px;
+.createdOverlayRemoveButton {
+    width: 5%;
+    height: 20px;
+    margin: -10px auto auto;
+    display: none; /* Displayed programmatically */
+
+    background-color: var(--remove-button-bg-color);
 }
 
-#buttonFullScreen {
-    right: 6px;
+.createdTextAreaContainer {
+    position: absolute;
+    left: 300px;
+    top: 100px;
+    min-width: 150px;
+    min-height: 40px;
+    z-index: 301; /* TODO: Use variable if possible */
 }
 
-#selectorDevice {
-    width: 200px;
+.createdTextArea {
+    user-select: text; /* Text in text areas should be selectable */
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    font-size: 30px;
+    resize: none; /* Prefer custom implementation for resize */
+    overflow: auto;
+    cursor: move; /* TODO: Will not allow for text selection cursor, related: drag handler interferes with text selection */
+    z-index: 301; /* TODO: Use variable if possible */
 }
+
+.createdTextAreaContainerRemoveButton { /* TODO: JS implementation breaks class naming */
+
+    width: 20px;
+    height: 20px;
+    margin-top: -18px;
+    position: absolute;
+    display: none;
+    border-radius: 10px;
+    padding-bottom: 10px;
+    z-index: 300; /* TODO: Use variable if possible */
+
+    background-color: var(--remove-button-bg-color)
+}
+
+.createdTextAreaResizeHandle {
+    width: 15px;
+    height: 15px;
+    background-color: gray;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    cursor: se-resize;
+    clip-path: polygon(100% 0, 0 100%, 100% 100%);
+    z-index: 302; /* TODO: Use variable if possible */
+
+}
+
+.createdContentBox {
+    overflow: scroll;
+}
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.4);
+    z-index: 1000;
+    pointer-events: all;
+    opacity: 0;
+}
+
+.prompt {
+    transform: translateX(-50%);
+    background-color: var(--bg-color-lightest);
+    border-radius: 10px;
+    padding: 12px 7px 9px 7px;          /* Shorthand: top right bottom left */
+    z-index: var(--zindex-prompts);
+}
+
+.promptTitle {
+    font-size: 20px;
+    text-align: center;
+    margin-bottom: 10px;
+
+    color: var(--text-color);
+}
+
+.promptText {
+    text-align: justify;        /* Text fills horizontal space */
+    margin-bottom: 10px;
+    max-height: 100%;
+    overflow: auto;
+    padding: 5px;               /*  In case of vertical scrollbar */
+    box-sizing: content-box;    /*  Prevents padding from affecting width */
+
+    color: var(--text-color);
+}
+
+.promptOptionContainer {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    justify-content: flex-end;
+    padding: 0 3px 0 3px;
+
+    gap: 0;
+}
+
