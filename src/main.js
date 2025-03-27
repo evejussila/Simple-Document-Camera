@@ -150,8 +150,8 @@ function addCoreListeners() {
      window.addEventListener("keydown", (event) => {
      const step = 50;
      const isInputFocused = document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT';
-        if (!isInputFocused) {                                                                                                          // Only allow video movement if no input field is focused
-            switch (event.key) {
+        if (!isInputFocused) {                                                                                          // Only allow video movement if no input field is focused
+            switch (event.key) {                                                                                        // Move video with keyboard
                 case "ArrowLeft": moveVideo(-step, 0); break;
                 case "ArrowRight": moveVideo(step, 0); break;
                 case "ArrowUp": moveVideo(0, -step); break;
@@ -803,6 +803,9 @@ function adjustZoom(increment) {
     document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
 }
 
+/**
+ * Fit button function - Video size by width
+ */
 function fitVideo() {
     videoElement.style.width = "100vw";
     videoElement.style.height = "auto";
@@ -815,6 +818,9 @@ function fitVideo() {
     document.getElementById('zoomPercentageLabel').innerText = "100%";
 }
 
+/**
+ * Fill button function - Video size by height
+ */
 function fillVideo() {
     videoElement.style.width = "100%";
     videoElement.style.height = "100vh";
@@ -827,14 +833,17 @@ function fillVideo() {
     document.getElementById('zoomPercentageLabel').innerText = "100%";
 }
 
+/**
+ * Move the video
+ */
 function moveVideo(dx, dy) {
     offsetX += dx; // Move video horizontally
     offsetY += dy; // Move video vertically
 
-    updateVideoTransform(); // Apply the changes
+    updateVideoTransform();
 }
 
-//Rajat toimii vaan zoomin ollessa täysi??
+//TODO: Do we want borders so that the background is not visible when moving? Is it necessary? Right now not working properly, only when zoomed in very close.
 function limitTranslation() {
     const videoElement = document.getElementById("cameraFeed");
     const container = document.getElementById("videoContainer");
@@ -1276,7 +1285,7 @@ function videoFlip() {
 }
 
 /**
- * Toggle between video feed and freeze image (still frame).
+ * Toggle between video feed and freeze image (still frame). TODO: Freeze not working properly with Fill button.
  * @param freezeIcon Icon for freeze button
  */
 function videoFreeze(freezeIcon) {

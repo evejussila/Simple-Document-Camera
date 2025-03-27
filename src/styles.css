@@ -280,8 +280,8 @@ button:not(:hover) {
     display: block;
     min-width: 100%;
     height: 100%;
-    /*object-fit: contain; TESTAA */
-    object-fit: cover;
+    object-fit: contain;
+    /*object-fit: cover;*/
     position: relative;
     z-index: var(--zindex-visual-core);
     border-radius: 5px;
@@ -303,7 +303,6 @@ button:not(:hover) {
     width: 100%;
     height: 100%;
     z-index: var(--zindex-visual-core);
-    /*z-index: 1;*/
     display: contents;
 }
 
