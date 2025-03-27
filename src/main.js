@@ -162,33 +162,6 @@ function addCoreListeners() {
      });
 }
 
-function moveVideo(dx, dy) {
-    offsetX += dx; // Move video horizontally
-    offsetY += dy; // Move video vertically
-
-    updateVideoTransform(); // Apply the changes
-}
-
-//Rajat toimii vaan zoomin ollessa täysi??
-function limitTranslation() {
-    const videoElement = document.getElementById("cameraFeed");
-    const container = document.getElementById("videoContainer");
-
-    const zoomFactor = currentZoom;
-    const videoWidth = videoElement.videoWidth * zoomFactor;
-    const videoHeight = videoElement.videoHeight * zoomFactor;
-
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-
-    const maxOffsetX = Math.max(0, (videoWidth - containerWidth) / 2);
-    const maxOffsetY = Math.max(0, (videoHeight - containerHeight) / 2);
-
-    offsetX = Math.min(maxOffsetX, Math.max(-maxOffsetX, offsetX));
-    offsetY = Math.min(maxOffsetY, Math.max(-maxOffsetY, offsetY));
-}
-
-
 function handlePrivacy() {
 
     // Check files
@@ -688,6 +661,31 @@ function fillVideo() {
     document.getElementById('zoomPercentageLabel').innerText = "100%";
 }
 
+function moveVideo(dx, dy) {
+    offsetX += dx; // Move video horizontally
+    offsetY += dy; // Move video vertically
+
+    updateVideoTransform(); // Apply the changes
+}
+
+//Rajat toimii vaan zoomin ollessa täysi??
+function limitTranslation() {
+    const videoElement = document.getElementById("cameraFeed");
+    const container = document.getElementById("videoContainer");
+
+    const zoomFactor = currentZoom;
+    const videoWidth = videoElement.videoWidth * zoomFactor;
+    const videoHeight = videoElement.videoHeight * zoomFactor;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    const maxOffsetX = Math.max(0, (videoWidth - containerWidth) / 2);
+    const maxOffsetY = Math.max(0, (videoHeight - containerHeight) / 2);
+
+    offsetX = Math.min(maxOffsetX, Math.max(-maxOffsetX, offsetX));
+    offsetY = Math.min(maxOffsetY, Math.max(-maxOffsetY, offsetY));
+}
 
 /**
  * Switches the full screen mode on or off.
