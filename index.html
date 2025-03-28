@@ -11,49 +11,49 @@
         <div id="island_controlBar">
 
             <!-- Rotate button -->
-            <button id="buttonRotate" title="Rotate">
+            <button data-locale-key="rotate" id="buttonRotate" title="Rotate">
                 <img class="icon" src="./images/rotate.png" alt="Rotate">
             </button>
 
             <!-- Flip button -->
-            <button id="buttonFlip" title="Flip">
+            <button data-locale-key="flip" id="buttonFlip" title="Flip">
                 <img class="icon" src="./images/flip.png" alt="Flip">
             </button>
 
             <!-- Freeze button -->
-            <button id="buttonFreeze" title="Freeze">
+            <button data-locale-key="freeze" id="buttonFreeze" title="Freeze">
                 <img id="iconFreeze" class="icon" src="./images/freeze.png" alt="Freeze">
             </button>
 
             <!-- Save image button -->
-            <button id="buttonSaveImage" title="Download Image">
+            <button data-locale-key="downloadImg" id="buttonSaveImage" title="Download Image">
                 <img class="icon" src="./images/downloadImage.png" alt="Download Image">
             </button>
 
             <!-- Add overlay button -->
-            <button id="buttonOverlay" title="Add Overlay">
+            <button data-locale-key="overlay" id="buttonOverlay" title="Add Overlay">
                 <img id="iconOverlay" class="icon" src="./images/overlay.png" alt="Overlay">
             </button>
 
             <!-- Add text button -->
-            <button id="buttonAddText" title="Add Text">
+            <button data-locale-key="text" id="buttonAddText" title="Add Text">
                 <img id="iconText" class="icon" src="./images/text.png" alt="Add Text">
             </button>
 
             <div id="textControls">
-                <button id="buttonSmallerFont" class="buttonSmall">-</button>
+                <button data-locale-key="smaller" id="buttonSmallerFont" title="Smaller text size" class="buttonSmall">-</button>
                 <!--<label id="textSizeLabel" title="Text Size">Text size</label> -->
-                <button id="buttonBiggerFont" class="buttonSmall">+</button>
+                <button data-locale-key="bigger" id="buttonBiggerFont" title="Bigger text size" class="buttonSmall">+</button>
             </div>
         </div>
 
         <!-- Full screen button -->
-        <button id="buttonFullScreen" title="Full Screen">
+        <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
             <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
         </button>
 
         <!-- Button for hiding control bar and island -->
-        <button id="buttonCollapse" title="Hide Controls">
+        <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
             <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
         </button>
 
@@ -61,15 +61,26 @@
         <canvas id="canvasMain"></canvas>
 
         <div id="controlBar">
-            <select id="selectorDevice" title="Select Camera"></select>
+            <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
+
             <!-- Zoom Controls -->
             <div id="zoomControls">
-                <button id="zoomOutButton" class="buttonSmall">-</button>
+                <button data-locale-key="zoomOut" id="zoomOutButton" title="Zoom Out" class="buttonSmall">-</button>
                 <label for ="zoomSlider"></label>
-                <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
-                <button id="zoomInButton" class="buttonSmall">+</button>
+                <input data-locale-key="zoom" title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
+                <button data-locale-key="zoomIn" id="zoomInButton" title="Zoom In" class="buttonSmall">+</button>
                 <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
             </div>
+
+            <div id="languages">
+                <label>
+                    <select data-locale-selector class="locale-switcher" title="Change Language" data-locale-key="language">
+                        <option value="en" data-locale-key="english">English</option>
+                        <option value="fi" data-locale-key="finnish">Finnish</option>
+                    </select>
+                </label>
+            </div>
+
         </div>
     </div>
 

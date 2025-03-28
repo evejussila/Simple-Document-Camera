@@ -1,0 +1,23 @@
+{
+  "bigger": "Suurempi tekstikoko",
+  "controlsHide": "Piilota hallintapaneelit",
+  "controlsShow": "Näytä hallintapaneelit",
+  "downloadImg": "Lataa kuva",
+  "english": "Englanti",
+  "finnish": "Suomi",
+  "flip": "Peilaa",
+  "freeze": "Pysäytä kuva",
+  "fullscreen": "Koko näytön tila",
+  "fullscreenExit": "Poistu koko näytön tilasta",
+  "language": "Valitse kieli",
+  "overlay": "Lisää peittokalvo",
+  "play": "Näytä videokuvaa",
+  "remove": "Poista",
+  "rotate": "Kierrä",
+  "selectCamera": "Valitse kamera",
+  "smaller": "Pienempi tekstikoko",
+  "text": "Lisää tekstiä",
+  "zoom": "Muuta kuvan kokoa",
+  "zoomIn": "Lähennä",
+  "zoomOut": "Loitonna"
+}
