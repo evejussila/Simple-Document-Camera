@@ -7,11 +7,11 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 }
 
-// Localisation
-// TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-// TODO: Privacy notices etc. require this to have a value. A value was given as a default for development. Default value here can be removed as long as it's set elsewhere.
-let currentLocale = "en";                                                                     // The active locale
-// TODO: MARK-LOCALISATION: ------------------------- END -------------------------
+// Localization
+const defaultLocale = "en";                                  // Default locale is english
+const allowedLocales = ["en", "fi"];                        // Only these locales are allowed
+let currentLocale;                                                  // The active locale
+let currentTranslations = {};                                   // Stores translations for the active locale
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -39,7 +39,6 @@ let createdElements;                                                            
 
 
 // Initialization
-
 document.addEventListener('DOMContentLoaded', start);                                 // Start running scripts only after HTML has been loaded and elements are available
 
 function start() {
@@ -50,27 +49,32 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Handle notices, consent and data storage
-    handlePrivacy();
+    // Add localization and wait for it to complete
+    addLocalization().then(() => {
+        // Handle notices, consent and data storage
+        handlePrivacy();
 
-    // Start video feed
-    videoStart().then(() => {   } );                                                         // Start video
+        // Start video feed
+        videoStart().then(() => {});
 
-    // Create menus
-    createMenus();
+        // Create menus
+        createMenus();
 
-    // Update video input list periodically
-    setInterval(backgroundUpdateInputList, 10000);                                    // Runs background update periodically
+        // Update video input list periodically
+        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically
 
-    // Keep control island visible
-    setInterval( () => { moveElementToView(island) }, 5000);                   // Periodically ensures control island is visible
+        // Keep control island visible
+        setInterval(() => { moveElementToView(island) }, 5000); // Periodically ensures control island is visible
 
-    // Render UI
-    showElement(controlBar);
-    showElement(island);                                                                      // TODO: Should run when ToS agreed to
-    showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
+        // Render UI
+        showElement(controlBar);
+        showElement(island);                                                                      // TODO: Should run when ToS agreed to
+        showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
+
+    });
 
 }
+
 
 /**
  * Adds critical listeners for interface elements
@@ -93,12 +97,12 @@ function addCoreListeners() {
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
     const fullScreenButton = document.getElementById('buttonFullScreen');
-    fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon));
+    fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
 
     // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
     const collapseIcon = document.getElementById("iconCollapse");
     const collapseButton = document.getElementById('buttonCollapse');
-    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon));
+    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon, collapseButton));
 
     // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -126,6 +130,115 @@ function addCoreListeners() {
         backgroundUpdateInputList().then( () => {} );
     });
 }
+
+
+/**
+ * Sets the language to default and initializes language selector.
+ *
+ */
+async function addLocalization() {
+    await setLocale(defaultLocale);
+    bindLocaleSelector(defaultLocale);
+}
+
+/**
+ * Sets up the language selector and binds event listeners to detect language changes.
+ * @param {string} initialLocale - The initial locale to set.
+ */
+function bindLocaleSelector(initialLocale) {
+    const localeSelector = document.querySelector("[data-locale-selector]");
+    localeSelector.value = initialLocale;
+    localeSelector.onchange = (e) => {
+        // Set the language based on the selected value
+        setLocale(e.target.value);
+    };
+}
+
+/**
+ * Loads translations and applies them to the page.
+ * Ensures the requested locale is allowed and translations are properly loaded.
+ * @param {string} newLocale - The locale to set.
+ */
+async function setLocale(newLocale) {
+    // Checks if new locale is in the list of allowed locales
+    if (!allowedLocales.includes(newLocale)) {
+        console.error(`setLocale(): Attempted to load unsupported locale: ${newLocale}`);
+        return;
+    }
+
+    if (newLocale === currentLocale) return;
+
+    const newTranslations = await fetchJSON(newLocale);
+    if (!newTranslations) {
+        console.error("setLocale(): Invalid translations received for locale:", newLocale);
+        return;
+    }
+
+    currentLocale = newLocale;
+    currentTranslations = newTranslations;
+    applyTranslations();
+}
+
+/**
+ * Fetches JSON from .json file
+ * Assumes file path ./locales/
+ * @param file File to fetch JSON from
+ * @returns {Promise<any>} JSON output or boolean false for failure
+ */
+async function fetchJSON(file) {
+    const path = `${window.location.origin}/locales/${file}.json`;
+    console.log("fetchJSON(): Fetching:", path);
+
+    try {
+        const response = await fetch(path);
+
+        // Checks for HTTP response status
+        if (!response.ok) {
+            console.error(`fetchJSON(): HTTP error! Status: ${response.status}`);
+            return false;
+        }
+
+        return await response.json();
+
+    } catch (e) {
+        console.error("fetchJSON(): Failed to fetch or parse JSON:", e);
+        return false;
+    }
+}
+
+/**
+ * Applies translations to all elements that have a data-locale-key attribute.
+ * This function iterates over the DOM and updates elements based on their translation keys.
+ */
+function applyTranslations() {
+    document.querySelectorAll("[data-locale-key]").forEach(translateElement);
+}
+
+/**
+ * Updates the text content or attributes of an element based on its data-locale-key attribute.
+ * @param {HTMLElement} element - The element to translate.
+ */
+function translateElement(element) {
+    const key = element.getAttribute("data-locale-key");
+    const translation = currentTranslations[key];
+
+    // Skip if no translation is available
+    if (!translation) return;
+
+    // If element has title attribute, it gets translated.
+    if (element.hasAttribute("title")) {
+        element.setAttribute("title", translation);
+    }
+    // Else if element has placeholder attribute, it gets translated.
+    else if (element.hasAttribute("placeholder")) {
+        element.setAttribute("placeholder", translation);
+    }
+    // Check if the element has non-empty text content. If it does, update it with the translated text.
+    else if (element.textContent.trim().length > 0) {
+        element.textContent = translation;
+    }
+}
+
 
 /**
  * Handles privacy-related prompting, parameters, data storage and logical coordination
@@ -842,13 +955,15 @@ function adjustZoom(increment) {
 /**
  * Switches the full screen mode on or off.
  * @param fullScreenIcon Full screen icon element
+ * @param fullScreenButton Button for fullscreen mode
  */
-function switchToFullscreen(fullScreenIcon) {
+function switchToFullscreen(fullScreenIcon, fullScreenButton) {
 
     if(!document.fullscreenElement) {                                   // Is fullscreen active?
         videoContainer.requestFullscreen().then(() => {
             print("switchToFullscreen(): Full screen mode activated");
-            fullScreenIcon.title = 'Close full screen';
+            fullScreenButton.setAttribute("data-locale-key", "fullscreenExit");
+            translateElement(fullScreenButton);
             fullScreenIcon.src = "./images/closeFullScreen.png";
         }).catch(error => {
             alert(`Error attempting to switch to fullscreen mode: ${error.message}`);
@@ -856,7 +971,8 @@ function switchToFullscreen(fullScreenIcon) {
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
             print("switchToFullscreen(): Full screen mode closed");
-            fullScreenIcon.title = 'Full screen';
+            fullScreenButton.setAttribute("data-locale-key", "fullscreen");
+            translateElement(fullScreenButton);
             fullScreenIcon.src = "./images/fullscreen.png";
             // island.style.top = '';                                       // UI island to starting position
             // island.style.left = '';
@@ -870,20 +986,25 @@ function switchToFullscreen(fullScreenIcon) {
 /**
  * Hides or shows control bar and island when collapseButton is clicked.
  * @param collapseIcon Icon for collapseButton
+ * @param collapseButton Button for control visibility toggle
  */
-function toggleControlCollapse(collapseIcon) {
+function toggleControlCollapse(collapseIcon, collapseButton) {
     isControlCollapsed = !isControlCollapsed;
 
     collapseIcon.style.transform += "scaleY(-1)";
 
     if (isControlCollapsed) {
-        collapseIcon.title = 'Show controls';
-        // collapseIcon.src = "./images/showControls.png";
+        collapseButton.setAttribute("data-locale-key", "controlsShow");
+        translateElement(collapseButton);
+
         hideElement(controlBar);
         hideElement(island);
     }
     else {
-        collapseIcon.title = 'Hide controls';
+        collapseButton.setAttribute("data-locale-key", "controlsHide");
+        translateElement(collapseButton);
+
+        // collapseIcon.title = 'Hide controls';
         // collapseIcon.src = "./images/hideControls.png";
         showElement(controlBar, 'inline-flex'); // TODO: Set display states in CSS
         showElement(island, 'flex');
@@ -1274,6 +1395,8 @@ function videoFreeze(freezeIcon) {
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
+        freezeIcon.setAttribute("data-locale-key", "play");
+        translateElement(freezeIcon);
         isFreeze = true;                                                                            // Freeze is on
     } else {
         videoStart();
@@ -1281,6 +1404,8 @@ function videoFreeze(freezeIcon) {
         canvasElement.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
         freezeIcon.title = "Freeze";
+        freezeIcon.setAttribute("data-locale-key", "freeze");
+        translateElement(freezeIcon);
         isFreeze = false;                                                                           // Freeze is off
     }
 }
@@ -1658,6 +1783,7 @@ class MovableElement {
         removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
         removeButton.id = id + "RemoveButton";                    // Forms id for remove button
         removeButton.title = "Remove";
+        removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
         removeButton.textContent = "X";
         Object.assign(removeButton.style, removeButtonStyle);     // TODO: Only assign if anything defined (set default to null and add conditional for != null)
         removeButton.addEventListener('click', () => removeElement(newElement));
@@ -1673,6 +1799,7 @@ class MovableElement {
 
         // Add element to DOM
         newElement.appendChild(removeButton);
+        translateElement(removeButton);
         // island.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
         videoContainer.appendChild(newElement);
         newElement.style.opacity = "1";                           // TODO: Apply fade to creation
@@ -1830,11 +1957,15 @@ class TextArea extends MovableElement {
         // Create main element
         this.element = document.createElement("textarea");
         this.element.className = "createdTextArea";
-        this.element.id = this.id;
         this.element.placeholder = "Text";
+        this.element.setAttribute("data-locale-key", "text"); // Assign translation key
+        this.element.id = this.id;
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
         createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
+
+        // Apply translation
+        translateElement(this.element);
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
