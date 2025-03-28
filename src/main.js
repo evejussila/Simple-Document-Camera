@@ -885,8 +885,8 @@ function toggleControlCollapse(collapseIcon) {
     else {
         collapseIcon.title = 'Hide controls';
         // collapseIcon.src = "./images/hideControls.png";
-        showElement(controlBar, undefined, 'inline-flex');
-        showElement(island, undefined, 'flex');
+        showElement(controlBar, 'inline-flex'); // TODO: Set display states in CSS
+        showElement(island, 'flex');
     }
 }
 
@@ -945,12 +945,11 @@ async function showContentBox(file, modal = false, clickOut = true) {
     // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
     const modalOverlay = document.createElement("div");      // Create container element
-    const overlayFadeTime = 0.3;                                     // Fade time for animations
 
     if (modal) {                                                     // Create modal overlay if requested
         modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
         document.body.appendChild(modalOverlay);                     // Append
-        showElement(modalOverlay, overlayFadeTime, "");
+        showElement(modalOverlay);
         if (clickOut) {
             modalOverlay.addEventListener('click', removeModalPrompt);
         }
@@ -975,8 +974,8 @@ async function showContentBox(file, modal = false, clickOut = true) {
     // Nested functions for options
 
     function removeModalPrompt() {
-        hideElement(modalOverlay, overlayFadeTime / 2, true);
-        prompt.remove();                                        // Remove prompt when not dismissed
+        removeElement(modalOverlay);
+        removeElement(prompt);                                  // Remove prompt when not dismissed
     }
 
 }
@@ -1351,63 +1350,72 @@ function updateVideoTransform() {
 
 /**
  * Removes an element.
- * Applies a fade out.
  * @param element Element to remove
- * @param fadeTime Fade duration s (optional)
  */
-function removeElement(element, fadeTime = 0.2) {
-    hideElement(element, fadeTime, true)
+function removeElement(element) {
+    hideElement(element, true)
     print("removeElement(): Remove issued for element: " + element.id);
 }
 
 /**
  * Hides an element.
- * Applies a fade out.
  * Can be used to remove elements.
  * @param element Element to hide
- * @param fadeTime Fade duration s (optional)
- * @param removeAfter Should the element be deleted after hiding
+ * @param removeAfter True if element should be deleted after hiding
  */
-function hideElement(element, fadeTime = 0.3, removeAfter = false) {
-    element.classList.add("hidden");
+function hideElement(element, removeAfter = false) {
+    element.setAttribute("data-return-display-state", window.getComputedStyle(element).display); // Store initial display state
+    element.classList.add("hidden");                                                                         // Apply CSS class to hide
 
-    // element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
-    // element.style.opacity = "0";
+    element.addEventListener("transitionend", function hideAfterTransition() {                               // Change display state after animation
+        element.style.display = "none";
+        element.removeEventListener("transitionend", hideAfterTransition);
+    });
 
-    setTimeout(() => {
-        // element.style.display = "none";
-        // element.style.pointerEvents = "none";                    // TODO: Disable interactions during animations, but recover pointer event status (create toggleable class CSS)
-        if (removeAfter) {
+    if (removeAfter) {
+        setTimeout(() => {
+            print("hideElement(): Removing element");
             element.remove();
-            print("hideElement(): Removing element: " + removeAfter); }
-    }, fadeTime * 1000);
+        }, 100); // TODO: Arbitrary delay, only reliable found way to animate before deletion
+
+    } else {
+
+    }
+
 }
 
 /**
  * Shows a hidden element.
- * Applies a fade in.
  * @param element Element to hide
- * @param fadeTime Fade duration in s (optional)
- * @param displayStyle Display style (optional)
+ * @param display Display state to set (use for newly created elements)
  */
-function showElement(element, fadeTime = 0.4, displayStyle = "block") {
-    element.classList.remove("hidden");
+function showElement(element, display = null) {
+    let displayState;
+    if (display != null) {                      // If element has been given a specific display state to use
+        displayState = display
+    } else {                                    // If element was hidden using hideElement()
+        displayState = element.getAttribute("data-return-display-state");
+        element.removeAttribute("data-return-display-state");
+    }
+    element.style.display = displayState;       // Set display state
+    // TODO: Dev: replace block with ternary
 
-    // element.style.opacity = "0";                                    // Ensures not visible
-    // element.style.display = displayStyle;                           // Renders element display
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
-    // element.style.pointerEvents = "all";                         // TODO: Pointer event recovery needs to use initial value
+    element.classList.remove("hidden");                                      // Remove applied CSS class to show
 
-    // requestAnimationFrame(() => {                                // Runs code after display is rendered
+    // DEV: Animation not rendering debug attempts:
+
+    // requestAnimationFrame(() => {                                // Runs code after display is rendered, display property may take a while
     //     element.style.opacity = '1';
     // });
-
-    // TODO: Animation not working on FF even when it works on Chrome
 
     // DEV: Testing alternative
     // setTimeout(() => {
     //     element.style.opacity = '1';
     // }, 10);
+
+    // element.style.display = displayStyle;    // Where value default is "block"
+    // element.style.transition = `opacity ${fadeTime}s ease-in-out`;
+    //
 
 }
 
@@ -2102,9 +2110,9 @@ class Menu extends MovableElement {
     toggleVisibility() {
         print("Menu: toggleVisibility(): Toggling: " + this.id);
         if (this.visible) {
-            hideElement(this.element, 0.2);
+            hideElement(this.element);
         } else {
-            showElement(this.element, 0.1, "flex");
+            showElement(this.element, "flex");
         }
         this.visible = !this.visible;
 
@@ -2153,7 +2161,7 @@ class Menu extends MovableElement {
      */
     static createButton(img, buttonId, iconId, text, appendTo) {
         const button = document.createElement("button");
-        hideElement(button);           // Start invisible
+        button.style.display = "none";          // Start invisible to prevent stutters while loading
 
         button.id = buttonId;
         button.title = text;
@@ -2166,12 +2174,12 @@ class Menu extends MovableElement {
         icon.classList.add("icon");
         button.appendChild(icon);
 
-        if (appendTo) {                 // Check for truthy parameter value
+        if (appendTo) {                          // Check for truthy parameter value
             appendTo.appendChild(button);
         }
 
-        icon.onload = () => {           // TODO: Button should eventually be visible even if load fails
-            showElement(button);        // Load when icon ready
+        icon.onload = () => {                    // TODO: Button should eventually be visible even if load fails
+            showElement(button, "block");        // Load when icon ready
         };
         return button;
     }

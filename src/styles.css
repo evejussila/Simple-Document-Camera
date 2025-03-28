@@ -96,7 +96,7 @@ body {
     color: var(--text-color);
 }
 
-.hidden {
+.hidden {                   /* Hides visually, retains display state */
     opacity: 0;
     pointer-events: none;
 }
@@ -318,7 +318,7 @@ button:not(:hover) {
     margin: 0 5px 0 5px;
     align-items: center;
     visibility: visible;
-    gap: 7px;
+    gap: 10px;
 
 }
 
