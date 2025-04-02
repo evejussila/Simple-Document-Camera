@@ -414,7 +414,7 @@ async function videoStart() {
         try {
             let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
             await setVideoInput(input);                                                          // Use the selected input
-            await testCameraResolutions();  // Testaa kameran resoluutiot ja yritä parantaa laatua JONNA
+            await testCameraResolutions();  // Testaa kameran resoluutiot
             resetVideoState();                                                                   // Reset video view
         } catch (e) {
             // TODO: Catch not reliable enough
@@ -615,6 +615,22 @@ async function backgroundUpdateInputList() {
 
 }
 
+// LAATU
+async function getBestCameraSettings(deviceId) {
+    const tempStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId } } });
+    const track = tempStream.getVideoTracks()[0];
+    const capabilities = track.getCapabilities();
+
+    console.log("Kameran maksimikyvyt:", capabilities);
+
+    track.stop(); // Sulje testivirta
+    return {
+        width: capabilities.width?.max || 1920,
+        height: capabilities.height?.max || 1080,
+        frameRate: capabilities.frameRate?.max || 60
+    };
+}
+
 /**
  * Accesses a camera feed.
  *
@@ -631,17 +647,28 @@ async function setVideoInput(input = selector.value) {
     while (true) {                                                                               // Retry until success or retry limit reached
         try {
             print("setVideoInput(): Accessing a camera feed: " + shorten(input));
+            const bestSettings = await getBestCameraSettings(input);
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
                     deviceId: {exact: input},
                     facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
-                    width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
-                    height: {ideal: 1080},                                                       // Ideal values are not constraints
-                    frameRate: {ideal: 60}
+                    width: { ideal: bestSettings.width },
+                    height: { ideal: bestSettings.height },
+                    frameRate: { ideal: bestSettings.frameRate }
+                    //width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
+                    //height: {ideal: 1080},                                                       // Ideal values are not constraints
+                    //frameRate: {ideal: 60}
+                    //width: {max: 3840, min: 1},
+                    //height: {max: 2160, min: 1},
+                    //frameRate: {max: 60, min: 0}
+                    //width: { exact: bestSettings.width },   // Pakotetaan max resoluutio
+                    //height: { exact: bestSettings.height },
+                    //frameRate: { max: bestSettings.frameRate }  // Käytetään max fps
                 }
             });
 
-            // JONNA
+
+            // LAATU
             // Tarkista, mitä asetuksia selain todella käyttää
             console.log("Camera settings:", stream.getVideoTracks()[0].getSettings());
             await stream.getVideoTracks()[0].applyConstraints({
@@ -681,7 +708,8 @@ async function setVideoInput(input = selector.value) {
     return !failed;
 }
 
-// JONNA
+
+// LAATU
 async function testCameraResolutions() {
     const stream = videoElement.srcObject;  // Hakee käytössä olevan videovirran
     if (!stream) {
@@ -696,7 +724,7 @@ async function testCameraResolutions() {
     await getSupportedResolutions(deviceId);  // Kutsutaan funktiota oikealla kameralla
 }
 
-// JONNA
+// LAATU
 async function getSupportedResolutions(deviceId) {
     const testResolutions = [
         { width: 1920, height: 1080 },
@@ -725,7 +753,7 @@ async function getSupportedResolutions(deviceId) {
     }
 }
 
-// 🔹 Automaattinen tarkennus JONNA
+// Automaattinen tarkennus LAATU
 async function enableAutoFocus() {
     let stream = videoElement.srcObject;
     if (!stream) {
@@ -2294,13 +2322,46 @@ function printStreamInformation(stream) {
 
 }
 
+async function bruteForceBestVideoStream(input = selector.value) {
+    releaseVideoStream();
+
+    console.warn("bruteForceBestVideoStream(): Testing multiple settings for " + shorten(input));
+
+    const bestSettings = await getBestCameraSettings(input);
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: { exact: input },
+                width: { ideal: bestSettings.width },
+                height: { ideal: bestSettings.height },
+                frameRate: { ideal: bestSettings.frameRate }
+            }
+        });
+
+        const track = stream.getVideoTracks()[0];
+
+        await track.applyConstraints({
+            width: bestSettings.width,
+            height: bestSettings.height,
+            frameRate: bestSettings.frameRate,
+            advanced: [{ bitrate: 5000000 }] // Lisää korkeampi bitrate
+        });
+
+        videoElement.srcObject = stream;
+        console.log("Parhaat asetukset käytössä:", track.getSettings());
+    } catch (error) {
+        console.error("bruteForceBestVideoStream() epäonnistui:", error);
+    }
+}
+
 /**
  * Requests various video tracks from a stream and looks for the best settings.
  * Visualizes.
  * Providing video track, good or bad, is up to the browser.
  *
  */
-async function bruteForceBestVideoStream(input = selector.value) {
+/*async function bruteForceBestVideoStream(input = selector.value) {
     // Note that background activities may interfere.
 
     releaseVideoStream();
@@ -2385,7 +2446,7 @@ async function bruteForceBestVideoStream(input = selector.value) {
     console.warn("bruteForceBestVideoStream(): Done");
 
     await videoStart();
-}
+} */
 
 /**
  * Shortens a long string.
