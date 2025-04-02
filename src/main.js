@@ -2322,46 +2322,13 @@ function printStreamInformation(stream) {
 
 }
 
-async function bruteForceBestVideoStream(input = selector.value) {
-    releaseVideoStream();
-
-    console.warn("bruteForceBestVideoStream(): Testing multiple settings for " + shorten(input));
-
-    const bestSettings = await getBestCameraSettings(input);
-
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                deviceId: { exact: input },
-                width: { ideal: bestSettings.width },
-                height: { ideal: bestSettings.height },
-                frameRate: { ideal: bestSettings.frameRate }
-            }
-        });
-
-        const track = stream.getVideoTracks()[0];
-
-        await track.applyConstraints({
-            width: bestSettings.width,
-            height: bestSettings.height,
-            frameRate: bestSettings.frameRate,
-            advanced: [{ bitrate: 5000000 }] // Lisää korkeampi bitrate
-        });
-
-        videoElement.srcObject = stream;
-        console.log("Parhaat asetukset käytössä:", track.getSettings());
-    } catch (error) {
-        console.error("bruteForceBestVideoStream() epäonnistui:", error);
-    }
-}
-
 /**
  * Requests various video tracks from a stream and looks for the best settings.
  * Visualizes.
  * Providing video track, good or bad, is up to the browser.
  *
  */
-/*async function bruteForceBestVideoStream(input = selector.value) {
+async function bruteForceBestVideoStream(input = selector.value) {
     // Note that background activities may interfere.
 
     releaseVideoStream();
@@ -2446,7 +2413,7 @@ async function bruteForceBestVideoStream(input = selector.value) {
     console.warn("bruteForceBestVideoStream(): Done");
 
     await videoStart();
-} */
+}
 
 /**
  * Shortens a long string.
