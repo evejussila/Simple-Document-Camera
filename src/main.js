@@ -782,14 +782,21 @@ function islandDragStop() {
  */
 function setZoomLevel(value) {
     const previousZoom = currentZoom;
-    currentZoom = value / 100;                                                                  // Update zoom value
+    const zoomPercentage = parseInt(value, 10) + 100;               // Adjust to new scale: 0 -> 100%, -50 -> 50%, 150 -> 150%
+    currentZoom = zoomPercentage / 100;                                          // Update zoom value
 
-
-    offsetX = (offsetX / previousZoom) * currentZoom;                                           // Scale translations relative to zoom
-    offsetY = (offsetY / previousZoom) * currentZoom;
+    // Center the video when zoom is below 100% TODO: Not working, part of the video is hidden. Must center the video from the start?
+    if (currentZoom < 1) {
+        offsetX = 0;
+        offsetY = 0;
+    } else {
+        offsetX = (offsetX / previousZoom) * currentZoom;                         // Scale translations relative to zoom
+        offsetY = (offsetY / previousZoom) * currentZoom;
+    }
 
     updateVideoTransform();
-    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`; // Update zoom percentage label
+    document.getElementById('zoomSlider').value = value;  // Set the slider position
+    document.getElementById('zoomPercentageLabel').innerText = `${zoomPercentage}%`; // Update zoom percentage label
 }
 
 /**
@@ -797,10 +804,9 @@ function setZoomLevel(value) {
  * @param increment Zoom increment value
  */
 function adjustZoom(increment) {
-    let newZoom = currentZoom * 100 + increment * 100;                                      // Change back to percentages, increase or decrease 10%
-    newZoom = Math.min(Math.max(newZoom, 100), 200);                                                // Limit zoom between 100% and 200%
-    setZoomLevel(newZoom);                                                                          // Zoom in percent %
-    document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+    let newZoom = currentZoom * 100 + increment * 100;                      // Change back to percentages, increase or decrease 10%
+    newZoom = Math.min(Math.max(newZoom, 50), 150);                                 // Limit zoom between 50% and 150%
+    setZoomLevel(newZoom - 100);                                              // Zoom in percent %
 }
 
 /**
@@ -1371,7 +1377,7 @@ function updateVideoTransform() {
     const videoElement = document.getElementById("cameraFeed");
     const canvasElement = document.getElementById("canvasMain");
 
-    limitTranslation(); // Add boundaries to moving video
+    //limitTranslation(); // Add boundaries to moving video
     videoElement.style.transform = `translate(${offsetX}px, ${offsetY}px) scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`; // Updates video position (translation), rotation, flipping and current zoom
     canvasElement.style.transform = videoElement.style.transform; // Updates transformations to the canvas (still frame)
 }

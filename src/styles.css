@@ -285,8 +285,7 @@ button:not(:hover) {
     position: relative;
     z-index: var(--zindex-visual-core);
     border-radius: 5px;
-
-    transition: transform 130ms linear;      /* Slight smoothing for zoom */
+    transition: transform 130ms linear;     /* Slight smoothing for zoom */
 }
 
 #canvasMain {
