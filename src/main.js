@@ -20,6 +20,7 @@ const selector              = document.getElementById('selectorDevice');        
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
+const fillCanvasElement     = document.getElementById("fillCanvas");                 // Canvas for fill mode freeze
 
 // Video feed state
 let rotation = 0;                                                                          // Store rotation state
@@ -29,6 +30,7 @@ let isFreeze = false;                                                           
 let isVideoDragging = false;                                                               // Dragging video
 let offsetX = 0, offsetY = 0;                                                      // User mousedown position
 let lastX = 0, lastY = 0;
+let isFillMode = false;                                                                    // Fill mode on or off
 
 // UI state
 let isIslandDragging = false                                                               // Dragging island control bar
@@ -818,6 +820,7 @@ function fitVideo() {
     currentZoom = 1;
     offsetX = 0;
     offsetY = 0;
+    isFillMode = false;
 
     updateVideoTransform();
     document.getElementById('zoomSlider').value = 100;
@@ -833,6 +836,7 @@ function fillVideo() {
     currentZoom = 1;
     offsetX = 0;
     offsetY = 0;
+    isFillMode = true;
 
     updateVideoTransform();
     document.getElementById('zoomSlider').value = 100;
@@ -1349,12 +1353,29 @@ function getDateTime() {
  * Draws the current frame of videoElement to canvasElement
  * Hides videoElement, shows canvasElement
  */
+/* ALKUPERÄINEN
 function canvasDrawCurrentFrame() {
     matchElementDimensions(videoElement, canvasElement);                                        // Update canvas to match video element
     const canvasContext = canvasElement.getContext("2d");                              // Get canvas context for drawing
     canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);                                                 // Draw frame from video element
     videoElement.style.display = 'none';                                                         // Disable video element visibility
     canvasElement.style.display = 'block';                                                       // Make canvas element visible
+}*/
+
+/**
+ * Draws the current frame of videoElement to canvasElement
+ * Hides videoElement, shows canvasElement
+ */
+function canvasDrawCurrentFrame() {
+    const targetCanvas = isFillMode ? fillCanvasElement : canvasElement;                // Pick main canvas or if fill mode is active pick fillCanvas.
+    matchElementDimensions(videoElement, targetCanvas);                                             // Update canvas to match video element
+
+    const canvasContext = targetCanvas.getContext("2d");                                   // Get canvas context for drawing
+    canvasContext.drawImage(videoElement, 0, 0, targetCanvas.width, targetCanvas.height);           // Draw frame from video element
+
+    videoElement.style.display = 'none';                                                            // Hide video and show the right canvas
+    canvasElement.style.display = isFillMode ? 'none' : 'block';                                    // Make canvas element visible
+    fillCanvasElement.style.display = isFillMode ? 'block' : 'none';                                // Make fillCanvas element visible
 }
 
 /**
@@ -1368,6 +1389,11 @@ function matchElementDimensions(elementMaster, elementSub) {
 
     elementSub.style.transform = elementMaster.style.transform; // Matches ALL transformations, including rotation
 
+    // If fill mode is on, update CSS to fillCanvas
+    if (elementSub === fillCanvasElement) {
+        elementSub.style.width = "100%";
+        elementSub.style.height = "100vh";
+    }
 }
 
 /**
@@ -1380,6 +1406,7 @@ function updateVideoTransform() {
     //limitTranslation(); // Add boundaries to moving video
     videoElement.style.transform = `translate(${offsetX}px, ${offsetY}px) scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`; // Updates video position (translation), rotation, flipping and current zoom
     canvasElement.style.transform = videoElement.style.transform; // Updates transformations to the canvas (still frame)
+    fillCanvasElement.style.transform = videoElement.style.transform;
 }
 
 /**

@@ -298,6 +298,16 @@ button:not(:hover) {
     z-index: var(--zindex-visual-core);
 }
 
+#fillCanvas {
+    width: 100%;
+    height: 100vh;
+    object-fit: contain;
+    display: none;
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 #videoContainer {
     width: 100%;
     height: 100%;
