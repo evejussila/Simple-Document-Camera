@@ -629,7 +629,13 @@ async function videoStart() {
  */
 async function getMediaPermission() {
     try {
-        await navigator.mediaDevices.getUserMedia({ video: true });                 // Ask for video device permission (return/promise ignored)
+        await navigator.mediaDevices.getUserMedia({
+            // video: true
+            video: {
+                width: {ideal: 4096},
+                height: {ideal: 4096},
+            }
+        });                 // Ask for video device permission (return/promise ignored)
         print("getMediaPermission(): Media permission granted");
     } catch (e) {                                                                             // Handle errors
 
