@@ -8,10 +8,10 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
 }
 
 // Localization
-const defaultLocale = "en";                                  // Default locale is english
-const allowedLocales = ["en", "fi"];                        // Only these locales are allowed
+const defaultLocale = "en";                                         // Default locale is english
+const allowedLocales = ["en", "fi"];                                // Only these locales are allowed
 let currentLocale;                                                  // The active locale
-let currentTranslations = {};                                   // Stores translations for the active locale
+let currentTranslations = {};                                       // Stores translations for the active locale
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -49,6 +49,9 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
+    // Create interface elements
+    createMenus();
+
     // Add localization and wait for it to complete
     addLocalization().then(() => {
         // Handle notices, consent and data storage
@@ -56,9 +59,6 @@ function start() {
 
         // Start video feed
         videoStart().then(() => {});
-
-        // Create menus
-        createMenus();
 
         // Update video input list periodically
         setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically
@@ -74,7 +74,6 @@ function start() {
     });
 
 }
-
 
 /**
  * Adds critical listeners for interface elements
@@ -131,22 +130,22 @@ function addCoreListeners() {
     });
 }
 
-
 /**
  * Sets the language to default and initializes language selector.
  *
  */
 async function addLocalization() {
     await setLocale(defaultLocale);
-    bindLocaleSelector(defaultLocale);
+    bindLocaleSelector(defaultLocale, "[data-locale-selector]");
 }
 
 /**
  * Sets up the language selector and binds event listeners to detect language changes.
  * @param {string} initialLocale - The initial locale to set.
+ * @param selector Selector to bind.
  */
-function bindLocaleSelector(initialLocale) {
-    const localeSelector = document.querySelector("[data-locale-selector]");
+function bindLocaleSelector(initialLocale, selector) {
+    const localeSelector = document.querySelector(selector);
     localeSelector.value = initialLocale;
     localeSelector.onchange = (e) => {
         // Set the language based on the selected value
@@ -239,7 +238,6 @@ function translateElement(element) {
     }
 }
 
-
 /**
  * Handles privacy-related prompting, parameters, data storage and logical coordination
  * @returns {boolean} True if the service can be used
@@ -284,7 +282,7 @@ async function handlePrivacy() {
     ];
 
     for (const text of texts) {                         // Iterate through texts
-        const content = await _fetchJSON(text.file);    // Get JSON
+        const content = await fetchJSON(text.file);    // Get JSON
         if (content) {                                  // If JSON accessible
             text.textExists = true;                     // Set boolean for conditional logics
             text.content = content;
@@ -495,13 +493,10 @@ function createMenus() {
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerRight);
 
     // Create settings menu
-
-    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-    // TODO: Put language selector here. Can either create selector here or simply get an existing element and use it. Listeners etc. can be created here if they are not already defined elsewhere.
-
     const selectLanguageContainer = document.createElement("div");
     selectLanguageContainer.style.display = "flex";
     selectLanguageContainer.style.flexDirection = "column";
+    selectLanguageContainer.style.alignItems = "center";
 
     const languageImg = document.createElement("img");
     languageImg.src = "/images/language.png";
@@ -510,11 +505,34 @@ function createMenus() {
     languageImg.classList.add("icon");
     selectLanguageContainer.appendChild(languageImg);
 
-    const selectLanguage = document.createElement("select");
-    selectLanguage.style.width = "40px";
-    selectLanguageContainer.appendChild(selectLanguage);
+    // Inline creation of language selector
+    const languagesDiv = document.createElement("div");
+    languagesDiv.id = "languages";
 
-    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
+    const select = document.createElement("select");
+    select.setAttribute("data-locale-selector", "");
+    select.className = "locale-switcher";
+    select.title = "Change Language";
+    select.setAttribute("data-locale-key", "language");
+
+    // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
+
+    const optionEn = document.createElement("option");
+    optionEn.value = "en";
+    optionEn.setAttribute("data-locale-key", "english");
+    optionEn.textContent = "English";
+    select.appendChild(optionEn);
+
+    const optionFi = document.createElement("option");
+    optionFi.value = "fi";
+    optionFi.setAttribute("data-locale-key", "finnish");
+    optionFi.textContent = "Finnish";
+    select.appendChild(optionFi);
+
+    languagesDiv.appendChild(select);
+    selectLanguageContainer.appendChild(languagesDiv);
+
+    // Inline creation of theme selector
 
     const switchThemeContainer = document.createElement("div");
     switchThemeContainer.style.display = "flex";
@@ -534,6 +552,7 @@ function createMenus() {
     switchThemeContainer.appendChild(switchThemeLabel);
     switchThemeContainer.appendChild(switchTheme);
 
+    // Create
     const menuSettings = [
         {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer},
         {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
@@ -1028,7 +1047,7 @@ async function showContentBox(file, modal = false, clickOut = true) {
     let contentToShow;
 
     try {
-        const text = await _fetchJSON(file);
+        const text = await fetchJSON(file);
         title = text.title;
         contentToShow = text.text;
         print("showContentBox(): Found text: " + file + " with title: " + text.title);

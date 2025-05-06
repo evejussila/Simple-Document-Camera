@@ -248,6 +248,13 @@ button:not(:hover) {
     color: var(--text-color);
 }
 
+#island_controlBar::before {  /* Targets the element and applies the pseudo-element */
+    content: "";              /* Required; creates an empty pseudo-element */
+    display: block;           /* Ensures it behaves like a block element */
+    height: 15px;             /* Sets the height of the empty section */
+    width: 100%;              /* Makes it span the full width of #island_controlBar */
+} /* Pseudo-element is not in DOM */
+
 #island_controlBar {
     position: absolute;
     left: 75px;
@@ -257,7 +264,7 @@ button:not(:hover) {
     z-index: 897;  /* TODO: Use variable, usually on top of UI */
     display: flex;
     flex-direction: column;
-    width: 120px;
+    width: 60px;
     height: max-content;
     border-radius: 10px;
     padding-bottom: 10px;

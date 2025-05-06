@@ -28,16 +28,6 @@
             </div>
             <!-- Container for items on the right -->
             <div id="menuContainerRight">
-
-                <div id="languages">
-                    <label>
-                        <select data-locale-selector class="locale-switcher" title="Change Language" data-locale-key="language">
-                            <option value="en" data-locale-key="english">English</option>
-                            <option value="fi" data-locale-key="finnish">Finnish</option>
-                        </select>
-                    </label>
-                </div>
-
             </div>
             <!-- Spacer under always visible buttons -->
             <div id="controlBarEndSpacer">
@@ -81,16 +71,17 @@
                 <button data-locale-key="bigger" id="buttonBiggerFont" title="Bigger text size" class="buttonSmall">+</button>
             </div>
         </div>
+        <div id="avButtons">  <!-- Always visible buttons -->
+            <!-- Full screen button -->
+            <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
+                <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+            </button>
 
-        <!-- Full screen button -->
-        <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
-            <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
-        </button>
-
-        <!-- Button for hiding control bar and island -->
-        <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
-            <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
-        </button>
+            <!-- Button for hiding control bar and island -->
+            <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
+                <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
+            </button>
+        </div>
 
         <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
         <canvas id="canvasMain"></canvas>
