@@ -474,7 +474,7 @@ function createMenus() {
     selectLanguageContainer.style.alignItems = "center";
 
     const languageImg = document.createElement("img");
-    languageImg.src = "/images/language.png";
+    languageImg.src = "./images/language.png";
     languageImg.style.display = "block";
     languageImg.style.width = "40px";
     languageImg.classList.add("icon");
