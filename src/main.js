@@ -816,6 +816,8 @@ async function backgroundUpdateInputList() {
  */
 async function setVideoInput(input = selector.value) {
 
+    const resolution = await getMaxResolution();
+
     // TODO: Retries in function may be redundant, though input setting is not completely reliable
     const retryAttempts = 3;                                                                     // Number of retries before giving up
     let failedCount = 0;
@@ -823,21 +825,18 @@ async function setVideoInput(input = selector.value) {
 
     while (true) {                                                                               // Retry until success or retry limit reached
         try {
-            print("setVideoInput(): Accessing a camera feed: " + shorten(input));
+            print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at " + resolution.width + " x " + resolution.height);
+
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
                     deviceId: {exact: input},
-                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
-                    width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
-                    height: {ideal: 1080},                                                       // Ideal values are not constraints
-                    frameRate: {ideal: 60}
+                    // facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
+                    width: {ideal: resolution.width},                                               // These are useless unless there are multiple tracks with the same deviceId
+                    height: {ideal: resolution.height},                                             // Ideal values are not constraints
+                    // frameRate: {ideal: 60}
                 }
             });
             videoElement.srcObject = stream;
-
-            // TODO: Debug low video quality
-            // printStreamInformation(stream);
-            // bruteForceVideoStream(input); // Accessible from developer menu, is intensive if used here
 
             break;
         } catch (error) {                                                                          // Failure
@@ -860,6 +859,23 @@ async function setVideoInput(input = selector.value) {
     }
 
     return !failed;
+}
+
+async function getMaxResolution(input = selector.value) {
+    try {
+        print("getMaxResolution(): Accessing a camera feed: " + shorten(input));
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: {exact: input},
+            }
+        });
+        const capabilities = stream.getTracks()[0].getCapabilities();
+        return {width: capabilities.width.max, height: capabilities.height.max};               // Convert object values to integers with max
+
+    } catch (error) {                                                                          // Failure
+        console.warn("getMaxResolution(): Camera could not be accessed");
+    }
 }
 
 /**
@@ -944,45 +960,7 @@ function devCameraQualityButton() {
         return stream;
     }
 
-    function printStreamInformation(stream) {
 
-        if (!(stream instanceof MediaStream)) {
-            console.error("Invalid stream");
-            return;
-        }
-        if (stream.getVideoTracks().length === 0) {
-            console.error("No video tracks in stream");
-            return;
-        }
-
-        // print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
-        // if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
-
-        // let count = 1;
-        let allResults = [];
-        stream.getVideoTracks().forEach(videoTrack => {
-            // Printing select information
-            const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
-            const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
-
-            //             0                       1                  2             3                    4              5                     6          7
-            let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
-
-            print("Track is: " + results[0] + " from device ID: " + results[1]);
-            print("Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
-            print("Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
-
-            // To print a FULL formatted output with all information:
-            // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
-            // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
-
-            allResults.push(results);
-            // count++;
-        });
-
-        return allResults;
-
-    }
 
     // console.log("Camera settings:", stream.getVideoTracks()[0].getSettings());
     // await stream.getVideoTracks()[0].applyConstraints({
@@ -996,7 +974,45 @@ function devCameraQualityButton() {
 
 }
 
+function printStreamInformation(stream) {
 
+    if (!(stream instanceof MediaStream)) {
+        console.error("Invalid stream");
+        return;
+    }
+    if (stream.getVideoTracks().length === 0) {
+        console.error("No video tracks in stream");
+        return;
+    }
+
+    // print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+    // if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
+
+    // let count = 1;
+    let allResults = [];
+    stream.getVideoTracks().forEach(videoTrack => {
+        // Printing select information
+        const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
+        const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
+
+        //             0                       1                  2             3                    4              5                     6          7
+        let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
+
+        print("Track is: " + results[0] + " from device ID: " + results[1]);
+        print("Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
+        print("Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
+
+        // To print a FULL formatted output with all information:
+        // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
+        // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+
+        allResults.push(results);
+        // count++;
+    });
+
+    return allResults;
+
+}
 
 // UI functions
 
