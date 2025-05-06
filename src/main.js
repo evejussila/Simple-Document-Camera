@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-19-alpha");
+const version = ("2025-05-06-alpha");
 console.log("Version: " + version);
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
@@ -9,7 +9,7 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
 
 // Localization
 const defaultLocale = "en";                                         // Default locale is english
-const allowedLocales = ["en", "fi"];                                // Only these locales are allowed
+const allowedLocales = ["en", "fi"];                                // Only these locales are allowed TODO: DEV: Get based on available localisation files
 let currentLocale;                                                  // The active locale
 let currentTranslations = {};                                       // Stores translations for the active locale
 
@@ -61,12 +61,12 @@ function start() {
         videoStart().then(() => {});
 
         // Update video input list periodically
-        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically
+        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases, onchange-event should already trigger update as well)
 
         // Keep control island visible
         setInterval(() => { moveElementToView(island) }, 5000); // Periodically ensures control island is visible
 
-        // Render UI
+        // Render UI when ready
         showElement(controlBar);
         showElement(island);                                                                      // TODO: Should run when ToS agreed to
         showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
@@ -93,7 +93,7 @@ function addCoreListeners() {
     listenerToElement('buttonZoomIn', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('buttonZoomOut', 'click', () => adjustZoom(-0.1));            // Zoom out button
 
-    // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
+    // Fetch HTML element for full screen button and its icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
     const fullScreenButton = document.getElementById('buttonFullScreen');
     fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
@@ -186,7 +186,7 @@ async function setLocale(newLocale) {
  */
 async function fetchJSON(file) {
     const path = `${window.location.origin}/locales/${file}.json`;
-    console.log("fetchJSON(): Fetching:", path);
+    print("fetchJSON(): Fetching:", path);
 
     try {
         const response = await fetch(path);
@@ -301,35 +301,6 @@ async function handlePrivacy() {
         print("handlePrivacy(): No fast exit (texts exist)");
     }
 
-    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-
-    // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
-
-    /**
-     * Fetches JSON from .json file
-     * Assumes file path ./locales/
-     * @param file File to fetch JSON from
-     * @returns {Promise<any>} JSON output or boolean false for failure
-     */
-    async function _fetchJSON(file) {
-        const path = `${window.location.pathname}locales/${file}.json`
-        print("fetchJSON(): Fetching: " + path);
-
-        let response;
-        let responseJSON;
-        try {
-            response = await fetch(path);               // Fetch file
-            responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
-        } catch (e) {
-            console.error("fetchJSON: Failed to fetch: " + e);
-            return false;
-        }
-
-        return responseJSON;
-    }
-
-    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
-
     // Set button styles
     const colorAccept = "rgba(70,136,255,0.5)";
     const colorReject = "rgba(255,139,139,0.5)";
@@ -434,6 +405,7 @@ async function handlePrivacy() {
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],
             [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ]
         ], "50%", "350px");
+
     }
 
     function haltService() {
@@ -482,7 +454,7 @@ function handleSettingStorage() {
 
 function createMenus() {
 
-    // Get container elements
+    // Get container elements of control bar
     const menuContainerLeft           = document.getElementById('menuContainerLeft');
     const menuContainerRight          = document.getElementById('menuContainerRight');
 
@@ -492,7 +464,10 @@ function createMenus() {
     const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerRight);
 
-    // Create settings menu
+    // Settings menu creation
+    let menuSettings = [];
+
+    // Create settings menu subsection: language selection
     const selectLanguageContainer = document.createElement("div");
     selectLanguageContainer.style.display = "flex";
     selectLanguageContainer.style.flexDirection = "column";
@@ -505,7 +480,6 @@ function createMenus() {
     languageImg.classList.add("icon");
     selectLanguageContainer.appendChild(languageImg);
 
-    // Inline creation of language selector
     const languagesDiv = document.createElement("div");
     languagesDiv.id = "languages";
 
@@ -532,7 +506,9 @@ function createMenus() {
     languagesDiv.appendChild(select);
     selectLanguageContainer.appendChild(languagesDiv);
 
-    // Inline creation of theme selector
+    menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
+
+    // Create settings menu subsection: theme selection
 
     const switchThemeContainer = document.createElement("div");
     switchThemeContainer.style.display = "flex";
@@ -552,21 +528,15 @@ function createMenus() {
     switchThemeContainer.appendChild(switchThemeLabel);
     switchThemeContainer.appendChild(switchTheme);
 
-    // Create
-    const menuSettings = [
-        {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer},
-        {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
-    ]
+    menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
 
+    // Create settings menu
     createdElements.createMenu(menuSettings, buttonSettings, "above");
 
-    // Create info menu
-
-    const menuInfo = [
+    // Info menu creation
+    let menuInfo = [
         {id: "buttonLegalInfoPrompt",     text: "Show legal information",    img: "terms.png", action: showLegalInfo}
-    ]
-
-    createdElements.createMenu(menuInfo, buttonInfo, "above");
+    ];
 
     /**
      * Nested function to show info prompt
@@ -574,6 +544,9 @@ function createMenus() {
     function showLegalInfo() {
         showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
     }
+
+    // Create info menu
+    createdElements.createMenu(menuInfo, buttonInfo, "above");
 
 }
 
@@ -1512,7 +1485,7 @@ function hideElement(element, removeAfter = false) {
     element.classList.add("hidden");                                                                         // Apply CSS class to hide element
 
     element.addEventListener("transitionend", function hideAfterTransition() {                               // Change display state after animation
-        element.style.display = "none";
+        element.style.display = "none";                                                                      // Required as hidden class only applies 0 opacity (display to none cannot be animated)
         element.removeEventListener("transitionend", hideAfterTransition);
     });
 
@@ -1521,8 +1494,6 @@ function hideElement(element, removeAfter = false) {
             print("hideElement(): Removing element");
             element.remove();
         }, 100); // TODO: Arbitrary delay, only reliable found way to animate before deletion
-
-    } else {
 
     }
 
@@ -2142,7 +2113,7 @@ class Menu extends MovableElement {
     // const menuTest = [
     //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
     //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip    },
-    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished function for toggle icon
+    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished function for toggled icons
     //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage    },
     //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay   },
     //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText      }
@@ -2155,11 +2126,7 @@ class Menu extends MovableElement {
     // ]
 
     // Caller relations
-    callerElement;                      // Element the menu is called from, eg. a button
-
-    // Positioning
-    positionRelation;                   // Position type of menu in relation to caller element TODO: Not used yet
-    position = {x: null, y: null};      // Last set position for the menu TODO: Currently redundant
+    callerElement;                      // Element the menu is called from, e.g. a button
 
 
     // Initialization
@@ -2177,13 +2144,13 @@ class Menu extends MovableElement {
 
         this.create();
 
-        // this.updatePosition();   // TODO: Should run periodically or tactically
+        // this.updatePosition();   // TODO: Should run periodically or tactically to make sure location is correct after resizing window
 
     }
 
     create() {
 
-        // Create core div element
+        // Create core container element
         this.element = document.createElement('div');
         this.element.id = this.id = String(Date.now());         // Assign a (pseudo) unique id
 
@@ -2191,7 +2158,7 @@ class Menu extends MovableElement {
 
         // Styling
         this.element.classList.add("createdMenu");
-        this.element.classList.add('hidden');
+        this.element.classList.add('hidden');                   // Initial state
         this.visible = false;
 
         // Positioning
@@ -2262,13 +2229,16 @@ class Menu extends MovableElement {
         if (this.visible) {
             hideElement(this.element);
         } else {
-            showElement(this.element, "flex");
+            showElement(this.element, "flex"); // TODO:
         }
         this.visible = !this.visible;
 
-        this.updatePosition(); // TODO: Excessive here
+        this.updatePosition();
     }
 
+    /**
+     * Position menu based on caller element
+     */
     updatePosition() {
 
         // Get position of caller element
@@ -2276,7 +2246,7 @@ class Menu extends MovableElement {
 
         // Set position for menu
         const offsetX = 0;
-        const offsetY = 60;
+        const offsetY = 60; // Offset determines distance from caller button
         this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
         this.element.style.bottom = this.position.y = `${offsetY}px`;
 
