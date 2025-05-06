@@ -73,6 +73,9 @@ function start() {
 
     });
 
+    // DEV
+    if (debugMode) devCameraQualityButton();
+
 }
 
 /**
@@ -186,7 +189,7 @@ async function setLocale(newLocale) {
  */
 async function fetchJSON(file) {
     const path = `${window.location.pathname}locales/${file}.json`;
-    print("fetchJSON(): Fetching:" + path);
+    print("fetchJSON(): Fetching: " + path);
 
     try {
         const response = await fetch(path);
@@ -865,6 +868,134 @@ async function setVideoInput(input = selector.value) {
 function resetVideoState() {
     // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
 }
+
+
+function devCameraQualityButton() {
+    // Create button
+    const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
+    button.addEventListener("click", async () => {
+        await runTest();
+    });
+
+    // Coordinate tests
+    async function runTest() {
+        releaseVideoStream();
+
+        // Resolutions to test
+        // TODO: Calculate
+        const testResolutions = [
+            { width: 1920, height: 1080 },
+            { width: 1280, height: 720 },
+            { width: 1024, height: 768 },
+            { width: 1280, height: 1024 },
+            { width: 800, height: 600 },
+            { width: 640, height: 480 }
+        ];
+
+        // Loop test
+        // await testCameraQuality(1920,1080); // Single resolution test example
+        for (const res of testResolutions) {
+            try {
+                print(" ");
+                print("Testing: " + res.width + " x " + res.height );
+                await testCameraQuality(res.width,res.height);
+            } catch (e) {
+                console.warn("Failure to test resolution: " + res.width + " x " + res.height );
+            }
+        }
+
+
+        // await videoStart(); // TODO: Instead set the exact track
+    }
+
+    // TODO: USING IDEAL VALUES!
+    async function testCameraQuality(width, height) {
+        // Get stream
+        const currentInput = selector.value;
+        print("Current input: " + shorten(currentInput));
+        const stream = await getStreamFromInput(width, height, currentInput);
+
+        // Print info from stream's (first) track
+        const streamInfo = await printStreamInformation(stream);
+
+        // Visualize stream quality
+        let scoreUsing = streamInfo[0][2] * streamInfo[0][4];
+        let scoreCapable = streamInfo[0][3] * streamInfo[0][5];
+        let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));         // One score mark per 76800 (matches 320x240)
+        let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
+        scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
+        scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
+        print("Current [ " + scoreUsingMarks   + " ]");
+        print("Capable [ " + scoreCapableMarks + " ]");
+
+        // Discard stream
+        stream.getTracks().forEach(track => track.stop());
+    }
+
+    async function getStreamFromInput(width, height, deviceId) {
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: {exact: deviceId},
+                width: {ideal: width},
+                height: {ideal: height},
+            }
+        });
+        return stream;
+    }
+
+    function printStreamInformation(stream) {
+
+        if (!(stream instanceof MediaStream)) {
+            console.error("Invalid stream");
+            return;
+        }
+        if (stream.getVideoTracks().length === 0) {
+            console.error("No video tracks in stream");
+            return;
+        }
+
+        // print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
+        // if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
+
+        // let count = 1;
+        let allResults = [];
+        stream.getVideoTracks().forEach(videoTrack => {
+            // Printing select information
+            const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
+            const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
+
+            //             0                       1                  2             3                    4              5                     6          7
+            let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
+
+            print("Track is: " + results[0] + " from device ID: " + results[1]);
+            print("Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
+            print("Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
+
+            // To print a FULL formatted output with all information:
+            // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
+            // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+
+            allResults.push(results);
+            // count++;
+        });
+
+        return allResults;
+
+    }
+
+    // console.log("Camera settings:", stream.getVideoTracks()[0].getSettings());
+    // await stream.getVideoTracks()[0].applyConstraints({
+    //     width: 1280,
+    //     height: 720,
+    //     frameRate: 30
+    // });
+    // console.log(stream.getVideoTracks()[0].getSettings());
+    // videoElement.srcObject = stream;
+    // console.log("Kamera toimii! Käytössä olevat asetukset:", videoElement.srcObject?.getTracks()[0]?.getSettings());
+
+}
+
 
 
 // UI functions
@@ -2305,8 +2436,6 @@ function developerMenu() {
         [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
         [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
         [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                   }],
-        [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
@@ -2351,139 +2480,6 @@ function print(string) {
     // Trace caller here unless false (for mass events)
     //     const stack = new Error().stack.split('\n');
     //     const callerFunction = stack[2].trim();
-}
-
-/**
- * Prints video track settings and capabilities for all tracks associated with a stream.
- * For development.
- * @param stream The stream from navigator.mediaDevices.getUserMedia()
- * @returns {*[]}
- */
-function printStreamInformation(stream) {
-    // const videoTrack = stream.getVideoTracks()[0];
-
-    // Typical error: TypeError: videoTrack.getCapabilities is not a function
-    // getCapabilities() may not be supported by all browsers, such as those based on FF ESR (Floorp, for example). FF supports function since 2024 v.132
-
-    print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
-    if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
-
-    let count = 1;
-    let allResults = [];
-    stream.getVideoTracks().forEach(videoTrack => {
-        // Printing select information
-        const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
-        const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
-
-        //             0                       1                  2             3                    4              5                     6          7
-        let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
-
-        print("printStreamInformation(): Track " + count + " is: " + results[0] + " from device ID: " + results[1]);
-        print("printStreamInformation(): Track " + count + " is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
-        print("printStreamInformation(): Track " + count + " is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
-
-        // To print a FULL formatted output with all information:
-        // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
-        // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
-
-        allResults.push(results);
-    });
-
-    return allResults;
-
-}
-
-/**
- * Requests various video tracks from a stream and looks for the best settings.
- * Visualizes.
- * Providing video track, good or bad, is up to the browser.
- *
- */
-async function bruteForceBestVideoStream(input = selector.value) {
-    // Note that background activities may interfere.
-
-    releaseVideoStream();
-
-    // Create invisible temporary video element for stream
-    const temporaryCameraFeed = document.createElement('video');
-    temporaryCameraFeed.id = 'temporaryCameraFeed';
-    temporaryCameraFeed.autoplay = true;
-    temporaryCameraFeed.muted = true;
-    temporaryCameraFeed.style.display = 'none';
-    document.body.appendChild(temporaryCameraFeed);
-
-    // Create dual layer arrays of various testable settings for video tracks
-    let trackSettings = [
-        [1920           ,      1080         ],
-        [1280           ,       720         ],
-        [640            ,       480         ],
-        [320            ,       240         ],
-    ];
-
-    let moreSettings = [
-        [30         ,        "environment"     ],
-        [60         ,        "environment"     ],
-        [30         ,        "user"            ],
-        [60         ,        "user"            ],
-    ];
-
-    console.warn("bruteForceBestVideoStream(): Testing multiple (ideal value) setting combinations for " + shorten(input));
-
-    // Loop through all permutations
-    for (let [frameRate, facingMode] of moreSettings) {
-        for (let [width, height] of trackSettings) {
-            try {
-                print(`Trying: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
-                // noinspection JSCheckFunctionSignatures
-                const stream = await navigator.mediaDevices.getUserMedia({
-                     video: {
-                         deviceId: { exact: String(input) },
-                         facingMode: { ideal: String(facingMode) },
-                         width: { ideal: Number(width) },
-                         height: { ideal: Number(height) },
-                         frameRate: { ideal: Number(frameRate) }
-                     }
-                     // If this function is not producing expected results, try alternative below.
-                     // Function will work with or without all types forced to correct ones.
-                     // video: {
-                     //     deviceId: { exact: input },
-                     //     facingMode: { ideal: facingMode },
-                     //     width: { ideal: width },
-                     //     height: { ideal: height },
-                     //     frameRate: { ideal: frameRate }
-                     // }
-                });
-
-                temporaryCameraFeed.srcObject = stream;
-
-                // Print and get stream information
-                let results = printStreamInformation(stream);
-
-                // Create and visualize scores
-                let scoreUsing = results[0][2] * results[0][4]; // TODO: Only using one track at this point, could have multiple
-                let scoreCapable = results[0][3] * results[0][5];
-                // One score mark per 76800 (matches 320x240)
-                let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));
-                let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
-                scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
-                scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
-                print("Current [ " + scoreUsingMarks   + " ]");
-                print("Capable [ " + scoreCapableMarks + " ]");
-
-                // Discard stream
-                stream.getTracks().forEach(track => track.stop());
-            } catch (error) {
-                console.error(`Failed: width=${width}, height=${height}, frameRate=${frameRate}, facingMode=${facingMode}`, error);
-            }
-        }
-    }
-
-    // Remove the temporary video element
-    temporaryCameraFeed.remove();
-
-    console.warn("bruteForceBestVideoStream(): Done");
-
-    await videoStart();
 }
 
 /**
