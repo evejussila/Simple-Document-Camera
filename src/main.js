@@ -816,6 +816,7 @@ async function backgroundUpdateInputList() {
  */
 async function setVideoInput(input = selector.value) {
 
+    // TODO: Conditional for support, safari and old firefox do not have .getcapabilities(), if (typeof track.getCapabilities === "function")
     const resolution = await getMaxResolution();
 
     // TODO: Retries in function may be redundant, though input setting is not completely reliable
@@ -836,6 +837,9 @@ async function setVideoInput(input = selector.value) {
                     // frameRate: {ideal: 60}
                 }
             });
+
+            print("setVideoInput(): Stream info: " + printStreamInformation(stream));
+
             videoElement.srcObject = stream;
 
             break;
@@ -2505,10 +2509,10 @@ function print(string) {
  * @returns {string}
  */
 function shorten(id) {
-    // Might want to remove {} from ends
-    // id = id.replace(/^(\{|\})|(\\{|\})$/g, '');
-    // id = id.replace(/^([{}])|(\\{|})$/g, '');
-    return `${id.slice(0, 4)}:${id.slice(-4)}`;
+    let shortenedId = id.trim();
+    shortenedId = shortenedId.replace(/[{}]/g, '');
+    shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
+    return shortenedId;
 }
 
 /**
