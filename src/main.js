@@ -1028,35 +1028,6 @@ async function showContentBox(file, modal = false, clickOut = true) {
         console.warn("showContentBox(): Did not find text: " + file + " : " + e);
     }
 
-    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-
-    // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
-
-    /**
-     * Fetches JSON from .json file
-     * Assumes file path ./locales/
-     * @param file File to fetch JSON from
-     * @returns {Promise<any>} JSON output or boolean false for failure
-     */
-    async function _fetchJSON(file) {
-        const path = `${window.location.pathname}locales/${file}.json`
-        print("fetchJSON(): Fetching: " + path);
-
-        let response;
-        let responseJSON;
-        try {
-            response = await fetch(path);               // Fetch file
-            responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
-        } catch (e) {
-            console.error("fetchJSON: Failed to fetch: " + e);
-            return false;
-        }
-
-        return responseJSON;
-    }
-
-    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
-
     const modalOverlay = document.createElement("div");      // Create container element
 
     if (modal) {                                                     // Create modal overlay if requested
@@ -1494,7 +1465,6 @@ function hideElement(element, removeAfter = false) {
             print("hideElement(): Removing element");
             element.remove();
         }, 100); // TODO: Arbitrary delay, only reliable found way to animate before deletion
-
     }
 
 }
@@ -1638,8 +1608,8 @@ class CreatedElements {
     /**
      * Creates a menu and registers it to management.
      */
-    createMenu(menuDefinitions, callerElement, positionRelation) {
-        const classReference = new Menu(menuDefinitions, callerElement, positionRelation);
+    createMenu(menuDefinitions, callerElement) {
+        const classReference = new Menu(menuDefinitions, callerElement);
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
         print("createMenu(): Created and registered " + classReference.getType() + " : " + classReference.getElementId());
         return classReference;
@@ -2128,6 +2098,9 @@ class Menu extends MovableElement {
     // Caller relations
     callerElement;                      // Element the menu is called from, e.g. a button
 
+    // Positioning
+    position = {x: null, y: null};      // Last set position for the menu
+
 
     // Initialization
 
@@ -2135,17 +2108,13 @@ class Menu extends MovableElement {
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor(menuDefinitions, callerElement, positionRelation = "above") {
+    constructor(menuDefinitions, callerElement) {
         super('menu');
 
         this.menuDefinitions = menuDefinitions;
         this.callerElement = callerElement;
-        this.positionRelation = positionRelation;
 
         this.create();
-
-        // this.updatePosition();   // TODO: Should run periodically or tactically to make sure location is correct after resizing window
-
     }
 
     create() {
@@ -2229,7 +2198,7 @@ class Menu extends MovableElement {
         if (this.visible) {
             hideElement(this.element);
         } else {
-            showElement(this.element, "flex"); // TODO:
+            showElement(this.element, "flex");
         }
         this.visible = !this.visible;
 
