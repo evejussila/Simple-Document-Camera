@@ -185,7 +185,7 @@ async function setLocale(newLocale) {
  * @returns {Promise<any>} JSON output or boolean false for failure
  */
 async function fetchJSON(file) {
-    const path = `${window.location.origin}/locales/${file}.json`;
+    const path = `${window.location.pathname}/locales/${file}.json`;
     print("fetchJSON(): Fetching:", path);
 
     try {
