@@ -487,6 +487,7 @@ function createMenus() {
     select.setAttribute("data-locale-selector", "");
     select.className = "locale-switcher";
     select.title = "Change Language";
+    select.style.width = "80px";
     select.setAttribute("data-locale-key", "language");
 
     // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
