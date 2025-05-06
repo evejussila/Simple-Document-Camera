@@ -19,5 +19,11 @@
   "text": "Add Text",
   "zoom": "Zoom",
   "zoomIn": "Zoom In",
-  "zoomOut": "Zoom Out"
+  "zoomOut": "Zoom Out",
+  "videoProblemPromptTitle": "Cameras could not be accessed",
+  "videoProblemPromptText": "Please make sure your camera is not being used by other software or on other tabs, and that you have allowed access to cameras. <br><br> You may also try a hard reload by pressing Ctrl + F5 <br><br><a href=\"javascript:void(0);\" onclick=\"null\">Help</a><br>",
+  "videoProblemHelpTitle": "Troubleshooting camera access",
+  "videoProblemHelpText": "Instructions...",
+  "retry" : "Retry",
+  "Dismiss": "Dismiss"
 }
