@@ -1509,7 +1509,7 @@ function removeElement(element) {
  */
 function hideElement(element, removeAfter = false) {
     element.setAttribute("data-return-display-state", window.getComputedStyle(element).display); // Store initial display state
-    element.classList.add("hidden");                                                                         // Apply CSS class to hide
+    element.classList.add("hidden");                                                                         // Apply CSS class to hide element
 
     element.addEventListener("transitionend", function hideAfterTransition() {                               // Change display state after animation
         element.style.display = "none";
@@ -1544,7 +1544,7 @@ function showElement(element, display = null) {
     element.style.display = displayState;       // Set display state
     // TODO: Dev: replace block with ternary
 
-    element.classList.remove("hidden");                                      // Remove applied CSS class to show
+    element.classList.remove("hidden");                                      // Remove applied CSS class to show element
 
     // DEV: Animation not rendering debug attempts:
 
@@ -1600,7 +1600,7 @@ function getViewportEdges() {
                     |
                     |
                     y+
-     */
+    */
 }
 
 
@@ -2282,21 +2282,6 @@ class Menu extends MovableElement {
 
     }
 
-    /**
-     * Detaches menu from static position, making it movable.
-     */
-    detach() {
-
-    }
-
-    /**
-     * Attaches menu to its static position.
-     */
-    attach() {
-
-    }
-
-
     // Related
 
     /**
@@ -2311,7 +2296,6 @@ class Menu extends MovableElement {
      */
     static createButton(img, buttonId, iconId, text, appendTo) {
         const button = document.createElement("button");
-        button.style.display = "none";          // Start invisible to prevent stutters while loading
 
         button.id = buttonId;
         button.title = text;
@@ -2328,9 +2312,6 @@ class Menu extends MovableElement {
             appendTo.appendChild(button);
         }
 
-        icon.onload = () => {                    // TODO: Button should eventually be visible even if load fails
-            showElement(button, "block");        // Load when icon ready
-        };
         return button;
     }
 

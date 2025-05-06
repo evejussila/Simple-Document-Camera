@@ -249,16 +249,16 @@ button:not(:hover) {
 }
 
 #island_controlBar::before {  /* Targets the element and applies the pseudo-element */
-    content: "";              /* Required; creates an empty pseudo-element */
-    display: block;           /* Ensures it behaves like a block element */
-    height: 15px;             /* Sets the height of the empty section */
-    width: 100%;              /* Makes it span the full width of #island_controlBar */
-} /* Pseudo-element is not in DOM */
+    content: "";              /* Creates an empty pseudo-element */
+    display: block;           /* Ensures it behaves as block */
+    height: 15px;
+    width: 100%;
+} /* Spacer pseudo-element (for island drag handle) is not in DOM */
 
 #island_controlBar {
     position: absolute;
-    left: 75px;
-    top: 177px;
+    left: 45px;
+    top: 190px;
     transform: translateX(-50%) translateY(-50%);
     cursor: move;
     z-index: 897;  /* TODO: Use variable, usually on top of UI */
@@ -488,5 +488,5 @@ button:not(:hover) {
 /* Special behavior */
 
 #island_controlBar.animate_move {
-    transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
+    transition: left 1s, top 1s;
 }
