@@ -375,7 +375,7 @@ async function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice: " + texts[0].content.title);
 
-        // noinspection JSUnresolvedReference
+        // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title, texts[0].content.text, [
             [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ],
             [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                                      ],
@@ -389,7 +389,7 @@ async function handlePrivacy() {
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
 
-        // noinspection JSUnresolvedReference
+        // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + " " + texts[1].content.text, [
             [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                          , colorAccept  ],
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
@@ -403,7 +403,7 @@ async function handlePrivacy() {
     function tosPrompt() {
         console.log("tosPrompt(): Displaying a notice: " + texts[1].content.title);
 
-        // noinspection JSUnresolvedReference
+        // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[1].content.title, texts[1].content.text, [
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],
             [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ]
@@ -568,18 +568,29 @@ async function videoStart() {
     // TODO: Load text and buttons from translation files
 
     // Error prompt default content
-    let genericPromptTitle = "No valid cameras could be accessed";
-    let genericPromptText =
-        "Please make sure your devices are connected and not being used by other software. " +
-        "<br><br>" +
-        "Ensure that you do not have this page open on other tabs. " +
-        "<br><br>" +
-        "Check that you have allowed camera access in your browser. " +
-        "<br><br>" +
-        "You may also try a hard reload by pressing Ctrl + F5 ";
+    // let genericPromptTitle = "No valid cameras could be accessed";
+    // let genericPromptText =
+    //     "Please make sure your devices are connected and not being used by other software. " +
+    //     "<br><br>" +
+    //     "Ensure that you do not have this page open on other tabs. " +
+    //     "<br><br>" +
+    //     "Check that you have allowed camera access in your browser. " +
+    //     "<br><br>" +
+    //     "You may also try a hard reload by pressing Ctrl + F5 ";
+    // let genericPromptActions = [
+    //     ["Retry",       () =>       { videoStart(); } ],
+    //     ["Dismiss",     () =>       {               } ]
+    // ];
+
+    // Get error prompt text
+    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    let genericPromptTitle = currentTranslations.videoProblemPromptTitle;
+    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    let genericPromptText = currentTranslations.videoProblemPromptText;
+    // noinspection JSUnresolvedReference                                   // Object is dynamic
     let genericPromptActions = [
-        ["Retry",       () =>       { videoStart(); } ],
-        ["Dismiss",     () =>       {               } ]
+        [currentTranslations.retry,        () =>       { videoStart(); } ],
+        [currentTranslations.dismiss,      () =>       {               } ]
     ];
 
     // Get permission and inputs                                                                                 // DEV: Functional code style with ().then chained is shorter, may be used again once logics are finished
@@ -630,7 +641,7 @@ async function videoStart() {
 async function getMediaPermission() {
     try {
         const testStream = await navigator.mediaDevices.getUserMedia({
-            // video: true                                      // On chrome this returns a low-quality stream, which adversely affects future requests (2025)
+            // video: true                                      // On Chrome this alone returns a low-quality stream, which adversely affects future requests if this is the first interface access (2025)
             video: {
                 width: {ideal: 4096},                           // Request high-resolution stream
                 height: {ideal: 4096},
@@ -833,7 +844,7 @@ async function setVideoInput(input = selector.value) {
 
     while (true) {                                                                               // Retry until success or retry limit reached
         try {
-            print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at " + resolution.width + " x " + resolution.height);
+            print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
 
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
@@ -845,7 +856,7 @@ async function setVideoInput(input = selector.value) {
                 }
             });
 
-            print("setVideoInput(): Track info: " + getStreamInformation(stream));
+            print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
 
             videoElement.srcObject = stream;
 
@@ -881,11 +892,21 @@ async function getMaxResolution(input = selector.value) {
                 deviceId: {exact: input},
             }
         });
-        const capabilities = stream.getTracks()[0].getCapabilities();
+        const track = stream.getTracks()[0];
+
+        let capabilities;
+        if (typeof track.getCapabilities === "function") {
+            capabilities = stream.getTracks()[0].getCapabilities();
+        } else {
+            const defaultResolution = {width: 1920, height: 1080, description: "1080p"};
+            console.error("getMaxResolution(): Browser does not support function .getCapabilities, setting default value: " + defaultResolution.description);
+            capabilities = defaultResolution;
+        }
+
         return {width: capabilities.width.max, height: capabilities.height.max};               // Convert object values to integers with max
 
     } catch (error) {                                                                          // Failure
-        console.warn("getMaxResolution(): Camera could not be accessed");
+        console.warn("getMaxResolution(): Camera resolution could not be set");
     }
 }
 
@@ -985,33 +1006,44 @@ function devCameraQualityButton() {
  */
 function getStreamInformation(stream, printOut = false) {
 
+    // Test for issues
     if (!(stream instanceof MediaStream)) {
-        console.error("Invalid stream");
-        return;
+        console.error("getStreamInformation(): Invalid stream");
+        return null;
     }
 
     let allResults = [];
     let tracks = stream.getVideoTracks();
     if (tracks.length === 0) {
-        console.error("No video tracks in stream");
-        return;
-    }
-    if (!(typeof tracks[0].getCapabilities === "function")) {
-        console.error("Browser does not support function .getCapabilities");
+        console.error("getStreamInformation(): No video tracks in stream");
+        return null;
     }
 
+    let supportsGetCapabilities = true;
+    if (!(typeof tracks[0].getCapabilities === "function")) {
+        console.error("getStreamInformation(): Browser does not support function .getCapabilities");
+        supportsGetCapabilities = false;
+    }
+
+    // Iterate through tracks
     tracks.forEach(videoTrack => {
-        // Printing select information
+
+        // Get information
         const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
-        const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
+        let capabilityWidth, capabilityHeight, capabilityFrameRate;
+        if (supportsGetCapabilities) {({ width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities());}
 
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
 
-        if (print) {
+        // Print
+        if (printOut) {
             print(" ");
+
+            // Basic
             print("getStreamInformation(): Track info: ");
             print("... Track is: " + results[0] + " from device ID: " + results[1]);
+
             // Visualize stream quality
             let scoreUsing = results[2] * results[4];
             let scoreCapable = results[3] * results[5];
@@ -1021,21 +1053,22 @@ function getStreamInformation(stream, printOut = false) {
             scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
             print("... Current [ " + scoreUsingMarks   + " ]");
             print("... Capable [ " + scoreCapableMarks + " ]");
+
+            // More
             print("... Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
             print("... Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
 
-            print(" ");
-
-            // To print a FULL formatted output with all information:
+            // Full formatted output (long)
             // print("getStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
             // print("getStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+
+            print(" ");
         }
 
         allResults.push(results);
     });
 
     return allResults;
-
 }
 
 // UI functions
@@ -2308,7 +2341,7 @@ class Menu extends MovableElement {
         // Create controls
         this.menuDefinitions.forEach( (control) => {           // Parse definitions
             if (!control.customHTML) {                         // No custom HTML (falsy parameter value)
-                // noinspection JSUnresolvedReference
+                // noinspection JSUnresolvedReference          // Object is dynamic
                 const button = createButton(control.id, control.text, control.img);
                 button.addEventListener('click', control.action);
                 this.element.appendChild(button);

@@ -25,5 +25,5 @@
   "videoProblemHelpTitle": "Troubleshooting camera access",
   "videoProblemHelpText": "Instructions...",
   "retry" : "Retry",
-  "Dismiss": "Dismiss"
+  "dismiss": "Dismiss"
 }
