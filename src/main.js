@@ -629,14 +629,15 @@ async function videoStart() {
  */
 async function getMediaPermission() {
     try {
-        await navigator.mediaDevices.getUserMedia({
-            // video: true
+        const testStream = await navigator.mediaDevices.getUserMedia({
+            // video: true                                      // On chrome this returns a low-quality stream, which adversely affects future requests (2025)
             video: {
-                width: {ideal: 4096},
+                width: {ideal: 4096},                           // Request high-resolution stream
                 height: {ideal: 4096},
             }
         });                 // Ask for video device permission (return/promise ignored)
         print("getMediaPermission(): Media permission granted");
+        print("getMediaPermission(): Test track information: " + getStreamInformation(testStream));
     } catch (e) {                                                                             // Handle errors
 
         // Detect and handle known, expected exceptions
@@ -836,7 +837,7 @@ async function setVideoInput(input = selector.value) {
 
             const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
                 video: {
-                    deviceId: {exact: input},
+                    deviceId: {exact: input},                                                       //
                     // facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
                     width: {ideal: resolution.width},                                               // These are useless unless there are multiple tracks with the same deviceId
                     height: {ideal: resolution.height},                                             // Ideal values are not constraints
@@ -844,7 +845,7 @@ async function setVideoInput(input = selector.value) {
                 }
             });
 
-            print("setVideoInput(): Stream info: " + printStreamInformation(stream));
+            print("setVideoInput(): Track info: " + getStreamInformation(stream));
 
             videoElement.srcObject = stream;
 
@@ -941,18 +942,8 @@ function devCameraQualityButton() {
         print("Current input: " + shorten(currentInput));
         const stream = await getStreamFromInput(width, height, currentInput);
 
-        // Print info from stream's (first) track
-        const streamInfo = await printStreamInformation(stream);
-
-        // Visualize stream quality
-        let scoreUsing = streamInfo[0][2] * streamInfo[0][4];
-        let scoreCapable = streamInfo[0][3] * streamInfo[0][5];
-        let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));         // One score mark per 76800 (matches 320x240)
-        let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
-        scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
-        scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
-        print("Current [ " + scoreUsingMarks   + " ]");
-        print("Capable [ " + scoreCapableMarks + " ]");
+        // Print info from stream track
+        const streamInfo = getStreamInformation(stream, true);
 
         // Discard stream
         stream.getTracks().forEach(track => track.stop());
@@ -984,23 +975,32 @@ function devCameraQualityButton() {
 
 }
 
-function printStreamInformation(stream) {
+/**
+ * Gets information on the tracks in a MediaStream.
+ * Can print information.
+ * Normally only [0] of returned array is defined and relevant.
+ * @param stream MediaStream
+ * @param printOut True if printout wanted
+ * @returns {*[]} Array of results: [n][0] short track id [1] short device id [2] set width [3] possible width [4] set height [5] possible height [6] set framerate [7] possible framerate
+ */
+function getStreamInformation(stream, printOut = false) {
 
     if (!(stream instanceof MediaStream)) {
         console.error("Invalid stream");
         return;
     }
-    if (stream.getVideoTracks().length === 0) {
+
+    let allResults = [];
+    let tracks = stream.getVideoTracks();
+    if (tracks.length === 0) {
         console.error("No video tracks in stream");
         return;
     }
+    if (!(typeof tracks[0].getCapabilities === "function")) {
+        console.error("Browser does not support function .getCapabilities");
+    }
 
-    // print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
-    // if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
-
-    // let count = 1;
-    let allResults = [];
-    stream.getVideoTracks().forEach(videoTrack => {
+    tracks.forEach(videoTrack => {
         // Printing select information
         const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
         const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
@@ -1008,16 +1008,30 @@ function printStreamInformation(stream) {
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
 
-        print("Track is: " + results[0] + " from device ID: " + results[1]);
-        print("Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
-        print("Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
+        if (print) {
+            print(" ");
+            print("getStreamInformation(): Track info: ");
+            print("... Track is: " + results[0] + " from device ID: " + results[1]);
+            // Visualize stream quality
+            let scoreUsing = results[2] * results[4];
+            let scoreCapable = results[3] * results[5];
+            let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));         // One score mark per 76800 (matches 320x240)
+            let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
+            scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
+            scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
+            print("... Current [ " + scoreUsingMarks   + " ]");
+            print("... Capable [ " + scoreCapableMarks + " ]");
+            print("... Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
+            print("... Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
 
-        // To print a FULL formatted output with all information:
-        // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
-        // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+            print(" ");
+
+            // To print a FULL formatted output with all information:
+            // print("getStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
+            // print("getStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+        }
 
         allResults.push(results);
-        // count++;
     });
 
     return allResults;
