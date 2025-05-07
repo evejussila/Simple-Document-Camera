@@ -730,12 +730,6 @@ async function getVideoInputs() {
 
     let videoInputs = [];
 
-    // TODO: Retries in function may be redundant, though enumeration is not completely reliable
-    const retryAttempts = 3;                                                                          // Number of retries before throwing error
-    let failedCount = 0;
-
-    while (true) {                                                                                    // Retry until a device is found or retry limit reached
-
         let devices = await navigator.mediaDevices.enumerateDevices();                                // Find all media sources
 
         devices.forEach(device => {
@@ -754,14 +748,11 @@ async function getVideoInputs() {
         if (videoInputs.length > 0) {                                                                    // Success
             // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
-        }
-
-        if (failedCount >= retryAttempts) {                                                              // Check if too many retries
-            console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
+        } else {
+            console.error("getVideoInputs(): No video sources found")
             throw new Error("getVideoInputs(): No valid video inputs");
         }
-        failedCount++;                                                                                   // Failure(s), will retry
-    }
+
 }
 
 /**
@@ -791,8 +782,8 @@ function updateInputList(inputs) {
         // print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
     } else {                                                                                        // Original value invalid or not available
         selector.selectedIndex = 0;                                                                 // Select first option
-        console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
-        // TODO: At startup, this triggers once, could be handled differently
+        if (originalSelection) {console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));} // Check for truthy value to prevent unneeded trigger at startup
+
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
     }
 
@@ -834,53 +825,39 @@ async function backgroundUpdateInputList() {
  */
 async function setVideoInput(input = selector.value) {
 
-    // TODO: Conditional for support, safari and old firefox do not have .getcapabilities(), if (typeof track.getCapabilities === "function")
     const resolution = await getMaxResolution();
 
-    // TODO: Retries in function may be redundant, though input setting is not completely reliable
-    const retryAttempts = 3;                                                                     // Number of retries before giving up
-    let failedCount = 0;
-    let failed = false;
+    try {
+        print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
 
-    while (true) {                                                                               // Retry until success or retry limit reached
-        try {
-            print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
-
-            const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
-                video: {
-                    deviceId: {exact: input},                                                       //
-                    // facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
-                    width: {ideal: resolution.width},                                               // These are useless unless there are multiple tracks with the same deviceId
-                    height: {ideal: resolution.height},                                             // Ideal values are not constraints
-                    // frameRate: {ideal: 60}
-                }
-            });
-
-            print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
-
-            videoElement.srcObject = stream;
-
-            break;
-        } catch (error) {                                                                          // Failure
-            console.warn("setVideoInput(): Camera could not be accessed (retry " + failedCount + "): " + error);
-            if (failedCount >= retryAttempts) {                                                    // Break when too many retries
-                console.error("setVideoInput(): Camera access failed, total retries: " + failedCount);
-                failed = true;
-                break;
+        const stream = await navigator.mediaDevices.getUserMedia({                    // Change to the specified camera
+            video: {                                                                            // Only get and constrain video
+                deviceId: {exact: input},                                                       // Constrain to specific camera
+                // facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
+                width: {ideal: resolution.width},                                               // Request width
+                height: {ideal: resolution.height},                                             // Request height
+                // frameRate: {ideal: 60}                                                       // Request framerate
             }
+        });
 
-            // DEV: Most likely error is OverconstrainedError, but should only occur if device with used deviceId is not available
+        // Assign stream to visible element
+        videoElement.srcObject = stream;
 
-            failedCount++;
+        // Check track quality
+        const settings = stream.getTracks()[0].getSettings()
+        if (settings.width !== resolution.width || settings.height !== resolution.height) {
+            console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + settings.width + " x " + settings.height + " != " + resolution.width + " x " + resolution.height);
         }
-    }
+        print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
 
-    if (failed) {                                                                               // TODO: Unable to throw error that is caught within promise
+    } catch (error) {                                                                          // Failure
+        console.error("setVideoInput(): Camera could not be accessed: " + error);
+        // DEV: Most likely error is OverconstrainedError, but given the use of ideal values, this should only occur if device with used deviceId is not available
         throw new Error("setVideoInput(): Could not select camera");                            // DEV: A simple synchronous error is hard to catch from an async function by caller like videoStart(), try/catch or ().catch not catching
-        // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate
+        // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate TODO: Unable to throw error that is caught within promise
     }
 
-    return !failed;
+    return true;
 }
 
 async function getMaxResolution(input = selector.value) {
@@ -901,6 +878,7 @@ async function getMaxResolution(input = selector.value) {
             const defaultResolution = {width: 1920, height: 1080, description: "1080p"};
             console.error("getMaxResolution(): Browser does not support function .getCapabilities, setting default value: " + defaultResolution.description);
             capabilities = defaultResolution;
+            // TODO: Use alternative method based on list of resolutions
         }
 
         return {width: capabilities.width.max, height: capabilities.height.max};               // Convert object values to integers with max
@@ -930,30 +908,40 @@ function devCameraQualityButton() {
         releaseVideoStream();
 
         // Resolutions to test
-        // TODO: Calculate
         const testResolutions = [
-            { width: 1920, height: 1080 },
-            { width: 1280, height: 720 },
-            { width: 1024, height: 768 },
-            { width: 1280, height: 1024 },
-            { width: 800, height: 600 },
-            { width: 640, height: 480 }
+            { width: 3840, height: 2160, description: "4K UHD" },
+            { width: 2560, height: 1440, description: "1440p" },
+            { width: 1920, height: 1200, description: "WUXGA" },
+            { width: 1920, height: 1080, description: "1080p" },
+            { width: 1600, height: 1200, description: "UXGA" },
+            { width: 1440, height: 1080, description: "1080p (4:3)" },
+            { width: 1366, height: 768,  description: "WXGA" },
+            { width: 1280, height: 1024, description: "SXGA" },
+            { width: 1280, height: 960,  description: "960p" },
+            { width: 1280, height: 800,  description: "WXGA" },
+            { width: 1280, height: 720,  description: "720p" },
+            { width: 1024, height: 768,  description: "XGA" },
+            { width: 800,  height: 600,  description: "SVGA" },
+            { width: 720,  height: 480,  description: "480p" },
+            { width: 640,  height: 480,  description: "VGA" },
+            { width: 640,  height: 360,  description: "360p" },
+            { width: 320,  height: 240,  description: "QVGA" },
+            { width: 160,  height: 120,  description: "QQVGA" }
         ];
 
         // Loop test
-        // await testCameraQuality(1920,1080); // Single resolution test example
         for (const res of testResolutions) {
             try {
                 print(" ");
-                print("Testing: " + res.width + " x " + res.height );
-                await testCameraQuality(res.width,res.height);
+                res.result = await testCameraQuality(res.width,res.height);
+                print("runTest(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.result );
             } catch (e) {
-                console.warn("Failure to test resolution: " + res.width + " x " + res.height );
+                console.warn("runTest(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
             }
         }
 
 
-        // await videoStart(); // TODO: Instead set the exact track
+        await videoStart(); // TODO: Instead set the exact track
     }
 
     // TODO: USING IDEAL VALUES!
@@ -964,14 +952,26 @@ function devCameraQualityButton() {
         const stream = await getStreamFromInput(width, height, currentInput);
 
         // Print info from stream track
-        const streamInfo = getStreamInformation(stream, true);
+        // const streamInfo = getStreamInformation(stream, true);
+
+        // Get stream information
+        const settings = stream.getTracks()[0].getSettings();
 
         // Discard stream
         stream.getTracks().forEach(track => track.stop());
+
+        // Return success or failure
+        if (settings.width !== width || settings.height !== height) {
+            console.warn("testCameraQuality(): Video track does not match requested (ideal) constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height);
+            return false;
+        } else {
+            return true;
+        }
+
     }
 
     async function getStreamFromInput(width, height, deviceId) {
-
+        // TODO: Use this in set track
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 deviceId: {exact: deviceId},
