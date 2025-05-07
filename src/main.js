@@ -908,32 +908,32 @@ function devCameraQualityButton() {
         releaseVideoStream();
 
         // Resolutions to test
-        const testResolutions = [
-            { width: 3840, height: 2160, description: "4K UHD" },
-            { width: 2560, height: 1440, description: "1440p" },
-            { width: 1920, height: 1200, description: "WUXGA" },
-            { width: 1920, height: 1080, description: "1080p" },
-            { width: 1600, height: 1200, description: "UXGA" },
-            { width: 1440, height: 1080, description: "1080p (4:3)" },
-            { width: 1366, height: 768,  description: "WXGA" },
-            { width: 1280, height: 1024, description: "SXGA" },
-            { width: 1280, height: 960,  description: "960p" },
-            { width: 1280, height: 800,  description: "WXGA" },
-            { width: 1280, height: 720,  description: "720p" },
-            { width: 1024, height: 768,  description: "XGA" },
-            { width: 800,  height: 600,  description: "SVGA" },
-            { width: 720,  height: 480,  description: "480p" },
-            { width: 640,  height: 480,  description: "VGA" },
-            { width: 640,  height: 360,  description: "360p" },
-            { width: 320,  height: 240,  description: "QVGA" },
-            { width: 160,  height: 120,  description: "QQVGA" }
+        const testResolutions = [                                               // Resolutions to test in decreasing order
+            { width: 3840, height: 2160, description: "4K UHD"          },      // During test a boolean property "available" will be added to each
+            { width: 2560, height: 1440, description: "1440p"           },      // Best available resolution is first array element with true value for "available"
+            { width: 1920, height: 1200, description: "WUXGA"           },
+            { width: 1920, height: 1080, description: "1080p"           },
+            { width: 1600, height: 1200, description: "UXGA"            },
+            { width: 1440, height: 1080, description: "1080p (4:3)"     },
+            { width: 1366, height: 768,  description: "WXGA"            },
+            { width: 1280, height: 1024, description: "SXGA"            },
+            { width: 1280, height: 960,  description: "960p"            },
+            { width: 1280, height: 800,  description: "WXGA"            },
+            { width: 1280, height: 720,  description: "720p"            },
+            { width: 1024, height: 768,  description: "XGA"             },
+            { width: 800,  height: 600,  description: "SVGA"            },
+            { width: 720,  height: 480,  description: "480p"            },
+            { width: 640,  height: 480,  description: "VGA"             },
+            { width: 640,  height: 360,  description: "360p"            },
+            { width: 320,  height: 240,  description: "QVGA"            },
+            { width: 160,  height: 120,  description: "QQVGA"           }
         ];
 
         // Loop test
         for (const res of testResolutions) {
             try {
                 print(" ");
-                res.result = await testCameraQuality(res.width,res.height);
+                res.result = await testVideoQuality(res.width,res.height);
                 print("runTest(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.result );
             } catch (e) {
                 console.warn("runTest(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
@@ -945,7 +945,7 @@ function devCameraQualityButton() {
     }
 
     // TODO: USING IDEAL VALUES!
-    async function testCameraQuality(width, height) {
+    async function testVideoQuality(width, height) {
         // Get stream
         const currentInput = selector.value;
         print("Current input: " + shorten(currentInput));
@@ -962,9 +962,11 @@ function devCameraQualityButton() {
 
         // Return success or failure
         if (settings.width !== width || settings.height !== height) {
-            console.warn("testCameraQuality(): Video track does not match requested (ideal) constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height);
+            console.error("testVideoQuality(): Track != constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height);
+            // TODO: Using ideal values, not exact. Is the resolution at least near requested, quality wise?
             return false;
         } else {
+            console.warn("testVideoQuality(): Track == constraints: " + settings.width + " x " + settings.height + " == " + width + " x " + height);
             return true;
         }
 
