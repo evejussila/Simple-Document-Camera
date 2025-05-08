@@ -625,7 +625,7 @@ async function getMediaPermission() {
         const testStream = await navigator.mediaDevices.getUserMedia({
             // video: true                                      // On Chrome this alone returns a low-quality stream, which adversely affects future requests if this is the first interface access (2025)
             video: {
-                width: {ideal: 4096},                           // Request high-resolution stream
+                width: {ideal: 4096},                           // Request high-resolution stream (arbitrary width and height values)
                 height: {ideal: 4096},
             }
         });                 // Ask for video device permission (return/promise ignored)
@@ -846,25 +846,23 @@ async function getMaxResolution(input = selector.value) {
     try {
         print("getMaxResolution(): Determining max resolution for camera feed: " + shorten(input));
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                deviceId: {exact: input},
-            }
-        });
+        const stream = await getStreamFromInput(4096, 4096, input);                             // Arbitrary width and height values
         const track = stream.getTracks()[0];
 
-        let capabilities;
+        let resolution = {width: 1920, height: 1080, description: "1080p"}; // Default value
         if (typeof track.getCapabilities === "function") {
-            capabilities = stream.getTracks()[0].getCapabilities();
+            const capabilities = stream.getTracks()[0].getCapabilities();
+            resolution = {width: capabilities.width.max, height: capabilities.height.max}; // Convert object values to integers with max
         } else {
-            console.warn("getMaxResolution(): Browser does not support .getCapabilities, using fallback");
-            const defaultResolution = {width: 1920, height: 1080, description: "1080p"};
-            console.error("getMaxResolution(): Resolution tests failed, setting default value: " + defaultResolution.description);
-            // TODO: Use alternative method based on list of resolutions getMaxResolutionFallback()
-            capabilities = defaultResolution;
+            console.warn("getMaxResolution(): Browser does not support .getCapabilities(), using slow fallback");
+            try {
+                resolution = await getMaxResolutionFallback();
+            } catch (e) {
+                console.error("getMaxResolution(): Fallback resolution tests failed");
+            }
         }
 
-        return {width: capabilities.width.max, height: capabilities.height.max};               // Convert object values to integers with max
+        return {width: resolution.width, height: resolution.height};
 
     } catch (error) {                                                                          // Failure
         console.warn("getMaxResolution(): Camera resolution could not be set");
@@ -904,13 +902,14 @@ async function getMaxResolutionFallback() {
     for (const res of testResolutions) {
         try {
             print(" ");
-            res.available = await compareVideoQuality(res.width,res.height);
+            const stream = await getStreamFromInput(res.width, res.height, selector.value);
+            res.available = await compareVideoQuality(res.width, res.height, stream);
             if (res.available === true) availableResolutions++;
-            print("getMaxResolutionFallback(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
+            print("getMaxResolutionFallback(): Tested resolution for " + shorten(selector.value) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
 
             if (availableResolutions >= 3) break; // Only get three available resolutions to save time
         } catch (e) {
-            console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
+            console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height + " : " + e);
         }
     }
 
@@ -927,10 +926,15 @@ async function getMaxResolutionFallback() {
         }
     }
 
-
-
 }
 
+/**
+ * Gets a video stream from an input based on device id, and applies ideal constraints.
+ * @param width Width constraint (ideal)
+ * @param height Height constraint (ideal)
+ * @param deviceId Device id constraint (exact)
+ * @returns {Promise<MediaStream>} Video stream
+ */
 async function getStreamFromInput(width, height, deviceId) {
     const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -952,7 +956,7 @@ function releaseVideoStream() {
         videoElement.srcObject.getTracks().forEach(track => track.stop());
         videoElement.srcObject = null;
     } catch (e) {
-        console.warn("releaseVideoStream(): Video release failed: " + e);
+        print("releaseVideoStream(): Video release failed: " + e);
         // Error if releasing when no video: TypeError: videoElement.srcObject is null
     }
 
@@ -971,22 +975,22 @@ function devCameraQualityButton() {
 
 }
 
-async function compareVideoQuality(width, height) {
-    // Get stream
-    const currentInput = selector.value;
-    print("compareVideoQuality(): Testing: " + shorten(currentInput));
-    const stream = await getStreamFromInput(width, height, currentInput);
+/**
+ * Compares specified constraints to those of a stream to check if they match.
+ *
+ * @param width
+ * @param height
+ * @param stream Stream to test for constraints, default is current active video source
+ * @returns {Promise<boolean>} True if stream matches constraints.
+ */
+async function compareVideoQuality(width, height, stream = videoElement.srcObject) {
 
     // Get stream information
     const settings = stream.getTracks()[0].getSettings();
 
-    // Discard stream
-    stream.getTracks().forEach(track => track.stop());
-
     // Return success or failure
     if (settings.width !== width || settings.height !== height) {
         print("compareVideoQuality(): Track != constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height, "yellow");
-        // TODO: Using ideal values, not exact. Is the resolution at least near requested, quality wise?
         return false;
     } else {
         print("compareVideoQuality(): Track == constraints: " + settings.width + " x " + settings.height + " == " + width + " x " + height, "green");
@@ -1069,6 +1073,7 @@ function getStreamInformation(stream, printOut = false) {
 
     return allResults;
 }
+
 
 // UI functions
 
