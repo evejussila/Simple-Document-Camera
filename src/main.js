@@ -73,9 +73,6 @@ function start() {
 
     });
 
-    // DEV
-    if (debugMode) devCameraQualityButton();
-
 }
 
 /**
@@ -631,6 +628,7 @@ async function getMediaPermission() {
         });                 // Ask for video device permission (return/promise ignored)
         print("getMediaPermission(): Media permission granted");
         print("getMediaPermission(): Test track information: " + getStreamInformation(testStream));
+        releaseVideoStream(testStream);
     } catch (e) {                                                                             // Handle errors
 
         // Detect and handle known, expected exceptions
@@ -809,6 +807,9 @@ async function backgroundUpdateInputList() {
  */
 async function setVideoInput(input = selector.value, width = null, height = null) {
 
+    // Ensure clean state
+    releaseVideoStream();
+
     let resolution;
     if (width !== null && height !==null) {
         resolution = {width: width, height : height};
@@ -822,15 +823,15 @@ async function setVideoInput(input = selector.value, width = null, height = null
         // Get stream
         const stream = await getStreamFromInput(resolution.width, resolution.height, input);
 
-        // Assign stream to visible element
-        videoElement.srcObject = stream;
-
         // Check track quality
-        const trackQualityMatches = compareVideoQuality(resolution.width, resolution.height);
+        const trackQualityMatches = compareVideoQuality(resolution.width, resolution.height, stream);
         if (!trackQualityMatches) {
             console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + resolution.width + " x " + resolution.height);
         }
         print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
+
+        // Assign stream to visible element
+        videoElement.srcObject = stream;
 
     } catch (error) {                                                                          // Failure
         console.error("setVideoInput(): Camera could not be accessed: " + error);
@@ -846,19 +847,26 @@ async function getMaxResolution(input = selector.value) {
     try {
         print("getMaxResolution(): Determining max resolution for camera feed: " + shorten(input));
 
-        const stream = await getStreamFromInput(4096, 4096, input);                             // Arbitrary width and height values
-        const track = stream.getTracks()[0];
+        // const stream = await getStreamFromInput(4096, 4096, input);                             // Will cause failure on some cameras: technically valid MediaStream with no content
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: {exact: input},
+            }
+        });
 
         let resolution = {width: 1920, height: 1080, description: "1080p"}; // Default value
+        const track = stream.getTracks()[0];
         if (typeof track.getCapabilities === "function") {
             const capabilities = stream.getTracks()[0].getCapabilities();
+            releaseVideoStream(stream);
             resolution = {width: capabilities.width.max, height: capabilities.height.max}; // Convert object values to integers with max
         } else {
-            console.warn("getMaxResolution(): Browser does not support .getCapabilities(), using slow fallback");
+            releaseVideoStream(stream);
+            console.warn("getMaxResolution(): Browser does not support .getCapabilities(), calling slow fallback");
             try {
                 resolution = await getMaxResolutionFallback();
             } catch (e) {
-                console.error("getMaxResolution(): Fallback resolution tests failed");
+                console.error("getMaxResolution(): Fallback resolution test failed (using default resolution: " + resolution.description + ")");
             }
         }
 
@@ -869,11 +877,9 @@ async function getMaxResolution(input = selector.value) {
     }
 }
 
-async function getMaxResolutionFallback() {
+async function getMaxResolutionFallback(input = selector.value) {
 
     print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
-
-    releaseVideoStream();
 
     // Resolutions to test
     const testResolutions = [                                               // Resolutions to test in decreasing order
@@ -902,10 +908,11 @@ async function getMaxResolutionFallback() {
     for (const res of testResolutions) {
         try {
             print(" ");
-            const stream = await getStreamFromInput(res.width, res.height, selector.value);
+            const stream = await getStreamFromInput(res.width, res.height, input);
             res.available = await compareVideoQuality(res.width, res.height, stream);
+            releaseVideoStream(stream);
             if (res.available === true) availableResolutions++;
-            print("getMaxResolutionFallback(): Tested resolution for " + shorten(selector.value) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
+            print("getMaxResolutionFallback(): Tested resolution for " + shorten(input) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
 
             if (availableResolutions >= 3) break; // Only get three available resolutions to save time
         } catch (e) {
@@ -940,7 +947,7 @@ async function getStreamFromInput(width, height, deviceId) {
         video: {
             deviceId: {exact: deviceId},                                // Constrain to specific camera
             width: {ideal: width},                                      // Request width
-            height: {ideal: height},                                    // Request height
+            height: {ideal: height}                                    // Request height
             // frameRate: {ideal: 60}                                   // Request framerate
             // facingMode: {ideal: 'environment'},                      // Request a camera that is facing away from the user
         }
@@ -949,29 +956,19 @@ async function getStreamFromInput(width, height, deviceId) {
 }
 
 /**
- * Stops all tracks of current video srcObject
+ * Stops all tracks of a stream to release it.
+ * @param stream Stream to release, default is current active video source.
  */
-function releaseVideoStream() {
+function releaseVideoStream(stream = videoElement.srcObject) {
+
+    print("releaseVideoStream(): Video release called");
     try {
-        videoElement.srcObject.getTracks().forEach(track => track.stop());
-        videoElement.srcObject = null;
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
     } catch (e) {
-        print("releaseVideoStream(): Video release failed: " + e);
+        print("releaseVideoStream(): Video release failed (safe): " + e);
         // Error if releasing when no video: TypeError: videoElement.srcObject is null
     }
-
-    // TODO: Consider also soft disable that is not dependent on videoStart()
-    // if (videoElement.srcObject) {
-    //     videoElement.srcObject.getTracks().forEach(track => track.enabled = false);                            // Disable all tracks to freeze the video
-    // }
-}
-
-function devCameraQualityButton() {
-    // Create button
-    const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
-    button.addEventListener("click", async () => {
-        await getMaxResolutionFallback();
-    });
 
 }
 
@@ -1563,7 +1560,7 @@ function videoFreeze(freezeIcon) {
     if (!isFreeze) {                                                                                // If video is not frozen, freeze it
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
-            releaseVideoStream();                                                               // Stop video
+            releaseVideoStream();                                                                   // Stop video TODO: Consider softer freeze with faster recovery, without relying on videoStart()
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
@@ -2513,6 +2510,7 @@ function developerMenu() {
         [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
         [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
         [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
+        [   "Fallback resolution test"         , () => { getMaxResolutionFallback();                                     }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
@@ -2520,6 +2518,10 @@ function developerMenu() {
     //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
         [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
     ], "585px", "180px");
+
+    // TODO: Create using Menu instead of prompt, use buttons with icons, add text support for buttons
+    // const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
+
 
 }
 
