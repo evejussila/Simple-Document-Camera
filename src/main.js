@@ -782,7 +782,7 @@ function islandDragStop() {
  * Updates zoom value and percentage level.
  * @param value Zoom value
  */
-function setZoomLevel(value) {
+/*function setZoomLevel(value) {
     const previousZoom = currentZoom;
     const zoomPercentage = parseInt(value, 10) + 100;               // Adjust to new scale: 0 -> 100%, -50 -> 50%, 150 -> 150%
     currentZoom = zoomPercentage / 100;                                          // Update zoom value
@@ -799,6 +799,39 @@ function setZoomLevel(value) {
     updateVideoTransform();
     document.getElementById('zoomSlider').value = value;  // Set the slider position
     document.getElementById('zoomPercentageLabel').innerText = `${zoomPercentage}%`; // Update zoom percentage label
+}*/
+
+function setZoomLevel(value) {
+    const previousZoom = currentZoom;
+    const zoomPercentage = parseInt(value, 10) + 100;
+    currentZoom = zoomPercentage / 100;
+
+    // Get video and container dimensions
+    const videoRect = videoElement.getBoundingClientRect();
+    const containerRect = videoContainer.getBoundingClientRect();
+
+    // Calculate the center of the video and container
+    const videoCenterX = videoRect.width / 2;
+    const videoCenterY = videoRect.height / 2;
+    const containerCenterX = containerRect.width / 2;
+    const containerCenterY = containerRect.height / 2;
+
+    // Adjust offsets to keep the video centered when zooming
+    if (currentZoom !== previousZoom) {
+        // Scale offsets relative to the new zoom level
+        if (currentZoom >= 1) {
+            offsetX = (offsetX / previousZoom) * currentZoom;
+            offsetY = (offsetY / previousZoom) * currentZoom;
+        } else {
+            // When zooming out, adjust to center the video
+            offsetX = (containerCenterX - videoCenterX) * (1 - currentZoom);
+            offsetY = (containerCenterY - videoCenterY) * (1 - currentZoom);
+        }
+    }
+
+    updateVideoTransform();
+    document.getElementById('zoomSlider').value = value;
+    document.getElementById('zoomPercentageLabel').innerText = `${zoomPercentage}%`;
 }
 
 /**
