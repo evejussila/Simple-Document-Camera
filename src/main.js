@@ -818,7 +818,7 @@ async function setVideoInput(input = selector.value, width = null, height = null
     }
 
     try {
-        print("setVideoInput(): Setting video input: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
+        print("setVideoInput(): Setting video input: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height, "gray", true);
 
         // Get stream
         const stream = await getStreamFromInput(resolution.width, resolution.height, input);
@@ -827,9 +827,9 @@ async function setVideoInput(input = selector.value, width = null, height = null
         videoElement.srcObject = stream;
 
         // Check track quality
-        const settings = stream.getTracks()[0].getSettings()
-        if (settings.width !== resolution.width || settings.height !== resolution.height) {
-            console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + settings.width + " x " + settings.height + " != " + resolution.width + " x " + resolution.height);
+        const trackQualityMatches = compareVideoQuality(resolution.width, resolution.height);
+        if (!trackQualityMatches) {
+            console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + resolution.width + " x " + resolution.height);
         }
         print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
 
@@ -905,7 +905,7 @@ async function getMaxResolutionFallback() {
     for (const res of testResolutions) {
         try {
             print(" ");
-            res.available = await testVideoQuality(res.width,res.height);
+            res.available = await compareVideoQuality(res.width,res.height);
             if (res.available === true) availableResolutions++;
             print("getMaxResolutionFallback(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
 
@@ -928,32 +928,7 @@ async function getMaxResolutionFallback() {
         }
     }
 
-    async function testVideoQuality(width, height) {
-        // Get stream
-        const currentInput = selector.value;
-        print("Current input: " + shorten(currentInput));
-        const stream = await getStreamFromInput(width, height, currentInput);
 
-        // Get stream information
-        const settings = stream.getTracks()[0].getSettings();
-
-        // Print info on stream track
-        // const streamInfo = getStreamInformation(stream, true);
-
-        // Discard stream
-        stream.getTracks().forEach(track => track.stop());
-
-        // Return success or failure
-        if (settings.width !== width || settings.height !== height) {
-            console.error("testVideoQuality(): Track != constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height);
-            // TODO: Using ideal values, not exact. Is the resolution at least near requested, quality wise?
-            return false;
-        } else {
-            console.warn("testVideoQuality(): Track == constraints: " + settings.width + " x " + settings.height + " == " + width + " x " + height);
-            return true;
-        }
-
-    }
 
 }
 
@@ -984,6 +959,30 @@ function devCameraQualityButton() {
     button.addEventListener("click", async () => {
         await getMaxResolutionFallback();
     });
+
+}
+
+async function compareVideoQuality(width, height) {
+    // Get stream
+    const currentInput = selector.value;
+    print("compareVideoQuality(): Testing: " + shorten(currentInput));
+    const stream = await getStreamFromInput(width, height, currentInput);
+
+    // Get stream information
+    const settings = stream.getTracks()[0].getSettings();
+
+    // Discard stream
+    stream.getTracks().forEach(track => track.stop());
+
+    // Return success or failure
+    if (settings.width !== width || settings.height !== height) {
+        print("compareVideoQuality(): Track != constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height, "yellow");
+        // TODO: Using ideal values, not exact. Is the resolution at least near requested, quality wise?
+        return false;
+    } else {
+        print("compareVideoQuality(): Track == constraints: " + settings.width + " x " + settings.height + " == " + width + " x " + height, "green");
+        return true;
+    }
 
 }
 
@@ -2528,8 +2527,12 @@ function dumpLocalStorage() {
  * Stops all tracks of current video srcObject
  */
 function releaseVideoStream() {
-    // TODO: Uncaught TypeError: videoElement.srcObject is null
-    videoElement.srcObject.getTracks().forEach(track => track.stop());
+    try {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+    } catch (e) {
+        console.warn("releaseVideoStream(): Release failed (safe): " + e);
+        // Error if releasing when no video: TypeError: videoElement.srcObject is null
+    }
     videoElement.srcObject = null;
 }
 
@@ -2537,16 +2540,54 @@ function releaseVideoStream() {
  * Outputs strings to console if debug is enabled.
  * Used in development.
  * @param string String to output
+ * @param color Text color
+ * @param tracePrint Include short stack trace
  */
-function print(string) {
+function print(string, color = "gray", tracePrint = false) {
     if (!debugMode) return;
-    console.log(string);
 
-    // arg for trace caller here unless false (for mass events)
-    //     const stack = new Error().stack.split('\n');
-    //     const callerFunction = stack[2].trim();
+    let output;
+
+    // Format if string starts with function identifier "():"
+    const index = string.indexOf("():");
+    if (index === -1 || index > 26) {
+        output = string;
+    } else {
+        const prefix = string.slice(0, index + 3).padEnd(30, " ");
+        output = prefix + string.slice(index + 3);
+    }
 
     // arg for color https://stackoverflow.com/questions/7505623/colors-in-javascript-console
+
+    console.log(output);
+
+    if (tracePrint) {
+        const stack = new Error().stack.split('\n');
+
+        console.warn("print(): Trace: print <--- " + structureStackPrint(stack[1]) + " <--- " + structureStackPrint(stack[2]) + " <--- " + structureStackPrint(stack[3]));
+
+        function structureStackPrint(input) {
+            output = input.trim();
+            let isAsync = " ";
+            if (output.startsWith("async*")) {
+                isAsync = " (async)";
+                output = output.slice(6);
+            }
+            const [functionNameRaw, location] = output.split("@"); // Destructure to array
+            let lineNumber = -1;
+            let functionName = "?";
+            if (location) {
+                functionName = functionNameRaw.trim();
+                const parts = location.split(":");
+                lineNumber = parseInt(parts[parts.length - 2]); // TODO: Does this tolerate port number or lack of?
+            }
+
+            // TODO: Fix: Function name may have "/<" at the end
+
+            return functionName + " (" + lineNumber + ")" + isAsync;
+        }
+    }
+
 }
 
 /**
