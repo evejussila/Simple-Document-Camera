@@ -602,7 +602,6 @@ async function videoStart() {
         try {
             let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
             await setVideoInput(input);                                                          // Use the selected input
-            resetVideoState();                                                                   // Reset video view
         } catch (e) {
             // TODO: Catch not reliable enough
             error = true;                                                                                 // Flag error
@@ -818,7 +817,7 @@ async function setVideoInput(input = selector.value, width = null, height = null
     }
 
     try {
-        print("setVideoInput(): Setting video input: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height, "gray", true);
+        print("setVideoInput(): Setting video input: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
 
         // Get stream
         const stream = await getStreamFromInput(resolution.width, resolution.height, input);
@@ -946,12 +945,22 @@ async function getStreamFromInput(width, height, deviceId) {
 }
 
 /**
- * Reset video feed back to its default state.
+ * Stops all tracks of current video srcObject
  */
-function resetVideoState() {
-    // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
-}
+function releaseVideoStream() {
+    try {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+        videoElement.srcObject = null;
+    } catch (e) {
+        console.warn("releaseVideoStream(): Video release failed: " + e);
+        // Error if releasing when no video: TypeError: videoElement.srcObject is null
+    }
 
+    // TODO: Consider also soft disable that is not dependent on videoStart()
+    // if (videoElement.srcObject) {
+    //     videoElement.srcObject.getTracks().forEach(track => track.enabled = false);                            // Disable all tracks to freeze the video
+    // }
+}
 
 function devCameraQualityButton() {
     // Create button
@@ -1544,12 +1553,12 @@ function videoFlip() {
  * @param freezeIcon Icon for freeze button
  */
 function videoFreeze(freezeIcon) {
-    const stream = videoElement.srcObject;                                                        // Get the current video stream
+    const stream = videoElement.srcObject;                                                          // Get current video stream
 
-    if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
+    if (!isFreeze) {                                                                                // If video is not frozen, freeze it
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
-            stream.getTracks().forEach(track => track.enabled = false);                            // Disable all tracks to freeze the video
+            releaseVideoStream();                                                               // Stop video
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
@@ -2524,24 +2533,11 @@ function dumpLocalStorage() {
 }
 
 /**
- * Stops all tracks of current video srcObject
- */
-function releaseVideoStream() {
-    try {
-        videoElement.srcObject.getTracks().forEach(track => track.stop());
-    } catch (e) {
-        console.warn("releaseVideoStream(): Release failed (safe): " + e);
-        // Error if releasing when no video: TypeError: videoElement.srcObject is null
-    }
-    videoElement.srcObject = null;
-}
-
-/**
  * Outputs strings to console if debug is enabled.
  * Used in development.
  * @param string String to output
- * @param color Text color
- * @param tracePrint Include short stack trace
+ * @param color Text color string (optional)
+ * @param tracePrint True to nclude short stack trace (optional)
  */
 function print(string, color = "gray", tracePrint = false) {
     if (!debugMode) return;
@@ -2557,9 +2553,20 @@ function print(string, color = "gray", tracePrint = false) {
         output = prefix + string.slice(index + 3);
     }
 
-    // arg for color https://stackoverflow.com/questions/7505623/colors-in-javascript-console
-
-    console.log(output);
+    // Colorize output
+    let css = '';
+    switch(color) {
+        case "gray": css = "color: gray"; break;
+        case "red": css = "color: red"; break;
+        case "green": css = "color: green"; break;
+        case "blue": css = "color: blue"; break;
+        case "white": css = "color: white"; break;
+        case "black": css = "color: black"; break;
+        case "yellow": css = "color: yellow"; break;
+        case "orange": css = "color: orange"; break;
+        default: css = "color: black"; break;
+    }
+    console.log('%c' + output, css);
 
     if (tracePrint) {
         const stack = new Error().stack.split('\n');
