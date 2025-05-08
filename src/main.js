@@ -798,7 +798,7 @@ async function backgroundUpdateInputList() {
 }
 
 /**
- * Accesses a camera feed.
+ * Accesses a camera for video input.
  *
  * @param input Identifier of video input to access
  * @param width Width to use as ideal value (optional)
@@ -845,7 +845,7 @@ async function setVideoInput(input = selector.value, width = null, height = null
 
 async function getMaxResolution(input = selector.value) {
     try {
-        print("getMaxResolution(): Determining max resolution for camera feed: " + shorten(input));
+        print("getMaxResolution(): Determining max resolution for video input: " + shorten(input));
 
         // const stream = await getStreamFromInput(4096, 4096, input);                             // Will cause failure on some cameras: technically valid MediaStream with no content
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -966,7 +966,7 @@ function releaseVideoStream(stream = videoElement.srcObject) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
     } catch (e) {
-        print("releaseVideoStream(): Video release failed (safe): " + e);
+        print("releaseVideoStream(): Video release failed (safe): " + e.name);
         // Error if releasing when no video: TypeError: videoElement.srcObject is null
     }
 
@@ -1386,7 +1386,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
         // Potential custom color
         if (optionButton[2] != null) {                                    // Get potential color for button
-            print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
+            // print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
 
             // Set base color
             button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
@@ -2561,19 +2561,19 @@ function print(string, color = "gray", tracePrint = false) {
     }
 
     // Colorize output
-    let css = '';
+    let css;
     switch(color) {
-        case "gray": css = "color: gray"; break;
-        case "red": css = "color: red"; break;
-        case "green": css = "color: green"; break;
-        case "blue": css = "color: blue"; break;
-        case "white": css = "color: white"; break;
-        case "black": css = "color: black"; break;
-        case "yellow": css = "color: yellow"; break;
-        case "orange": css = "color: orange"; break;
-        default: css = "color: black"; break;
+        case "gray":    css = "color: gray";    break;
+        case "red":     css = "color: red";     break;
+        case "green":   css = "color: green";   break;
+        case "blue":    css = "color: blue";    break;
+        case "white":   css = "color: white";   break;
+        case "black":   css = "color: black";   break;
+        case "yellow":  css = "color: yellow";  break;
+        case "orange":  css = "color: orange";  break;
+        default:        css = "color: gray";    break;
     }
-    console.log('%c' + output, css);
+    console.log("%c" + output, css);
 
     if (tracePrint) {
         const stack = new Error().stack.split('\n');
