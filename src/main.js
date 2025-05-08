@@ -20,6 +20,77 @@ const selector              = document.getElementById('selectorDevice');        
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
+//_____________________________
+
+const canvasDrawing = document.getElementById('canvasDrawing'); // Canvas for drawing
+const drawingContext = canvasDrawing.getContext('2d');                       // 2D rendering context
+
+// Set canvasDrawing resolution to match displayed size.
+canvasDrawing.width = canvasDrawing.clientWidth;
+canvasDrawing.height = canvasDrawing.clientHeight;
+
+let drawingEnabled = false;             // Shows if drawing tool is selected
+let isDrawing = false;                  // Shows if user is actively drawing (mousedown)
+
+// Default line style
+drawingContext.lineWidth = 5;
+drawingContext.lineCap = 'round';
+drawingContext.strokeStyle = '#000000';
+
+const strokeInput = document.getElementById('stroke');
+const lineWidthInput = document.getElementById('lineWidth');
+
+// Update stroke color
+strokeInput.addEventListener('input', (e) => {
+    drawingContext.strokeStyle = e.target.value;
+});
+
+// Update line width
+lineWidthInput.addEventListener('input', (e) => {
+    drawingContext.lineWidth = parseFloat(e.target.value);
+});
+
+// Event listeners for freehand drawing.
+// Mouse down -> start drawing if drawing is enabled
+canvasDrawing.addEventListener('mousedown', e => {
+    if (!drawingEnabled) return;
+
+    isDrawing = true;
+    const rect = canvasDrawing.getBoundingClientRect(); // Position and size of canvasDrawing relative to the viewport
+    drawingContext.beginPath();                                  // Start new drawing
+    drawingContext.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+// Mouse up -> stop drawing
+canvasDrawing.addEventListener('mouseup', () => {
+    if (!drawingEnabled) return;
+
+    isDrawing = false;
+    drawingContext.beginPath();         // End current drawing
+});
+
+// Mouse move -> draw
+canvasDrawing.addEventListener('mousemove', e => {
+    if (!drawingEnabled || !isDrawing) return;
+
+    const rect = canvasDrawing.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    drawingContext.lineTo(x, y);
+    drawingContext.stroke();
+});
+
+// Drawing mode is selected with buttonDraw
+function toggleDrawingMode() {
+    drawingEnabled = !drawingEnabled;
+    console.log(`Drawing mode: ${drawingEnabled ? "enabled" : "disabled"}`);
+
+    // Cursor change to indicate drawing mode
+    canvasDrawing.style.cursor = drawingEnabled ? "crosshair" : "default";
+}
+
+//_____________________________
 
 // Video feed state
 let rotation = 0;                                                                          // Store rotation state
@@ -76,7 +147,9 @@ function addCoreListeners() {
     listenerToElement('buttonRotate', 'click', videoRotate);                                             // Rotate button
     listenerToElement('buttonFlip', 'click', videoFlip);                                                 // Flip button
     listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
-    listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
+    listenerToElement('buttonOverlay', 'click', addOverlay);
+    listenerToElement('buttonDraw', 'click', toggleDrawingMode);
+    listenerToElement('buttonClearDrawing', 'click', () => drawingContext.clearRect(0, 0, canvasDrawing.width, canvasDrawing.height)); // Remove all drawings
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
     listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
     listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button

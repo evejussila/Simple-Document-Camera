@@ -173,6 +173,23 @@ button:not(:hover) {
     margin: 0;
 }
 
+#drawingTool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#drawingTool input {
+    width: 100%;
+}
+
+#drawingToolContainer {
+    height: 100%;
+    display: flex;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
 #textControls {
     display: flex;
     gap: 5px;
@@ -296,6 +313,16 @@ button:not(:hover) {
     margin-right: auto;
     position: relative;
     z-index: var(--zindex-visual-core);
+}
+
+#canvasDrawing {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: calc(var(--zindex-visual-core) + 1);
+    pointer-events: auto;
 }
 
 #videoContainer {
