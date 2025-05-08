@@ -565,23 +565,6 @@ function createMenus() {
  */
 async function videoStart() {
 
-    // TODO: Load text and buttons from translation files
-
-    // Error prompt default content
-    // let genericPromptTitle = "No valid cameras could be accessed";
-    // let genericPromptText =
-    //     "Please make sure your devices are connected and not being used by other software. " +
-    //     "<br><br>" +
-    //     "Ensure that you do not have this page open on other tabs. " +
-    //     "<br><br>" +
-    //     "Check that you have allowed camera access in your browser. " +
-    //     "<br><br>" +
-    //     "You may also try a hard reload by pressing Ctrl + F5 ";
-    // let genericPromptActions = [
-    //     ["Retry",       () =>       { videoStart(); } ],
-    //     ["Dismiss",     () =>       {               } ]
-    // ];
-
     // Get error prompt text
     // noinspection JSUnresolvedReference                                   // Object is dynamic
     let genericPromptTitle = currentTranslations.videoProblemPromptTitle;
@@ -593,7 +576,7 @@ async function videoStart() {
         [currentTranslations.dismiss,      () =>       {               } ]
     ];
 
-    // Get permission and inputs                                                                                 // DEV: Functional code style with ().then chained is shorter, may be used again once logics are finished
+    // Get permission and inputs
     let error = false;
     let errorDescription = "unknown";                                                                            // Store specific error description
     let inputs;
@@ -629,7 +612,7 @@ async function videoStart() {
     }
 
     if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "108px", "180px"); }                   // Prompt user
-    // TODO: Provide readable error description and conditional solutions
+    // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
 
@@ -835,17 +818,10 @@ async function setVideoInput(input = selector.value, width = null, height = null
     }
 
     try {
-        print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
+        print("setVideoInput(): Setting video input: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
 
-        const stream = await navigator.mediaDevices.getUserMedia({                    // Change to the specified camera
-            video: {                                                                            // Only get and constrain video
-                deviceId: {exact: input},                                                       // Constrain to specific camera
-                // facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
-                width: {ideal: resolution.width},                                               // Request width
-                height: {ideal: resolution.height},                                             // Request height
-                // frameRate: {ideal: 60}                                                       // Request framerate
-            }
-        });
+        // Get stream
+        const stream = await getStreamFromInput(resolution.width, resolution.height, input);
 
         // Assign stream to visible element
         videoElement.srcObject = stream;
@@ -896,78 +872,60 @@ async function getMaxResolution(input = selector.value) {
     }
 }
 
-/**
- * Reset video feed back to its default state.
- */
-function resetVideoState() {
-    // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
-}
+async function getMaxResolutionFallback() {
 
+    print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
 
-function devCameraQualityButton() {
-    // Create button
-    const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
-    button.addEventListener("click", async () => {
-        await getMaxResolutionFallback();
-    });
+    releaseVideoStream();
 
-    // Coordinate tests
-    async function getMaxResolutionFallback() {
+    // Resolutions to test
+    const testResolutions = [                                               // Resolutions to test in decreasing order
+        { width: 3840, height: 2160, description: "4K UHD"          },      // During test a boolean property "available" will be added to each
+        { width: 2560, height: 1440, description: "1440p"           },      // Best available resolution is first array element with true value for "available"
+        { width: 1920, height: 1200, description: "WUXGA"           },
+        { width: 1920, height: 1080, description: "1080p"           },
+        { width: 1600, height: 1200, description: "UXGA"            },
+        { width: 1440, height: 1080, description: "1080p (4:3)"     },
+        { width: 1366, height: 768,  description: "WXGA"            },
+        { width: 1280, height: 1024, description: "SXGA"            },
+        { width: 1280, height: 960,  description: "960p"            },
+        { width: 1280, height: 800,  description: "WXGA"            },
+        { width: 1280, height: 720,  description: "720p"            },
+        { width: 1024, height: 768,  description: "XGA"             },
+        { width: 800,  height: 600,  description: "SVGA"            },
+        { width: 720,  height: 480,  description: "480p"            },
+        { width: 640,  height: 480,  description: "VGA"             },
+        { width: 640,  height: 360,  description: "360p"            },
+        { width: 320,  height: 240,  description: "QVGA"            },
+        { width: 160,  height: 120,  description: "QQVGA"           }
+    ];
 
-        print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
+    // Loop test
+    let availableResolutions = 0;
+    for (const res of testResolutions) {
+        try {
+            print(" ");
+            res.available = await testVideoQuality(res.width,res.height);
+            if (res.available === true) availableResolutions++;
+            print("getMaxResolutionFallback(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
 
-        releaseVideoStream();
-
-        // Resolutions to test
-        const testResolutions = [                                               // Resolutions to test in decreasing order
-            { width: 3840, height: 2160, description: "4K UHD"          },      // During test a boolean property "available" will be added to each
-            { width: 2560, height: 1440, description: "1440p"           },      // Best available resolution is first array element with true value for "available"
-            { width: 1920, height: 1200, description: "WUXGA"           },
-            { width: 1920, height: 1080, description: "1080p"           },
-            { width: 1600, height: 1200, description: "UXGA"            },
-            { width: 1440, height: 1080, description: "1080p (4:3)"     },
-            { width: 1366, height: 768,  description: "WXGA"            },
-            { width: 1280, height: 1024, description: "SXGA"            },
-            { width: 1280, height: 960,  description: "960p"            },
-            { width: 1280, height: 800,  description: "WXGA"            },
-            { width: 1280, height: 720,  description: "720p"            },
-            { width: 1024, height: 768,  description: "XGA"             },
-            { width: 800,  height: 600,  description: "SVGA"            },
-            { width: 720,  height: 480,  description: "480p"            },
-            { width: 640,  height: 480,  description: "VGA"             },
-            { width: 640,  height: 360,  description: "360p"            },
-            { width: 320,  height: 240,  description: "QVGA"            },
-            { width: 160,  height: 120,  description: "QQVGA"           }
-        ];
-
-        // Loop test
-        let availableResolutions = 0;
-        for (const res of testResolutions) {
-            try {
-                print(" ");
-                res.available = await testVideoQuality(res.width,res.height);
-                if (res.available === true) availableResolutions++;
-                print("getMaxResolutionFallback(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " count of available: " + availableResolutions );
-
-                if (availableResolutions >= 3) break; // Only get three available resolutions to save time
-            } catch (e) {
-                console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
-            }
+            if (availableResolutions >= 3) break; // Only get three available resolutions to save time
+        } catch (e) {
+            console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
         }
+    }
 
-        // Check for total failure
-        if (availableResolutions === 0) {
-            console.error("getMaxResolutionFallback(): No available resolutions");
-            return;
+    // Check for total failure
+    if (availableResolutions === 0) {
+        console.error("getMaxResolutionFallback(): No available resolutions");
+        return;
+    }
+
+    // Return the input(s)
+    for (const res of testResolutions) {
+        if (res.available === true) {
+            return {width: res.width, height: res.height}; // TODO: Return multiple (3) resolutions as an object array in case highest available fails
         }
-
-        // Return the input(s)
-        for (const res of testResolutions) {
-            if (res.available === true) {
-                return {width: res.width, height: res.height}; // TODO: Return multiple (3) resolutions as an object array in case highest available fails
-            }
-        }
-
     }
 
     async function testVideoQuality(width, height) {
@@ -976,11 +934,11 @@ function devCameraQualityButton() {
         print("Current input: " + shorten(currentInput));
         const stream = await getStreamFromInput(width, height, currentInput);
 
-        // Print info from stream track
-        // const streamInfo = getStreamInformation(stream, true);
-
         // Get stream information
         const settings = stream.getTracks()[0].getSettings();
+
+        // Print info on stream track
+        // const streamInfo = getStreamInformation(stream, true);
 
         // Discard stream
         stream.getTracks().forEach(track => track.stop());
@@ -997,29 +955,35 @@ function devCameraQualityButton() {
 
     }
 
-    async function getStreamFromInput(width, height, deviceId) {
-        // TODO: Use this in set track
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                deviceId: {exact: deviceId},
-                width: {ideal: width},
-                height: {ideal: height},
-            }
-        });
-        return stream;
-    }
+}
+
+async function getStreamFromInput(width, height, deviceId) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            deviceId: {exact: deviceId},                                // Constrain to specific camera
+            width: {ideal: width},                                      // Request width
+            height: {ideal: height},                                    // Request height
+            // frameRate: {ideal: 60}                                   // Request framerate
+            // facingMode: {ideal: 'environment'},                      // Request a camera that is facing away from the user
+        }
+    });
+    return stream;
+}
+
+/**
+ * Reset video feed back to its default state.
+ */
+function resetVideoState() {
+    // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
+}
 
 
-
-    // console.log("Camera settings:", stream.getVideoTracks()[0].getSettings());
-    // await stream.getVideoTracks()[0].applyConstraints({
-    //     width: 1280,
-    //     height: 720,
-    //     frameRate: 30
-    // });
-    // console.log(stream.getVideoTracks()[0].getSettings());
-    // videoElement.srcObject = stream;
-    // console.log("Kamera toimii! Käytössä olevat asetukset:", videoElement.srcObject?.getTracks()[0]?.getSettings());
+function devCameraQualityButton() {
+    // Create button
+    const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
+    button.addEventListener("click", async () => {
+        await getMaxResolutionFallback();
+    });
 
 }
 
@@ -2564,6 +2528,7 @@ function dumpLocalStorage() {
  * Stops all tracks of current video srcObject
  */
 function releaseVideoStream() {
+    // TODO: Uncaught TypeError: videoElement.srcObject is null
     videoElement.srcObject.getTracks().forEach(track => track.stop());
     videoElement.srcObject = null;
 }
