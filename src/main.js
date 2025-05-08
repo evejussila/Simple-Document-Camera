@@ -821,11 +821,18 @@ async function backgroundUpdateInputList() {
  * Accesses a camera feed.
  *
  * @param input Identifier of video input to access
+ * @param width Width to use as ideal value (optional)
+ * @param height Height to use as ideal value (optional)
  * @returns {Promise<boolean>}
  */
-async function setVideoInput(input = selector.value) {
+async function setVideoInput(input = selector.value, width = null, height = null) {
 
-    const resolution = await getMaxResolution();
+    let resolution;
+    if (width !== null && height !==null) {
+        resolution = {width: width, height : height};
+    } else {
+        resolution = await getMaxResolution();
+    }
 
     try {
         print("setVideoInput(): Setting a camera feed: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
@@ -862,7 +869,7 @@ async function setVideoInput(input = selector.value) {
 
 async function getMaxResolution(input = selector.value) {
     try {
-        print("getMaxResolution(): Accessing a camera feed: " + shorten(input));
+        print("getMaxResolution(): Determining max resolution for camera feed: " + shorten(input));
 
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
@@ -875,10 +882,11 @@ async function getMaxResolution(input = selector.value) {
         if (typeof track.getCapabilities === "function") {
             capabilities = stream.getTracks()[0].getCapabilities();
         } else {
+            console.warn("getMaxResolution(): Browser does not support .getCapabilities, using fallback");
             const defaultResolution = {width: 1920, height: 1080, description: "1080p"};
-            console.error("getMaxResolution(): Browser does not support function .getCapabilities, setting default value: " + defaultResolution.description);
+            console.error("getMaxResolution(): Resolution tests failed, setting default value: " + defaultResolution.description);
+            // TODO: Use alternative method based on list of resolutions getMaxResolutionFallback()
             capabilities = defaultResolution;
-            // TODO: Use alternative method based on list of resolutions
         }
 
         return {width: capabilities.width.max, height: capabilities.height.max};               // Convert object values to integers with max
@@ -900,11 +908,14 @@ function devCameraQualityButton() {
     // Create button
     const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
     button.addEventListener("click", async () => {
-        await runTest();
+        await getMaxResolutionFallback();
     });
 
     // Coordinate tests
-    async function runTest() {
+    async function getMaxResolutionFallback() {
+
+        print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
+
         releaseVideoStream();
 
         // Resolutions to test
@@ -930,21 +941,35 @@ function devCameraQualityButton() {
         ];
 
         // Loop test
+        let availableResolutions = 0;
         for (const res of testResolutions) {
             try {
                 print(" ");
-                res.result = await testVideoQuality(res.width,res.height);
-                print("runTest(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.result );
+                res.available = await testVideoQuality(res.width,res.height);
+                if (res.available === true) availableResolutions++;
+                print("getMaxResolutionFallback(): Tested resolution: " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " count of available: " + availableResolutions );
+
+                if (availableResolutions >= 3) break; // Only get three available resolutions to save time
             } catch (e) {
-                console.warn("runTest(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
+                console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height );
             }
         }
 
+        // Check for total failure
+        if (availableResolutions === 0) {
+            console.error("getMaxResolutionFallback(): No available resolutions");
+            return;
+        }
 
-        await videoStart(); // TODO: Instead set the exact track
+        // Return the input(s)
+        for (const res of testResolutions) {
+            if (res.available === true) {
+                return {width: res.width, height: res.height}; // TODO: Return multiple (3) resolutions as an object array in case highest available fails
+            }
+        }
+
     }
 
-    // TODO: USING IDEAL VALUES!
     async function testVideoQuality(width, height) {
         // Get stream
         const currentInput = selector.value;
@@ -2552,9 +2577,11 @@ function print(string) {
     if (!debugMode) return;
     console.log(string);
 
-    // Trace caller here unless false (for mass events)
+    // arg for trace caller here unless false (for mass events)
     //     const stack = new Error().stack.split('\n');
     //     const callerFunction = stack[2].trim();
+
+    // arg for color https://stackoverflow.com/questions/7505623/colors-in-javascript-console
 }
 
 /**
