@@ -20,12 +20,16 @@ const selector              = document.getElementById('selectorDevice');        
 const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
+const fillCanvasElement     = document.getElementById("fillCanvas");                 // Canvas for fill mode's freeze function
 
 // Video feed state
 let rotation = 0;                                                                          // Store rotation state
 let currentZoom = 1;                                                                       // Current zoom level
 let flip = 1;                                                                              // State of image mirroring, 1 = no flip, -1 = horizontal flip
 let isFreeze = false;                                                                      // Video freeze on or off
+let offsetX = 0, offsetY = 0;                                                                      // User mousedown position
+let lastX = 0, lastY = 0;
+let isFillMode = false;                                                                    // Fill mode on or off
 
 // UI state
 let isIslandDragging = false                                                               // Dragging island control bar
@@ -80,6 +84,8 @@ function addCoreListeners() {
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
+    listenerToElement('buttonFit', 'click', fitVideo);                                                                       // Fit button
+    listenerToElement('buttonFill', 'click', fillVideo);                                                                     // Fill button
 
     // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -116,6 +122,50 @@ function addCoreListeners() {
     navigator.mediaDevices.addEventListener('devicechange', () => {
         backgroundUpdateInputList().then( () => {} );
     });
+
+    window.addEventListener("mousedown", (event) => {
+        const targetTag = event.target.tagName;
+        if(targetTag === "INPUT" ||
+            targetTag === "TEXTAREA" ||
+            event.target.classList.contains("createdOverlay") ||
+            event.target.classList.contains("createdTextAreaResizeHandle")) {     //If target is something else than video, then skip video movement
+            return; // Skip video movement
+        }
+
+        isVideoDragging = true;
+        lastX = event.clientX;
+        lastY = event.clientY;
+        videoElement.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", (event) => {
+        if (!isVideoDragging) return;
+        const moveX = event.clientX - lastX;
+        const moveY = event.clientY - lastY;
+        moveVideo(moveX, moveY);
+        lastX = event.clientX;
+        lastY = event.clientY;
+    });
+
+    window.addEventListener("mouseup", () => {
+        isVideoDragging = false;
+        videoElement.style.cursor = "grab";
+        updateVideoTransform();
+    });
+
+    window.addEventListener("keydown", (event) => {
+    const step = 50;
+    const isInputFocused = document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT';
+    if (!isInputFocused) {              // Only allow video movement if no input field is focused
+        switch (event.key) {            // Move video with keyboard
+            case "ArrowLeft": moveVideo(-step, 0); break;
+            case "ArrowRight": moveVideo(step, 0); break;
+            case "ArrowUp": moveVideo(0, -step); break;
+            case "ArrowDown": moveVideo(0, step); break;
+        }
+    }
+    });
+
 }
 
 /**
@@ -734,11 +784,25 @@ function islandDragStop() {
 }
 
 /**
+ * Move video with mouse or keyboard.
+ * @param dx X horizontally moving steps
+ * @param dy Y vertically moving steps
+ */
+function moveVideo(dx, dy) {
+    offsetX += dx; // Move video horizontally
+    offsetY += dy; // Move video vertically
+    updateVideoTransform();
+}
+
+/**
  * Updates zoom value and percentage level.
  * @param value Zoom value
  */
 function setZoomLevel(value) {
+    const previousZoom = currentZoom;
     currentZoom = value / 100;                                                                      // Update zoom value
+    offsetX = (offsetX / previousZoom) * currentZoom;                                               // Scale translations relative to zoom
+    offsetY = (offsetY / previousZoom) * currentZoom;
     updateVideoTransform();
     document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
 }
@@ -752,6 +816,38 @@ function adjustZoom(increment) {
     newZoom = Math.min(Math.max(newZoom, 100), 200);                                                // Limit zoom between 100% and 200%
     setZoomLevel(newZoom);                                                                          // Zoom in percent %
     document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+}
+
+/**
+ * Fit button function - Video size by width
+ */
+function fitVideo() {
+    videoElement.style.width = "100vw";
+    videoElement.style.height = "auto";
+    currentZoom = 1;
+    offsetX = 0;
+    offsetY = 0;
+    isFillMode = false;
+
+    updateVideoTransform();
+    document.getElementById('zoomSlider').value = 100;
+    document.getElementById('zoomPercentageLabel').innerText = "100%";
+}
+
+/**
+ * Fill button function - Video size by height
+ */
+function fillVideo() {
+    videoElement.style.width = "100%";
+    videoElement.style.height = "100vh";
+    currentZoom = 1;
+    offsetX = 0;
+    offsetY = 0;
+    isFillMode = true;
+
+    updateVideoTransform();
+    document.getElementById('zoomSlider').value = 100;
+    document.getElementById('zoomPercentageLabel').innerText = "100%";
 }
 
 /**
@@ -1236,11 +1332,14 @@ function getDateTime() {
  * Hides videoElement, shows canvasElement
  */
 function canvasDrawCurrentFrame() {
-    matchElementDimensions(videoElement, canvasElement);                                        // Update canvas to match video element
-    const canvasContext = canvasElement.getContext("2d");                              // Get canvas context for drawing
-    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);                                                 // Draw frame from video element
+    const targetCanvas = isFillMode ? fillCanvasElement : canvasElement;                        // Pick main canvas or if fill mode is active pick fillCanvas.
+    matchElementDimensions(videoElement, targetCanvas);                                         // Update canvas to match video element
+    const canvasContext = targetCanvas.getContext("2d");                               // Get canvas context for drawing
+    canvasContext.drawImage(videoElement, 0, 0, targetCanvas.width, targetCanvas.height);                                                 // Draw frame from video element
+
     videoElement.style.display = 'none';                                                         // Disable video element visibility
-    canvasElement.style.display = 'block';                                                       // Make canvas element visible
+    canvasElement.style.display = isFillMode ? 'none' : 'block';                                // Make canvas element visible
+    fillCanvasElement.style.display = isFillMode ? 'block' : 'none';                            // Make fillCanvas element visible                                                      // Make canvas element visible
 }
 
 /**
@@ -1254,14 +1353,20 @@ function matchElementDimensions(elementMaster, elementSub) {
 
     elementSub.style.transform = elementMaster.style.transform; // Matches ALL transformations, including rotation
 
+    // If fill mode is on, update CSS to fillCanvas
+    if (elementSub === fillCanvasElement) {
+        elementSub.style.width = "100%";
+        elementSub.style.height = "100vh";
+    }
 }
 
 /**
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
+    videoElement.style.transform = `translate(${offsetX}px, ${offsetY}px) scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`; // Updates video position (translation), rotation, flipping and current zoom
     canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+    fillCanvasElement.style.transform = videoElement.style.transform;                                 // Updates transformations to the fill mode's canvas (freeze)
 }
 
 /**

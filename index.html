@@ -58,16 +58,19 @@
         </button>
 
         <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
-        <canvas id="canvasMain"></canvas>
+        <canvas id="canvasMain"></canvas><!-- Main canvas -->
+        <canvas id="fillCanvas"></canvas><!-- Canvas for fill mode -->
 
         <div id="controlBar">
             <select id="selectorDevice" title="Select Camera"></select>
             <!-- Zoom Controls -->
             <div id="zoomControls">
+                <button id="buttonFit">Fit</button>
                 <button id="zoomOutButton" class="buttonSmall">-</button>
                 <label for ="zoomSlider"></label>
                 <input title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
                 <button id="zoomInButton" class="buttonSmall">+</button>
+                <button id="buttonFill">Fill</button>
                 <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
             </div>
         </div>
