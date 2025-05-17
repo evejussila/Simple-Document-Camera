@@ -861,6 +861,11 @@ function switchToFullscreen(fullScreenIcon) {
             print("switchToFullscreen(): Full screen mode activated");
             fullScreenIcon.title = 'Close full screen';
             fullScreenIcon.src = "./images/closeFullScreen.png";
+            if (isFillMode) {                                   // Restore video state based on isFillMode
+                fillVideo();
+            }
+            setZoomLevel(currentZoom * 100);                    // Reapply zoom and position
+            updateVideoTransform();
         }).catch(error => {
             alert(`Error attempting to switch to fullscreen mode: ${error.message}`);
         });
@@ -872,6 +877,11 @@ function switchToFullscreen(fullScreenIcon) {
             // island.style.top = '';                                       // UI island to starting position
             // island.style.left = '';
             moveElementToView(island);
+            if (isFillMode) {                                               // Restore video state after exiting fullscreen
+                fillVideo();
+            }
+            setZoomLevel(currentZoom * 100);                                // Reapply zoom and position
+            updateVideoTransform();
         }).catch(error => {
             console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });
