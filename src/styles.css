@@ -88,7 +88,7 @@ body {
     height:100%;
     overflow: hidden;
 
-    margin: 0px;
+    margin: 0;
 
     font-family: 'Noto Sans', sans-serif;
 
@@ -271,6 +271,10 @@ button:not(:hover) {
 
 #island_controlBar.animate_move {
     transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
+}
+
+.no-transition {
+    transition: none !important;
 }
 
 

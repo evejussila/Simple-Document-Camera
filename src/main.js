@@ -723,6 +723,20 @@ async function setVideoInput(input = selector.value) {
  */
 function resetVideoState() {
     // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
+    currentZoom = 1;
+    offsetX = 0;
+    offsetY = 0;
+    flip = 1;
+    rotation = 0;
+    isFillMode = false;
+    isFreeze = false;
+
+    const zoomSlider = document.getElementById('zoomSlider');
+    const zoomPercentageLabel = document.getElementById('zoomPercentageLabel');
+    zoomSlider.value = 100;
+    zoomPercentageLabel.innerText = "100%";
+
+    updateVideoTransform();
 }
 
 
@@ -805,6 +819,8 @@ function setZoomLevel(value) {
     offsetY = (offsetY / previousZoom) * currentZoom;
     updateVideoTransform();
     document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
+    console.log(value + "setZoomLevel");
+    console.log(currentZoom);
 }
 
 /**
@@ -812,11 +828,33 @@ function setZoomLevel(value) {
  * @param increment Zoom increment value
  */
 function adjustZoom(increment) {
-    let newZoom = currentZoom * 100 + increment * 100;                                      // Change back to percentages, increase or decrease 10%
-    newZoom = Math.min(Math.max(newZoom, 100), 200);                                                // Limit zoom between 100% and 200%
-    setZoomLevel(newZoom);                                                                          // Zoom in percent %
-    document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+    console.log("adjustZoom called with isFillMode:", isFillMode, "increment:", increment);
+
+    if (isFillMode) {                   // If fill mode is on, disable it and start zooming from 60%
+        isFillMode = false;
+        videoElement.style.width = "100vw";
+        videoElement.style.height = "auto";
+        let newZoom = 60 + increment * 100;                 // Start from 60% and apply increment +10% for zoom in
+        newZoom = Math.min(Math.max(newZoom, 60), 200);             // Clamp between 60% and 200%
+        setZoomLevel(newZoom);
+        document.getElementById('zoomSlider').value = newZoom;
+        document.getElementById('zoomPercentageLabel').innerText = `${Math.round(newZoom)}%`;
+
+        setTimeout(() => {                              // Re-enable transitions after changes
+            videoElement.classList.remove('no-transition');
+        }, 0);                                                 // Delay to ensure style changes apply instantly
+    } else {
+        let newZoom = currentZoom * 100 + increment * 100;      // Normal zoom adjustment
+        newZoom = Math.min(Math.max(newZoom, 60), 200);                 // Clamp between 60% and 200%
+        setZoomLevel(newZoom);
+        document.getElementById('zoomSlider').value = newZoom;
+        document.getElementById('zoomPercentageLabel').innerText = `${Math.round(newZoom)}%`;
+    }
+
+    updateVideoTransform();
 }
+
+
 
 /**
  * Fit button function - Video size by width
@@ -830,14 +868,19 @@ function fitVideo() {
     isFillMode = false;
 
     updateVideoTransform();
-    document.getElementById('zoomSlider').value = 100;
-    document.getElementById('zoomPercentageLabel').innerText = "100%";
+    document.getElementById('zoomSlider').value = currentZoom * 100;
+    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(currentZoom * 100)}%`;
+    /*document.getElementById('zoomSlider').value = 100;
+    document.getElementById('zoomPercentageLabel').innerText = "100%";*/
 }
 
 /**
  * Fill button function - Video size by height
  */
 function fillVideo() {
+
+    videoElement.classList.add('no-transition');
+
     videoElement.style.width = "100%";
     videoElement.style.height = "100vh";
     currentZoom = 1;
@@ -846,8 +889,13 @@ function fillVideo() {
     isFillMode = true;
 
     updateVideoTransform();
-    document.getElementById('zoomSlider').value = 100;
-    document.getElementById('zoomPercentageLabel').innerText = "100%";
+    document.getElementById('zoomSlider').value = 60;
+    document.getElementById('zoomPercentageLabel').innerText = "60% FILL";
+
+    /*document.getElementById('zoomSlider').value = currentZoom * 100;
+    document.getElementById('zoomPercentageLabel').innerText = `${Math.round(currentZoom * 100)}%`;*/
+    /*document.getElementById('zoomSlider').value = 100;
+    document.getElementById('zoomPercentageLabel').innerText = "100%";*/
 }
 
 /**
