@@ -96,6 +96,11 @@ body {
     color: var(--text-color);
 }
 
+.hidden {                   /* Hides visually, retains display state */
+    opacity: 0;
+    pointer-events: none;
+}
+
 
 /* Buttons, options, icons */
 
@@ -201,30 +206,41 @@ button:not(:hover) {
 
 /* Core UI */
 
-#buttonCollapse,
-#buttonFullScreen {
-    aspect-ratio: 1/1;
-    position: absolute;
-    margin: 5px;
-    z-index: 899; /* TODO: Use variable, always on top of UI */
+#avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
+    display: flex;
+    flex-direction: row-reverse;
+    margin: 0 5px 0 5px;
+    height: 50px;
+    right: 5px;
     bottom: 0;
+    width: 100px; /* Width must apply to spacer in bottom bar */
+    gap: 0;
+
+    align-items: center;
 }
 
-#buttonCollapse {
-    right: 56px;        /* TODO: Create container with single easy position for both buttons */
+#avButtons {
+    position: absolute;
 }
 
-#buttonFullScreen {
-    right: 6px;        /* TODO: Create container with single easy position for both buttons */
+#buttonCollapse, #buttonFullScreen {
+    aspect-ratio: 1/1;
+    margin: 4px;
+    z-index: 899; /* TODO: Use variable, always on top of UI */
+    visibility: visible;
 }
 
 #controlBar {
     display: inline-flex;
     position: absolute;
     height: 50px;
-    width: 100%;
+    max-width: 100%;
     z-index: 898;  /* TODO: Use variable, almost always on top of UI */
     bottom: 0;
+    left: 7px;
+    right: 7px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
 
     align-items: center;
 
@@ -232,16 +248,23 @@ button:not(:hover) {
     color: var(--text-color);
 }
 
+#island_controlBar::before {  /* Targets the element and applies the pseudo-element */
+    content: "";              /* Creates an empty pseudo-element */
+    display: block;           /* Ensures it behaves as block */
+    height: 15px;
+    width: 100%;
+} /* Spacer pseudo-element (for island drag handle) is not in DOM */
+
 #island_controlBar {
     position: absolute;
-    left: 75px;
-    top: 177px;
+    left: 45px;
+    top: 190px;
     transform: translateX(-50%) translateY(-50%);
     cursor: move;
     z-index: 897;  /* TODO: Use variable, usually on top of UI */
     display: flex;
     flex-direction: column;
-    width: 120px;
+    width: 60px;
     height: max-content;
     border-radius: 10px;
     padding-bottom: 10px;
@@ -264,13 +287,6 @@ button:not(:hover) {
 
     background-color: var(--bg-color-basic);
     color: var(--text-color);
-}
-
-
-/* Special behavior */
-
-#island_controlBar.animate_move {
-    transition: left 1s, top 1s; /* Must match timeout for toggle in JS */
 }
 
 
@@ -304,8 +320,49 @@ button:not(:hover) {
     z-index: var(--zindex-visual-core);
 }
 
+#menuContainerLeft, #menuContainerRight {
+    display: flex;
+    margin: 0 5px 0 5px;
+    align-items: center;
+    visibility: visible;
+    gap: 10px;
+
+}
+
+#menuContainerLeft {
+    justify-content: flex-start;
+}
+
+#menuContainerRight {
+    justify-content: flex-end;
+}
+
+
+/* Layout elements */
+
+#controlBarMidSpacer {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
+}
+
 
 /* Programmatically created elements */
+
+.createdMenu {
+    position: fixed;
+    transform: translateX(-50%);
+    width: max-content;
+    background-color: var(--bg-color-lightest);
+    color: var(--text-color);
+    border-radius: 5px;
+    padding: 5px;
+    z-index: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+}
 
 .createdOverlay {
     width: 105%;
@@ -388,7 +445,6 @@ button:not(:hover) {
     background: rgba(255, 255, 255, 0.4);
     z-index: 1000;
     pointer-events: all;
-    opacity: 0;
 }
 
 .prompt {
@@ -428,3 +484,9 @@ button:not(:hover) {
     gap: 0;
 }
 
+
+/* Special behavior */
+
+#island_controlBar.animate_move {
+    transition: left 1s, top 1s;
+}

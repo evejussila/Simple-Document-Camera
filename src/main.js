@@ -1,17 +1,17 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-02-19-alpha");
+const version = ("2025-06-02-alpha");
 console.log("Version: " + version);
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 }
 
 // Localization
-const defaultLocale = "en";                                  // Default locale is english
-const allowedLocales = ["en", "fi"];                        // Only these locales are allowed
+const defaultLocale = "en";                                         // Default locale is english
+const allowedLocales = ["en", "fi"];                                // Only these locales are allowed TODO: DEV: Get based on available localisation files
 let currentLocale;                                                  // The active locale
-let currentTranslations = {};                                   // Stores translations for the active locale
+let currentTranslations = {};                                       // Stores translations for the active locale
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
@@ -49,9 +49,11 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
+    // Create interface elements
+    createMenus();
+
     // Add localization and wait for it to complete
     addLocalization().then(() => {
-
         // Handle notices, consent and data storage
         handlePrivacy();
 
@@ -59,13 +61,19 @@ function start() {
         videoStart().then(() => {});
 
         // Update video input list periodically
-        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically
+        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases, onchange-event should already trigger update as well)
 
         // Keep control island visible
         setInterval(() => { moveElementToView(island) }, 5000); // Periodically ensures control island is visible
-    });
-}
 
+        // Render UI when ready
+        showElement(controlBar);
+        showElement(island);                                                                      // TODO: Should run when ToS agreed to
+        showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
+
+    });
+
+}
 
 /**
  * Adds critical listeners for interface elements
@@ -82,10 +90,10 @@ function addCoreListeners() {
     listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
     listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
-    listenerToElement('zoomInButton', 'click', () => adjustZoom(0.1));              // Zoom in button
-    listenerToElement('zoomOutButton', 'click', () => adjustZoom(-0.1));            // Zoom out button
+    listenerToElement('buttonZoomIn', 'click', () => adjustZoom(0.1));              // Zoom in button
+    listenerToElement('buttonZoomOut', 'click', () => adjustZoom(-0.1));            // Zoom out button
 
-    // Fetch HTML element for full screen button and it's icon. Attach event listener to full screen button.
+    // Fetch HTML element for full screen button and its icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
     const fullScreenButton = document.getElementById('buttonFullScreen');
     fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
@@ -122,22 +130,22 @@ function addCoreListeners() {
     });
 }
 
-
 /**
  * Sets the language to default and initializes language selector.
  *
  */
 async function addLocalization() {
     await setLocale(defaultLocale);
-    bindLocaleSelector(defaultLocale);
+    bindLocaleSelector(defaultLocale, "[data-locale-selector]");
 }
 
 /**
  * Sets up the language selector and binds event listeners to detect language changes.
  * @param {string} initialLocale - The initial locale to set.
+ * @param selector Selector to bind.
  */
-function bindLocaleSelector(initialLocale) {
-    const localeSelector = document.querySelector("[data-locale-selector]");
+function bindLocaleSelector(initialLocale, selector) {
+    const localeSelector = document.querySelector(selector);
     localeSelector.value = initialLocale;
     localeSelector.onchange = (e) => {
         // Set the language based on the selected value
@@ -177,8 +185,8 @@ async function setLocale(newLocale) {
  * @returns {Promise<any>} JSON output or boolean false for failure
  */
 async function fetchJSON(file) {
-    const path = `${window.location.origin}/locales/${file}.json`;
-    console.log("fetchJSON(): Fetching:", path);
+    const path = `${window.location.pathname}locales/${file}.json`;
+    print("fetchJSON(): Fetching: " + path);
 
     try {
         const response = await fetch(path);
@@ -230,7 +238,6 @@ function translateElement(element) {
     }
 }
 
-
 /**
  * Handles privacy-related prompting, parameters, data storage and logical coordination
  * @returns {boolean} True if the service can be used
@@ -275,10 +282,10 @@ async function handlePrivacy() {
     ];
 
     for (const text of texts) {                         // Iterate through texts
-        const content = await _fetchJSON(text.file);    // Get JSON
+        const content = await fetchJSON(text.file);    // Get JSON
         if (content) {                                  // If JSON accessible
             text.textExists = true;                     // Set boolean for conditional logics
-            text.content = content;                     // Store content (DEV: Alternative is to ingest and declare the same properties, avoiding issues with JSUnresolvedReference)
+            text.content = content;
             print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
         } else {
             console.warn("handlePrivacy(): Did not find text: " + text.file);
@@ -293,35 +300,6 @@ async function handlePrivacy() {
     } else {
         print("handlePrivacy(): No fast exit (texts exist)");
     }
-
-    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-
-    // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
-
-    /**
-     * Fetches JSON from .json file
-     * Assumes file path ./locales/
-     * @param file File to fetch JSON from
-     * @returns {Promise<any>} JSON output or boolean false for failure
-     */
-    async function _fetchJSON(file) {
-        const path = `${window.location.pathname}locales/${file}.json`
-        print("fetchJSON(): Fetching: " + path);
-
-        let response;
-        let responseJSON;
-        try {
-            response = await fetch(path);               // Fetch file
-            responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
-        } catch (e) {
-            console.error("fetchJSON: Failed to fetch: " + e);
-            return false;
-        }
-
-        return responseJSON;
-    }
-
-    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
 
     // Set button styles
     const colorAccept = "rgba(70,136,255,0.5)";
@@ -394,7 +372,7 @@ async function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice: " + texts[0].content.title);
 
-        // noinspection JSUnresolvedReference
+        // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title, texts[0].content.text, [
             [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ],
             [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                                      ],
@@ -408,7 +386,7 @@ async function handlePrivacy() {
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
 
-        // noinspection JSUnresolvedReference
+        // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + " " + texts[1].content.text, [
             [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                          , colorAccept  ],
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
@@ -422,11 +400,12 @@ async function handlePrivacy() {
     function tosPrompt() {
         console.log("tosPrompt(): Displaying a notice: " + texts[1].content.title);
 
-        // noinspection JSUnresolvedReference
+        // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[1].content.title, texts[1].content.text, [
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],
             [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ]
         ], "50%", "350px");
+
     }
 
     function haltService() {
@@ -434,7 +413,7 @@ async function handlePrivacy() {
         // TODO: Trigger video freeze event or other halt
     }
 
-    return true; // TODO: For return value to have an effect, function would need to await prompt responses
+    return true; // TODO: For return value to have a relevant effect, function would need to await prompt responses
 }
 
 /**
@@ -473,6 +452,105 @@ function handleSettingStorage() {
     // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage)
 }
 
+function createMenus() {
+
+    // Get container elements of control bar
+    const menuContainerLeft           = document.getElementById('menuContainerLeft');
+    const menuContainerRight          = document.getElementById('menuContainerRight');
+
+    // Create menu buttons (left)
+
+    // Create menu buttons (right)
+    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
+    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerRight);
+
+    // Settings menu creation
+    let menuSettings = [];
+
+    // Create settings menu subsection: language selection
+    const selectLanguageContainer = document.createElement("div");
+    selectLanguageContainer.style.display = "flex";
+    selectLanguageContainer.style.flexDirection = "column";
+    selectLanguageContainer.style.alignItems = "center";
+
+    const languageImg = document.createElement("img");
+    languageImg.src = "./images/language.png";
+    languageImg.style.display = "block";
+    languageImg.style.width = "40px";
+    languageImg.classList.add("icon");
+    selectLanguageContainer.appendChild(languageImg);
+
+    const languagesDiv = document.createElement("div");
+    languagesDiv.id = "languages";
+
+    const select = document.createElement("select");
+    select.setAttribute("data-locale-selector", "");
+    select.className = "locale-switcher";
+    select.title = "Change Language";
+    select.style.width = "80px";
+    select.setAttribute("data-locale-key", "language");
+
+    // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
+
+    const optionEn = document.createElement("option");
+    optionEn.value = "en";
+    optionEn.setAttribute("data-locale-key", "english");
+    optionEn.textContent = "English";
+    select.appendChild(optionEn);
+
+    const optionFi = document.createElement("option");
+    optionFi.value = "fi";
+    optionFi.setAttribute("data-locale-key", "finnish");
+    optionFi.textContent = "Finnish";
+    select.appendChild(optionFi);
+
+    languagesDiv.appendChild(select);
+    selectLanguageContainer.appendChild(languagesDiv);
+
+    menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
+
+    // Create settings menu subsection: theme selection
+
+    const switchThemeContainer = document.createElement("div");
+    switchThemeContainer.style.display = "flex";
+    switchThemeContainer.style.flexDirection = "column";
+
+    const switchThemeLabel = document.createElement("div");
+    switchThemeLabel.textContent = "Light Theme";
+    switchThemeLabel.style.textAlign = "center";
+
+    const switchTheme = document.createElement("input");
+    switchTheme.type = "checkbox";
+
+    switchTheme.addEventListener("change", () => {
+        document.documentElement.classList.toggle("lightMode");
+    });
+
+    switchThemeContainer.appendChild(switchThemeLabel);
+    switchThemeContainer.appendChild(switchTheme);
+
+    menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
+
+    // Create settings menu
+    createdElements.createMenu(menuSettings, buttonSettings, "above");
+
+    // Info menu creation
+    let menuInfo = [
+        {id: "buttonLegalInfoPrompt",     text: "Show legal information",    img: "terms.png", action: showLegalInfo}
+    ];
+
+    /**
+     * Nested function to show info prompt
+     */
+    function showLegalInfo() {
+        showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
+    }
+
+    // Create info menu
+    createdElements.createMenu(menuInfo, buttonInfo, "above");
+
+}
+
 
 // Camera control functions
 
@@ -484,24 +562,18 @@ function handleSettingStorage() {
  */
 async function videoStart() {
 
-    // TODO: Load text and buttons from translation files
-
-    // Error prompt default content
-    let genericPromptTitle = "No valid cameras could be accessed";
-    let genericPromptText =
-        "Please make sure your devices are connected and not being used by other software. " +
-        "<br><br>" +
-        "Ensure that you do not have this page open on other tabs. " +
-        "<br><br>" +
-        "Check that you have allowed camera access in your browser. " +
-        "<br><br>" +
-        "You may also try a hard reload by pressing Ctrl + F5 ";
+    // Get error prompt text
+    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    let genericPromptTitle = currentTranslations.videoProblemPromptTitle;
+    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    let genericPromptText = currentTranslations.videoProblemPromptText;
+    // noinspection JSUnresolvedReference                                   // Object is dynamic
     let genericPromptActions = [
-        ["Retry",       () =>       { videoStart(); } ],
-        ["Dismiss",     () =>       {               } ]
+        [currentTranslations.retry,        () =>       { videoStart(); } ],
+        [currentTranslations.dismiss,      () =>       {               } ]
     ];
 
-    // Get permission and inputs                                                                                 // DEV: Functional code style with ().then chained is shorter, may be used again once logics are finished
+    // Get permission and inputs
     let error = false;
     let errorDescription = "unknown";                                                                            // Store specific error description
     let inputs;
@@ -527,7 +599,6 @@ async function videoStart() {
         try {
             let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
             await setVideoInput(input);                                                          // Use the selected input
-            resetVideoState();                                                                   // Reset video view
         } catch (e) {
             // TODO: Catch not reliable enough
             error = true;                                                                                 // Flag error
@@ -537,7 +608,7 @@ async function videoStart() {
     }
 
     if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "108px", "180px"); }                   // Prompt user
-    // TODO: Provide readable error description and conditional solutions
+    // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
 
@@ -548,8 +619,16 @@ async function videoStart() {
  */
 async function getMediaPermission() {
     try {
-        await navigator.mediaDevices.getUserMedia({ video: true });                 // Ask for video device permission (return/promise ignored)
+        const testStream = await navigator.mediaDevices.getUserMedia({
+            // video: true                                      // DEV: On Chrome this alone returns a low-quality stream, which adversely affects future requests if this is the first interface access (2025)
+            video: {
+                width: {ideal: 4096},                           // Request high-resolution stream (arbitrary width and height values)
+                height: {ideal: 4096},
+            }
+        });                 // Ask for video device permission (return/promise ignored)
         print("getMediaPermission(): Media permission granted");
+        print("getMediaPermission(): Test track information: " + getStreamInformation(testStream));
+        releaseVideoStream(testStream);
     } catch (e) {                                                                             // Handle errors
 
         // Detect and handle known, expected exceptions
@@ -631,12 +710,6 @@ async function getVideoInputs() {
 
     let videoInputs = [];
 
-    // TODO: Retries in function may be redundant, though enumeration is not completely reliable
-    const retryAttempts = 3;                                                                          // Number of retries before throwing error
-    let failedCount = 0;
-
-    while (true) {                                                                                    // Retry until a device is found or retry limit reached
-
         let devices = await navigator.mediaDevices.enumerateDevices();                                // Find all media sources
 
         devices.forEach(device => {
@@ -655,14 +728,11 @@ async function getVideoInputs() {
         if (videoInputs.length > 0) {                                                                    // Success
             // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
-        }
-
-        if (failedCount >= retryAttempts) {                                                              // Check if too many retries
-            console.error("getVideoInputs(): No video sources found, retries: " + failedCount)
+        } else {
+            console.error("getVideoInputs(): No video sources found")
             throw new Error("getVideoInputs(): No valid video inputs");
         }
-        failedCount++;                                                                                   // Failure(s), will retry
-    }
+
 }
 
 /**
@@ -689,11 +759,11 @@ function updateInputList(inputs) {
     // Select a camera in dropdown
     if (inputs.some(input => input[0] === originalSelection)) {                                     // TODO: Should check selector, not array, if readily possible
         selector.value = originalSelection;                                                         // Select original value
-        print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
+        // print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
     } else {                                                                                        // Original value invalid or not available
         selector.selectedIndex = 0;                                                                 // Select first option
-        console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
-        // TODO: At startup, this triggers once, could be handled differently
+        if (originalSelection) {console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));} // Check for truthy value to prevent unneeded trigger at startup
+
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
     }
 
@@ -728,64 +798,278 @@ async function backgroundUpdateInputList() {
 }
 
 /**
- * Accesses a camera feed.
+ * Accesses a camera for video input.
  *
  * @param input Identifier of video input to access
+ * @param width Width to use as ideal value (optional)
+ * @param height Height to use as ideal value (optional)
  * @returns {Promise<boolean>}
  */
-async function setVideoInput(input = selector.value) {
+async function setVideoInput(input = selector.value, width = null, height = null) {
 
-    // TODO: Retries in function may be redundant, though input setting is not completely reliable
-    const retryAttempts = 3;                                                                     // Number of retries before giving up
-    let failedCount = 0;
-    let failed = false;
+    // Ensure clean state
+    releaseVideoStream();
 
-    while (true) {                                                                               // Retry until success or retry limit reached
-        try {
-            print("setVideoInput(): Accessing a camera feed: " + shorten(input));
-            const stream = await navigator.mediaDevices.getUserMedia({                 // Change to the specified camera
-                video: {
-                    deviceId: {exact: input},
-                    facingMode: {ideal: 'environment'},                                          // Request a camera that is facing away from the user.
-                    width: {ideal: 1920},                                                        // These are useless unless there are multiple tracks with the same deviceId
-                    height: {ideal: 1080},                                                       // Ideal values are not constraints
-                    frameRate: {ideal: 60}
-                }
-            });
-            videoElement.srcObject = stream;
+    let resolution;
+    if (width !== null && height !==null) {
+        resolution = {width: width, height : height};
+    } else {
+        resolution = await getMaxResolution();
+    }
 
-            // TODO: Debug low video quality
-            // printStreamInformation(stream);
-            // bruteForceVideoStream(input); // Accessible from developer menu, is intensive if used here
+    try {
+        print("setVideoInput(): Setting video input: " + shorten(input) + " at ideal " + resolution.width + " x " + resolution.height);
 
-            break;
-        } catch (error) {                                                                          // Failure
-            console.warn("setVideoInput(): Camera could not be accessed (retry " + failedCount + "): " + error);
-            if (failedCount >= retryAttempts) {                                                    // Break when too many retries
-                console.error("setVideoInput(): Camera access failed, total retries: " + failedCount);
-                failed = true;
-                break;
+        // Get stream
+        const stream = await getStreamFromInput(resolution.width, resolution.height, input);
+
+        // Check track quality
+        const trackQualityMatches = compareVideoQuality(resolution.width, resolution.height, stream);
+        if (!trackQualityMatches) {
+            console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + resolution.width + " x " + resolution.height);
+        }
+        print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
+
+        // Assign stream to visible element
+        videoElement.srcObject = stream;
+
+    } catch (error) {                                                                          // Failure
+        console.error("setVideoInput(): Camera could not be accessed: " + error);
+        // DEV: Most likely error is OverconstrainedError, but given the use of ideal values, this should only occur if device with used deviceId is not available
+        throw new Error("setVideoInput(): Could not select camera");                            // DEV: A simple synchronous error is hard to catch from an async function by caller like videoStart(), try/catch or ().catch not catching
+        // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate TODO: Unable to throw error that is caught within promise
+    }
+
+    return true;
+}
+
+async function getMaxResolution(input = selector.value) {
+    try {
+        print("getMaxResolution(): Determining max resolution for video input: " + shorten(input));
+
+        // const stream = await getStreamFromInput(4096, 4096, input);                             // Will cause failure on some cameras: technically valid MediaStream with no content
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                deviceId: {exact: input},
             }
+        });
 
-            // DEV: Most likely error is OverconstrainedError, but should only occur if device with used deviceId is not available
+        let resolution = {width: 1920, height: 1080, description: "1080p"}; // Default value
+        const track = stream.getTracks()[0];
+        if (typeof track.getCapabilities === "function") {
+            const capabilities = stream.getTracks()[0].getCapabilities();
+            releaseVideoStream(stream);
+            resolution = {width: capabilities.width.max, height: capabilities.height.max}; // Convert object values to integers with max
+        } else {
+            releaseVideoStream(stream);
+            console.warn("getMaxResolution(): Browser does not support .getCapabilities(), calling slow fallback");
+            try {
+                resolution = await getMaxResolutionFallback();
+            } catch (e) {
+                console.error("getMaxResolution(): Fallback resolution test failed (using default resolution: " + resolution.description + ")");
+            }
+        }
 
-            failedCount++;
+        return {width: resolution.width, height: resolution.height};
+
+    } catch (error) {                                                                          // Failure
+        console.warn("getMaxResolution(): Camera resolution could not be set");
+    }
+}
+
+async function getMaxResolutionFallback(input = selector.value) {
+
+    print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
+
+    // Resolutions to test
+    const testResolutions = [                                               // Resolutions to test in decreasing order
+        { width: 3840, height: 2160, description: "4K UHD"          },      // During test a boolean property "available" will be added to each
+        { width: 2560, height: 1440, description: "1440p"           },      // Best available resolution is first array element with true value for "available"
+        { width: 1920, height: 1200, description: "WUXGA"           },
+        { width: 1920, height: 1080, description: "1080p"           },
+        { width: 1600, height: 1200, description: "UXGA"            },
+        { width: 1440, height: 1080, description: "1080p (4:3)"     },
+        { width: 1366, height: 768,  description: "WXGA"            },
+        { width: 1280, height: 1024, description: "SXGA"            },
+        { width: 1280, height: 960,  description: "960p"            },
+        { width: 1280, height: 800,  description: "WXGA"            },
+        { width: 1280, height: 720,  description: "720p"            },
+        { width: 1024, height: 768,  description: "XGA"             },
+        { width: 800,  height: 600,  description: "SVGA"            },
+        { width: 720,  height: 480,  description: "480p"            },
+        { width: 640,  height: 480,  description: "VGA"             },
+        { width: 640,  height: 360,  description: "360p"            },
+        { width: 320,  height: 240,  description: "QVGA"            },
+        { width: 160,  height: 120,  description: "QQVGA"           }
+    ];
+
+    // Loop test
+    let availableResolutions = 0;
+    for (const res of testResolutions) {
+        try {
+            print(" ");
+            const stream = await getStreamFromInput(res.width, res.height, input);
+            res.available = await compareVideoQuality(res.width, res.height, stream);
+            releaseVideoStream(stream);
+            if (res.available === true) availableResolutions++;
+            print("getMaxResolutionFallback(): Tested resolution for " + shorten(input) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
+
+            if (availableResolutions >= 3) break; // Only get three available resolutions to save time
+        } catch (e) {
+            console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height + " : " + e);
         }
     }
 
-    if (failed) {                                                                               // TODO: Unable to throw error that is caught within promise
-        throw new Error("setVideoInput(): Could not select camera");                            // DEV: A simple synchronous error is hard to catch from an async function by caller like videoStart(), try/catch or ().catch not catching
-        // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate
+    // Check for total failure
+    if (availableResolutions === 0) {
+        console.error("getMaxResolutionFallback(): No available resolutions");
+        return;
     }
 
-    return !failed;
+    // Return the input(s)
+    for (const res of testResolutions) {
+        if (res.available === true) {
+            return {width: res.width, height: res.height}; // TODO: Return multiple (3) resolutions as an object array in case highest available fails
+        }
+    }
+
 }
 
 /**
- * Reset video feed back to its default state.
+ * Gets a video stream from an input based on device id, and applies ideal constraints.
+ * @param width Width constraint (ideal)
+ * @param height Height constraint (ideal)
+ * @param deviceId Device id constraint (exact)
+ * @returns {Promise<MediaStream>} Video stream
  */
-function resetVideoState() {
-    // TODO: Reset video feed back to its default state (transforms, rotation, zoom, etc. but not input selection)
+async function getStreamFromInput(width, height, deviceId) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            deviceId: {exact: deviceId},                                // Constrain to specific camera
+            width: {ideal: width},                                      // Request width
+            height: {ideal: height}                                     // Request height
+            // frameRate: {ideal: 60}                                   // Request framerate
+            // facingMode: {ideal: 'environment'},                      // Request a camera that is facing away from the user
+        }
+    });
+    return stream;
+}
+
+/**
+ * Stops all tracks of a stream to release it.
+ * @param stream Stream to release, default is current active video source.
+ */
+function releaseVideoStream(stream = videoElement.srcObject) {
+
+    print("releaseVideoStream(): Video release called");
+    try {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    } catch (e) {
+        print("releaseVideoStream(): Video release failed (safe): " + e.name);
+        // Error if releasing when no video: TypeError: videoElement.srcObject is null
+    }
+
+}
+
+/**
+ * Compares specified constraints to those of a stream to check if they match.
+ *
+ * @param width
+ * @param height
+ * @param stream Stream to test for constraints, default is current active video source
+ * @returns {Promise<boolean>} True if stream matches constraints.
+ */
+async function compareVideoQuality(width, height, stream = videoElement.srcObject) {
+
+    // Get stream information
+    const settings = stream.getTracks()[0].getSettings();
+
+    // Return success or failure
+    if (settings.width !== width || settings.height !== height) {
+        print("compareVideoQuality(): Track != constraints: " + settings.width + " x " + settings.height + " != " + width + " x " + height, "yellow");
+        return false;
+    } else {
+        print("compareVideoQuality(): Track == constraints: " + settings.width + " x " + settings.height + " == " + width + " x " + height, "green");
+        return true;
+    }
+
+}
+
+/**
+ * Gets information on the tracks in a MediaStream.
+ * Can print information.
+ * Normally only [0] of returned array is defined and relevant.
+ * @param stream MediaStream
+ * @param printOut True if printout wanted
+ * @returns {*[]} Array of results: [n][0] short track id [1] short device id [2] set width [3] possible width [4] set height [5] possible height [6] set framerate [7] possible framerate
+ */
+function getStreamInformation(stream, printOut = false) {
+
+    // Test for issues
+    if (!(stream instanceof MediaStream)) {
+        console.error("getStreamInformation(): Invalid stream");
+        return null;
+    }
+
+    let allResults = [];
+    let tracks = stream.getVideoTracks();
+    if (tracks.length === 0) {
+        console.error("getStreamInformation(): No video tracks in stream");
+        return null;
+    }
+
+    let supportsGetCapabilities = true;
+    if (!(typeof tracks[0].getCapabilities === "function")) {
+        console.error("getStreamInformation(): Browser does not support function .getCapabilities");
+        supportsGetCapabilities = false;
+    }
+
+    // Iterate through tracks
+    tracks.forEach(videoTrack => {
+
+        // Get information
+        const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
+        let capabilityWidth, capabilityHeight, capabilityFrameRate;
+        if (supportsGetCapabilities) {({ width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities());}
+
+        //             0                       1                  2             3                    4              5                     6          7
+        let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
+        // TODO: Limit decimals Number(value.toFixed(2))
+
+        // Print
+        if (printOut) {
+            print(" ");
+
+            // Basic
+            print("getStreamInformation(): Track info: ");
+            print("... Track is: " + results[0] + " from device ID: " + results[1]);
+
+            // Visualize stream quality
+            let scoreUsing = results[2] * results[4];
+            let scoreCapable = results[3] * results[5];
+            let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));         // One score mark per 76800 (matches 320x240)
+            let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
+            scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
+            scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
+            print("... Current [ " + scoreUsingMarks   + " ]");
+            print("... Capable [ " + scoreCapableMarks + " ]");
+
+            // More
+            print("... Track is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
+            print("... Track is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
+
+            // Full formatted output (long)
+            // print("getStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
+            // print("getStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
+
+            print(" ");
+        }
+
+        allResults.push(results);
+    });
+
+    return allResults;
 }
 
 
@@ -919,8 +1203,10 @@ function toggleControlCollapse(collapseIcon, collapseButton) {
         collapseButton.setAttribute("data-locale-key", "controlsHide");
         translateElement(collapseButton);
 
-        showElement(controlBar, undefined, 'inline-flex');
-        showElement(island, undefined, 'flex');
+        // collapseIcon.title = 'Hide controls';
+        // collapseIcon.src = "./images/hideControls.png";
+        showElement(controlBar, 'inline-flex'); // TODO: Set display states in CSS
+        showElement(island, 'flex');
     }
 }
 
@@ -941,7 +1227,7 @@ async function showContentBox(file, modal = false, clickOut = true) {
     let contentToShow;
 
     try {
-        const text = await _fetchJSON(file);
+        const text = await fetchJSON(file);
         title = text.title;
         contentToShow = text.text;
         print("showContentBox(): Found text: " + file + " with title: " + text.title);
@@ -949,42 +1235,12 @@ async function showContentBox(file, modal = false, clickOut = true) {
         console.warn("showContentBox(): Did not find text: " + file + " : " + e);
     }
 
-    // TODO: MARK-LOCALISATION: ------------------------- START -------------------------
-
-    // TODO: Remove nested duplicate function here, update reference above to use the actual equivalent function
-
-    /**
-     * Fetches JSON from .json file
-     * Assumes file path ./locales/
-     * @param file File to fetch JSON from
-     * @returns {Promise<any>} JSON output or boolean false for failure
-     */
-    async function _fetchJSON(file) {
-        const path = `${window.location.pathname}locales/${file}.json`
-        print("fetchJSON(): Fetching: " + path);
-
-        let response;
-        let responseJSON;
-        try {
-            response = await fetch(path);               // Fetch file
-            responseJSON = await response.json();       // Process as JSON, also replaces check for !response.ok (unless server error message is JSON formatted)
-        } catch (e) {
-            console.error("fetchJSON: Failed to fetch: " + e);
-            return false;
-        }
-
-        return responseJSON;
-    }
-
-    // TODO: MARK-LOCALISATION: ------------------------- END -------------------------
-
     const modalOverlay = document.createElement("div");      // Create container element
-    const overlayFadeTime = 0.3;                                     // Fade time for animations
 
     if (modal) {                                                     // Create modal overlay if requested
         modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
         document.body.appendChild(modalOverlay);                     // Append
-        showElement(modalOverlay, overlayFadeTime, "");
+        showElement(modalOverlay);
         if (clickOut) {
             modalOverlay.addEventListener('click', removeModalPrompt);
         }
@@ -1009,8 +1265,8 @@ async function showContentBox(file, modal = false, clickOut = true) {
     // Nested functions for options
 
     function removeModalPrompt() {
-        hideElement(modalOverlay, overlayFadeTime / 2, true);
-        prompt.remove();                                        // Remove prompt when not dismissed
+        removeElement(modalOverlay);
+        removeElement(prompt);                                  // Remove prompt when not dismissed
     }
 
 }
@@ -1131,7 +1387,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
         // Potential custom color
         if (optionButton[2] != null) {                                    // Get potential color for button
-            print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
+            // print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
 
             // Set base color
             button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
@@ -1245,7 +1501,7 @@ async function moveElementToView(element) {
 }
 
 
-// Functionality functions
+// Feature functions
 
 /**
  * Saves the current view as a jpg file
@@ -1300,12 +1556,12 @@ function videoFlip() {
  * @param freezeIcon Icon for freeze button
  */
 function videoFreeze(freezeIcon) {
-    const stream = videoElement.srcObject;                                                        // Get the current video stream
+    const stream = videoElement.srcObject;                                                          // Get current video stream
 
-    if (!isFreeze) {                                                                                // If video is not frozen, make it freeze
+    if (!isFreeze) {                                                                                // If video is not frozen, freeze it
         if (stream) {
             canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
-            stream.getTracks().forEach(track => track.enabled = false);                            // Disable all tracks to freeze the video
+            releaseVideoStream();                                                                   // Stop video TODO: Consider softer freeze with faster recovery, without relying on videoStart()
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
@@ -1372,7 +1628,7 @@ function canvasDrawCurrentFrame() {
  * @param elementSub Element to match, will change
  */
 function matchElementDimensions(elementMaster, elementSub) {
-    elementSub.width = elementMaster.videoWidth;                  // DEV: Note that element.width refers to CSS width, videoWidth to feed width, may not work with two canvas elements for example
+    elementSub.width = elementMaster.videoWidth;                  // DEV: Note that element.width refers to CSS width, videoWidth to feed width, may not work with two canvas elements for example, consider using calculated properties
     elementSub.height = elementMaster.videoHeight;
 
     elementSub.style.transform = elementMaster.style.transform; // Matches ALL transformations, including rotation
@@ -1389,59 +1645,69 @@ function updateVideoTransform() {
 
 /**
  * Removes an element.
- * Applies a fade out.
  * @param element Element to remove
- * @param fadeTime Fade duration s (optional)
  */
-function removeElement(element, fadeTime = 0.2) {
-    hideElement(element, fadeTime, true)
+function removeElement(element) {
+    hideElement(element, true)
     print("removeElement(): Remove issued for element: " + element.id);
 }
 
 /**
  * Hides an element.
- * Applies a fade out.
  * Can be used to remove elements.
  * @param element Element to hide
- * @param fadeTime Fade duration s (optional)
- * @param removeAfter Should the element be deleted after hiding
+ * @param removeAfter True if element should be deleted after hiding
  */
-function hideElement(element, fadeTime = 0.3, removeAfter = false) {
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
-    element.style.opacity = "0";
+function hideElement(element, removeAfter = false) {
+    element.setAttribute("data-return-display-state", window.getComputedStyle(element).display); // Store initial display state
+    element.classList.add("hidden");                                                                         // Apply CSS class to hide element
 
-    setTimeout(() => {
-        element.style.display = "none";
-        // element.style.pointerEvents = "none";                    // TODO: Disable interactions during animations, but recover pointer event status (create toggleable class CSS)
-        if (removeAfter) {
+    element.addEventListener("transitionend", function hideAfterTransition() {                               // Change display state after animation
+        element.style.display = "none";                                                                      // Required as hidden class only applies 0 opacity (display to none cannot be animated)
+        element.removeEventListener("transitionend", hideAfterTransition);
+    });
+
+    if (removeAfter) {
+        setTimeout(() => {
+            print("hideElement(): Removing element");
             element.remove();
-            print("hideElement(): Removing element: " + removeAfter); }
-    }, fadeTime * 1000);
+        }, 100); // TODO: Arbitrary delay, only reliable found way to animate before deletion
+    }
+
 }
 
 /**
  * Shows a hidden element.
- * Applies a fade in.
  * @param element Element to hide
- * @param fadeTime Fade duration in s (optional)
- * @param displayStyle Display style (optional)
+ * @param display Display state to set (use for newly created elements)
  */
-function showElement(element, fadeTime = 0.4, displayStyle = "block") {
-    element.style.opacity = "0";                                    // Ensures not visible
-    element.style.display = displayStyle;                           // Renders element display
-    element.style.transition = `opacity ${fadeTime}s ease-in-out`;  // TODO: Deprecated by generic CSS property, make use conditional (set if argument set)
-    // element.style.pointerEvents = "all";                         // TODO: Pointer event recovery needs to use initial value
+function showElement(element, display = null) {
+    let displayState;
+    if (display != null) {                      // If element has been given a specific display state to use
+        displayState = display
+    } else {                                    // If element was hidden using hideElement()
+        displayState = element.getAttribute("data-return-display-state");
+        element.removeAttribute("data-return-display-state");
+    }
+    element.style.display = displayState;       // Set display state
+    // TODO: Dev: replace block with ternary
 
-    // requestAnimationFrame(() => {                                // Runs code after display is rendered
+    element.classList.remove("hidden");                                      // Remove applied CSS class to show element
+
+    // DEV: Animation not rendering debug attempts:
+
+    // requestAnimationFrame(() => {                                // Runs code after display is rendered, display property may take a while
     //     element.style.opacity = '1';
     // });
 
-    // TODO: Animation not working on FF even when it works on Chrome
-
     // DEV: Testing alternative
-    setTimeout(() => {
-        element.style.opacity = '1';
-    }, 10);
+    // setTimeout(() => {
+    //     element.style.opacity = '1';
+    // }, 10);
+
+    // element.style.display = displayStyle;    // Where value default is "block"
+    // element.style.transition = `opacity ${fadeTime}s ease-in-out`;
+    //
 
 }
 
@@ -1453,9 +1719,8 @@ function showElement(element, fadeTime = 0.4, displayStyle = "block") {
 function getElementCenter(element) {
     const rect = element.getBoundingClientRect();
     const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
-    const y = rect.top + window.scrollY + rect.height / 2;
+    const y = rect.top + window.scrollY + rect.height / 2;  // TODO: Reconsider scroll values
 
-    // DEV: Value accuracy for abnormal (automatically resized with high overflow or extremely large) elements not tested
     return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
 }
 
@@ -1483,7 +1748,7 @@ function getViewportEdges() {
                     |
                     |
                     y+
-     */
+    */
 }
 
 
@@ -1550,10 +1815,10 @@ class CreatedElements {
     /**
      * Creates a menu and registers it to management.
      */
-    createMenu() {
-        const classReference = new Menu();
+    createMenu(menuDefinitions, callerElement) {
+        const classReference = new Menu(menuDefinitions, callerElement);
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
-        print("createMenu(): Created and registered " + classReference.getType() + ": " + classReference.getElementId());
+        print("createMenu(): Created and registered " + classReference.getType() + " : " + classReference.getElementId());
         return classReference;
     }
 
@@ -1866,7 +2131,8 @@ class TextArea extends MovableElement {
         this.container.appendChild(this.element);
         createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
 
-        translateElement(this.element); // Translate placeholder text.
+        // Apply translation
+        translateElement(this.element);
 
         // Add resize handle
         this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
@@ -2013,17 +2279,34 @@ class TextArea extends MovableElement {
 /**
  * Class for creating a menu programmatically.
  * Used for multiple or custom menus.
- * Replaces static HTML definitions.
  */
 class Menu extends MovableElement {
 
     // Generic
-    menuDefinition = [];                    // Contains definitions for the menu contents in an array
-    // Example
-    // [
-    // [ "id"             , "title"         , "imgSrc"                       , buttonActions     , toggleHandler         ]
-    // [ "buttonRotate"   , "Rotate"        , "./images/rotate.png"          , videoRotate();    , null                  ]
-    // ];
+    menuDefinitions;                    // Contains definitions for the menu contents in an array
+
+    // Examples
+    // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
+    // const menuTest = [
+    //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
+    //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip    },
+    //     {id: "buttonFreezeTest" ,    text: "Freeze",    img: "freeze.png",        action: videoFreeze,  iconToggle: "showVideo.png"}, // TODO: Unfinished function for toggled icons
+    //     {id: "buttonSaveImageTest",  text: "Save img",  img: "downloadImage.png", action: saveImage    },
+    //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay   },
+    //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText      }
+    // ]
+    // createdElements.createMenu(menuTest, buttonTest, "above");
+    //
+    // const menuTest = [
+    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // WHere customHTML refers to any variable pointing to an HTML element
+    //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
+    // ]
+
+    // Caller relations
+    callerElement;                      // Element the menu is called from, e.g. a button
+
+    // Positioning
+    position = {x: null, y: null};      // Last set position for the menu
 
 
     // Initialization
@@ -2032,131 +2315,68 @@ class Menu extends MovableElement {
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor() {
+    constructor(menuDefinitions, callerElement) {
         super('menu');
 
-        this.visible = false;
+        this.menuDefinitions = menuDefinitions;
+        this.callerElement = callerElement;
 
-        this.element = this.create();
-        this.testing();
+        this.create();
     }
 
-    /**
-     * Testing function for illustration.
-     * Temporary!
-     * Serves as a basis for developing class functionality.
-     */
-    testing() {
-        print("Testing menu construction (illustration)");
+    create() {
 
-        // Definition
-        this.menuDefinition = [
-            [ "buttonRotateTest"      , "Test text"        , "./images/rotate.png"          , videoRotate                           , null           ],
-            [ "buttonFlipTest"        , "Test text"        , "./images/flip.png"            , videoFlip                             , null           ],
-            [ "buttonSaveImageTest"   , "Test text"        , "./images/downloadImage.png"   , saveImage                             , null           ],
-            [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , addOverlay                            , null           ],
-            [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , addText                               , null           ]
-            // [ "buttonOverlayTest"     , "Test text"        , "./images/overlay.png"         , createdElements.createOverlay      , null           ], // TODO: Diagnose error from these
-            // [ "buttonAddTextTest"     , "Test text"        , "./images/text.png"            , createdElements.createTextArea     , null           ]
-        ];
-
-        // Create core div element
+        // Create core container element
         this.element = document.createElement('div');
-        this.element.id = String(Date.now());                                      // Assign a (pseudo) unique id
+        this.element.id = this.id = String(Date.now());         // Assign a (pseudo) unique id
 
-        // Basic styling and positioning
-        const menuStyle = {
-            position: 'fixed',
-            left: '85%',                                                           // TODO: Positioning must be programmatic or relative, should be above pressed button
-            transform: 'translateX(-50%)',                                         // What was the logic?, also 'translate(-50%, -50%)'?
-            width: '60px',
-            background: '#454545',
-            borderRadius: '5px',
-            padding: '5px',
-            zIndex: '700'
-        }
-        Object.assign(this.element.style, menuStyle);
-        this.element.style.bottom = '60px';                                                  // Initial position before animation, while in static/attached mode
-        this.element.style.display = 'none';                                                 // Initial visibility
-        this.element.style.opacity = '0';                                                    // Initial opacity before animation
-        this.element.style.display = 'flex';
-        this.element.style.flexDirection = 'column';
-        this.element.style.alignItems = 'center';
-        // this.menuDiv.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';    // First animation style, obsolete
-        // this.menuDiv.style.backgroundColor = 'rgba(186,20,20,0.5)';                       // backgroundColor vs. background
-        // this.menuDiv.classList.add('island_controlBar');                                  // TODO: Create and apply generic shared style to CSS
+        print("Menu: create(): Creating menu: " + this.id);
 
-        const buttonStyle = {                                                                // Base styling for buttons (deed object when assigning CSS from variable (assigning to CSSStyleDeclaration))
-            width: "40px",
-            height: "40px",
-            backgroundColor: "rgba(128, 128, 128, 0.5)",
-            borderRadius: "5px",
-            // border: "2px solid darkgray",
-            // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
-            padding: "0",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            margin: "5px"
-        };
+        // Styling
+        this.element.classList.add("createdMenu");
+        this.element.classList.add('hidden');                   // Initial state
+        this.visible = false;
 
-        // Button creation function (nested)
-        function createButton(id, text, img) {
-            // Create element
-            const button = document.createElement("button");
-            button.id = id;
+        // Positioning
+        this.updatePosition();
 
-
-            // Apply base styling
-            Object.assign(button.style, buttonStyle);
-
-            // TODO: Add hover
-
-            // Add icon
-            const icon = document.createElement("img");
-            // icon.src = "./images/" + png;
-            icon.src = img;
-            icon.alt = "Alt";
-            icon.className = "icon";
-            icon.classList.add("icon");
-            // Dark theme application with dev function currently only works with button.id = "exampleButton";
-            icon.style.filter = 'invert(1) grayscale(100%)'; // will mess hover if dev dark mode function used
-            button.appendChild(icon);
-
-            return button;
-        }
-
-        // Parse definition array, create buttons
-        this.menuDefinition.forEach( ([id, text, img, action, toggleHandler]) => {
-            const button = createButton(id, text, img);
-            button.addEventListener('click', action); // usual is problematic: listenerToElement(id, 'click', action);
-            this.element.appendChild(button);
+        // Create controls
+        this.menuDefinitions.forEach( (control) => {           // Parse definitions
+            if (!control.customHTML) {                         // No custom HTML (falsy parameter value)
+                // noinspection JSUnresolvedReference          // Object is dynamic
+                const button = createButton(control.id, control.text, control.img);
+                button.addEventListener('click', control.action);
+                this.element.appendChild(button);
+            } else {                                           // Custom HTML
+                const div = document.createElement("div");     // Contain custom menu element
+                div.appendChild(control.customHTML);
+                this.element.appendChild(div);
+            }
         });
 
         // Append
         document.getElementById('videoContainer').appendChild(this.element);
 
-    }
+        // Attach click listener
+        this.callerElement.addEventListener('click', () => this.toggleVisibility() );
 
-    create() {
-        this.constructMenu();
-        this.handleListeners();
+        // Nested functions
+        function createButton(id, text, img) {
+            // Create element
+            const button = document.createElement("button");
+            button.id = id;
+            button.title = text;
 
-        return null; // Return main element?
-    }
+            // Add icon
+            const icon = document.createElement("img");
+            icon.src = "./images/" + img;
+            icon.alt = text;
+            icon.classList.add("icon");
+            button.appendChild(icon);
 
-    constructMenu() {
-        // Parse array, create elements, append to DOM
+            return button;
+        }
 
-        // Create and handle detach, reattach function
-    }
-
-    handleListeners() {
-        // Use listenerToElement() to attach action to button
-    }
-
-    toggleHandler() {
-        // Handle case where icon changes on button press
     }
 
 
@@ -2181,26 +2401,64 @@ class Menu extends MovableElement {
      * Toggles visibility of menu.
      */
     toggleVisibility() {
+        print("Menu: toggleVisibility(): Toggling: " + this.id);
         if (this.visible) {
-            hideElement(this.element, 0.2);
+            hideElement(this.element);
         } else {
-            showElement(this.element, 0.1, "flex");
+            showElement(this.element, "flex");
         }
         this.visible = !this.visible;
+
+        this.updatePosition();
     }
 
     /**
-     * Detaches menu from static position, making it movable.
+     * Position menu based on caller element
      */
-    detach() {
+    updatePosition() {
+
+        // Get position of caller element
+        const buttonPosition = getElementCenter(this.callerElement);
+
+        // Set position for menu
+        const offsetX = 0;
+        const offsetY = 60; // Offset determines distance from caller button
+        this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
+        this.element.style.bottom = this.position.y = `${offsetY}px`;
 
     }
 
-    /**
-     * Attaches menu to its static position.
-     */
-    attach() {
+    // Related
 
+    /**
+     * Creates, appends and returns a button.
+     *
+     * @param img Image for icon
+     * @param buttonId Id for button element
+     * @param iconId Id for icon element (useful for icon dynamics)
+     * @param text Text for title and alt text
+     * @param appendTo Element to append button to
+     * @returns {HTMLButtonElement} HTML element for button
+     */
+    static createButton(img, buttonId, iconId, text, appendTo) {
+        const button = document.createElement("button");
+
+        button.id = buttonId;
+        button.title = text;
+
+        // Add icon
+        const icon = document.createElement("img");
+        icon.src = "./images/" + img;
+        icon.id = iconId;
+        icon.alt = text;
+        icon.classList.add("icon");
+        button.appendChild(icon);
+
+        if (appendTo) {                          // Check for truthy parameter value
+            appendTo.appendChild(button);
+        }
+
+        return button;
     }
 
 }
@@ -2236,7 +2494,7 @@ function debug() {
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
-    document.getElementById('controlBar').appendChild(developerButton); // May run before DOM loaded
+    document.getElementById('controlBarMidSpacer').appendChild(developerButton); // May run before DOM loaded
 
 }
 
@@ -2253,9 +2511,7 @@ function developerMenu() {
         [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
         [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
         [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
-        [   "Brute test video input"           , () => { bruteForceBestVideoStream();                                   }],
-        [   "Switch theme"                     , () => { document.documentElement.classList.toggle("lightMode");  }],
-    //  [   "Test another UI style"            , () => { testUserInterfaceVersion();                                    }],
+        [   "Fallback resolution test"         , () => { getMaxResolutionFallback();                                     }],
         [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
         [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
         // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
@@ -2263,6 +2519,10 @@ function developerMenu() {
     //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
         [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
     ], "585px", "180px");
+
+    // TODO: Create using Menu instead of prompt, use buttons with icons, add text support for buttons
+    // const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
+
 
 }
 
@@ -2281,158 +2541,68 @@ function dumpLocalStorage() {
 }
 
 /**
- * Stops all tracks of current video srcObject
- */
-function releaseVideoStream() {
-    videoElement.srcObject.getTracks().forEach(track => track.stop());
-    videoElement.srcObject = null;
-}
-
-/**
  * Outputs strings to console if debug is enabled.
  * Used in development.
  * @param string String to output
+ * @param color Text color string (optional)
+ * @param tracePrint True to include short stack trace (optional)
  */
-function print(string) {
+function print(string, color = "gray", tracePrint = false) {
     if (!debugMode) return;
-    console.log(string);
 
-    // Trace caller here unless false (for mass events)
-    //     const stack = new Error().stack.split('\n');
-    //     const callerFunction = stack[2].trim();
-}
+    let output;
 
-/**
- * Prints video track settings and capabilities for all tracks associated with a stream.
- * For development.
- * @param stream The stream from navigator.mediaDevices.getUserMedia()
- * @returns {*[]}
- */
-function printStreamInformation(stream) {
-    // const videoTrack = stream.getVideoTracks()[0];
+    // Format if string starts with function identifier "():"
+    const index = string.indexOf("():");
+    if (index === -1 || index > 26) {
+        output = string;
+    } else {
+        const prefix = string.slice(0, index + 3).padEnd(30, " ");
+        output = prefix + string.slice(index + 3);
+    }
 
-    // Typical error: TypeError: videoTrack.getCapabilities is not a function
-    // getCapabilities() may not be supported by all browsers, such as those based on FF ESR (Floorp, for example). FF supports function since 2024 v.132
+    // Colorize output
+    let css;
+    switch(color) {     // Ensure valid color
+        case "gray":    css = "color: gray";    break;
+        case "red":     css = "color: red";     break;
+        case "green":   css = "color: green";   break;
+        case "blue":    css = "color: blue";    break;
+        case "white":   css = "color: white";   break;
+        case "black":   css = "color: black";   break;
+        case "yellow":  css = "color: yellow";  break;
+        case "orange":  css = "color: orange";  break;
+        default:        css = "color: gray";    break;
+    }
+    console.log("%c" + output, css);
 
-    print("printStreamInformation(): Found " + stream.getVideoTracks().length + " video track(s) in stream");
-    if (stream.getVideoTracks().length > 1) console.warn("printStreamInformation(): Unexpected amount of video tracks (more than 1), document this instance!");
+    if (tracePrint) {
+        const stack = new Error().stack.split('\n');
 
-    let count = 1;
-    let allResults = [];
-    stream.getVideoTracks().forEach(videoTrack => {
-        // Printing select information
-        const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
-        const { width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities();
+        console.warn("print(): Trace: print <--- " + structureStackPrint(stack[1]) + " <--- " + structureStackPrint(stack[2]) + " <--- " + structureStackPrint(stack[3]));
 
-        //             0                       1                  2             3                    4              5                     6          7
-        let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
-
-        print("printStreamInformation(): Track " + count + " is: " + results[0] + " from device ID: " + results[1]);
-        print("printStreamInformation(): Track " + count + " is set to use: " + results[2] + " x " + results[4] + " at " + results[6] + " fps");
-        print("printStreamInformation(): Track " + count + " is capable of: " + results[3] + " x " + results[5] + " at " + results[7] + " fps");
-
-        // To print a FULL formatted output with all information:
-        // print("printStreamInformation(): Settings: " + JSON.stringify(videoTrack.getSettings(), null, 2));
-        // print("printStreamInformation(): Capabilities: " + JSON.stringify(videoTrack.getCapabilities(), null, 2));
-
-        allResults.push(results);
-    });
-
-    return allResults;
-
-}
-
-/**
- * Requests various video tracks from a stream and looks for the best settings.
- * Visualizes.
- * Providing video track, good or bad, is up to the browser.
- *
- */
-async function bruteForceBestVideoStream(input = selector.value) {
-    // Note that background activities may interfere.
-
-    releaseVideoStream();
-
-    // Create invisible temporary video element for stream
-    const temporaryCameraFeed = document.createElement('video');
-    temporaryCameraFeed.id = 'temporaryCameraFeed';
-    temporaryCameraFeed.autoplay = true;
-    temporaryCameraFeed.muted = true;
-    temporaryCameraFeed.style.display = 'none';
-    document.body.appendChild(temporaryCameraFeed);
-
-    // Create dual layer arrays of various testable settings for video tracks
-    let trackSettings = [
-        [1920           ,      1080         ],
-        [1280           ,       720         ],
-        [640            ,       480         ],
-        [320            ,       240         ],
-    ];
-
-    let moreSettings = [
-        [30         ,        "environment"     ],
-        [60         ,        "environment"     ],
-        [30         ,        "user"            ],
-        [60         ,        "user"            ],
-    ];
-
-    console.warn("bruteForceBestVideoStream(): Testing multiple (ideal value) setting combinations for " + shorten(input));
-
-    // Loop through all permutations
-    for (let [frameRate, facingMode] of moreSettings) {
-        for (let [width, height] of trackSettings) {
-            try {
-                print(`Trying: ${width} x ${height} at ${frameRate} fps facing ${facingMode}`);
-                // noinspection JSCheckFunctionSignatures
-                const stream = await navigator.mediaDevices.getUserMedia({
-                     video: {
-                         deviceId: { exact: String(input) },
-                         facingMode: { ideal: String(facingMode) },
-                         width: { ideal: Number(width) },
-                         height: { ideal: Number(height) },
-                         frameRate: { ideal: Number(frameRate) }
-                     }
-                     // If this function is not producing expected results, try alternative below.
-                     // Function will work with or without all types forced to correct ones.
-                     // video: {
-                     //     deviceId: { exact: input },
-                     //     facingMode: { ideal: facingMode },
-                     //     width: { ideal: width },
-                     //     height: { ideal: height },
-                     //     frameRate: { ideal: frameRate }
-                     // }
-                });
-
-                temporaryCameraFeed.srcObject = stream;
-
-                // Print and get stream information
-                let results = printStreamInformation(stream);
-
-                // Create and visualize scores
-                let scoreUsing = results[0][2] * results[0][4]; // TODO: Only using one track at this point, could have multiple
-                let scoreCapable = results[0][3] * results[0][5];
-                // One score mark per 76800 (matches 320x240)
-                let scoreUsingMarks = '+'.repeat(Math.min(Math.floor(scoreUsing / 76800), 35));
-                let scoreCapableMarks = '+'.repeat(Math.min(Math.floor(scoreCapable / 76800), 35));
-                scoreUsingMarks = scoreUsingMarks.padEnd(35, ' ');
-                scoreCapableMarks = scoreCapableMarks.padEnd(35, ' ');
-                print("Current [ " + scoreUsingMarks   + " ]");
-                print("Capable [ " + scoreCapableMarks + " ]");
-
-                // Discard stream
-                stream.getTracks().forEach(track => track.stop());
-            } catch (error) {
-                console.error(`Failed: width=${width}, height=${height}, frameRate=${frameRate}, facingMode=${facingMode}`, error);
+        function structureStackPrint(input) {
+            output = input.trim();
+            let isAsync = " ";
+            if (output.startsWith("async*")) {
+                isAsync = " (async)";
+                output = output.slice(6);
             }
+            const [functionNameRaw, location] = output.split("@"); // Destructure to array
+            let lineNumber = -1;
+            let functionName = "?";
+            if (location) {
+                functionName = functionNameRaw.trim();
+                const parts = location.split(":");
+                lineNumber = parseInt(parts[parts.length - 2]); // TODO: Does this tolerate address port number or lack of?
+            }
+
+            // TODO: Fix: Function name may have "/<" at the end in some circumstances
+
+            return functionName + " (" + lineNumber + ")" + isAsync;
         }
     }
 
-    // Remove the temporary video element
-    temporaryCameraFeed.remove();
-
-    console.warn("bruteForceBestVideoStream(): Done");
-
-    await videoStart();
 }
 
 /**
@@ -2442,10 +2612,10 @@ async function bruteForceBestVideoStream(input = selector.value) {
  * @returns {string}
  */
 function shorten(id) {
-    // Might want to remove {} from ends
-    // id = id.replace(/^(\{|\})|(\\{|\})$/g, '');
-    // id = id.replace(/^([{}])|(\\{|})$/g, '');
-    return `${id.slice(0, 4)}:${id.slice(-4)}`;
+    let shortenedId = id.trim();
+    shortenedId = shortenedId.replace(/[{}]/g, '');
+    shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
+    return shortenedId;
 }
 
 /**
@@ -2707,182 +2877,4 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
     document.body.appendChild(label);
 
     return label;
-}
-
-/**
- * Applies another testing version of UI.
- * Dirty implementation!
- */
-function testUserInterfaceVersion() {
-
-    // Vision:
-    // Bottom control bar visibility toggle button always visible, full screen mode has button always visible.
-    // Main control island visibility is controlled from within bottom bar.
-    // Every menu has a button on bottom bar. Only main control island is visible by default.
-    // Menus have buttons that detach or reattach them to positions above their buttons on bottom control bar.
-
-    // Remove standalone label
-    // document.getElementById("textSizeLabel").style.display = "none";
-    document.getElementById("textSizeLabel").remove();
-
-    // Remove current collapse button
-    let label = document.getElementById("buttonCollapse");
-    label.style.display = "none";
-    label.style.width = '0px';
-
-    // Give fullscreen button a background
-    let buttonFullscreen = document.getElementById("buttonFullScreen");
-
-    let iconFullscreen = document.getElementById("iconFullScreen");
-
-    buttonFullscreen.style.position = "absolute";
-    buttonFullscreen.style.margin = "0";
-    buttonFullscreen.style.padding = "0";
-    buttonFullscreen.style.border = "none";
-    buttonFullscreen.style.zIndex = "101";
-    buttonFullscreen.style.bottom = "5px";
-    buttonFullscreen.style.right = "13px";
-    buttonFullscreen.style.width = "40px";
-    buttonFullscreen.style.height = "40px";
-    buttonFullscreen.style.backgroundSize = "40px 40px";
-    buttonFullscreen.style.backgroundPosition = "center";
-    buttonFullscreen.style.background = "rgba(128, 128, 128, 0.5)";
-    buttonFullscreen.style.borderRadius = "5px";
-
-    iconFullscreen.style.width = "30px";
-    iconFullscreen.style.height = "30px";
-    iconFullscreen.style.objectFit = "contain";
-
-    // Create bar visibility button element and icon
-    let buttonCollapseBar = document.createElement("button");
-    buttonCollapseBar.id = "buttonCollapseBar";
-    buttonCollapseBar.title = "Hide Control Bar";
-
-    let iconCollapseBar = document.createElement("img");
-    iconCollapseBar.id = "iconCollapseBar";
-    iconCollapseBar.classList.add("icon");
-    iconCollapseBar.src = "./images/hideControls.png";
-    iconCollapseBar.alt = "Hide Controls";
-    iconCollapseBar.style.transform = "rotate(-90deg)";
-
-    buttonCollapseBar.appendChild(iconCollapseBar);
-
-    buttonCollapseBar.style.position = "absolute";
-    buttonCollapseBar.style.margin = "0";
-    buttonCollapseBar.style.padding = "0";
-    buttonCollapseBar.style.border = "none";
-    buttonCollapseBar.style.zIndex = "101";
-    buttonCollapseBar.style.bottom = "5px";
-    buttonCollapseBar.style.right = "58px";                 // Manual position, 13px (border + margin) + 40 px (button size) + margin
-    buttonCollapseBar.style.width = "40px";
-    buttonCollapseBar.style.height = "40px";
-    buttonCollapseBar.style.backgroundSize = "40px 40px";
-    buttonCollapseBar.style.backgroundPosition = "center";
-    buttonCollapseBar.style.background = "rgba(128, 128, 128, 0.5)";
-    buttonCollapseBar.style.borderRadius = "5px";
-
-    iconCollapseBar.style.width = "30px";
-    iconCollapseBar.style.height = "30px";
-    iconCollapseBar.style.objectFit = "contain";
-
-    document.body.appendChild(buttonCollapseBar);
-
-    // Handle control bar collapse and expand
-    let controlBar = document.getElementById("controlBar");
-    let isCollapsed = false;
-
-    iconCollapseBar.style.transition = "transform 0.3s ease-in-out";  // Add transition for the icon flip
-
-    buttonCollapseBar.addEventListener("click", () => {
-        if (isCollapsed) {
-            controlBar.style.transition = "transform 0.4s ease-in-out, opacity 0.5s ease-in-out";
-
-            controlBar.style.transform = "translateX(0)";
-            controlBar.style.opacity = "1";
-            isCollapsed = false;
-
-            // Force reflow
-            controlBar.offsetHeight; // Accessing this forces a reflow
-
-        } else {
-            controlBar.style.transition = "transform 0.3s ease-in-out, opacity 0.2s ease-in-out";
-
-            controlBar.style.transform = "translateX(100%)";
-            controlBar.style.opacity = "0";
-            isCollapsed = true;
-
-            // Force reflow
-            controlBar.offsetHeight; // Accessing this forces a reflow
-        }
-        iconCollapseBar.style.transform += " scaleY(-1)";
-    });
-
-    // Create menu buttons as examples
-
-    const buttonStyle = {
-        width: "40px",
-        height: "40px",
-        backgroundColor: "rgba(128, 128, 128, 0.5)",
-        borderRadius: "5px",
-        // border: "2px solid darkgray",
-        border: "none",
-        // borderColor: "rgba(128, 128, 128, 0.7)", // If any border at all
-        padding: "0",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        margin: "5px"
-    };
-
-    // Create menuButtons div
-    const menuButtons = document.createElement("div");
-    menuButtons.id = "menuButtons";
-    menuButtons.style.position = "absolute";
-    menuButtons.style.right = "180px";
-    menuButtons.style.display = "flex";
-    menuButtons.style.flexDirection = "row";
-    menuButtons.style.justifyContent = "center";
-    menuButtons.style.height = "100%";
-
-    // Create buttons
-    const createButton = (png = "draw.png") => {
-        const button = document.createElement("button");
-        Object.assign(button.style, buttonStyle);               // Need if assigning CSS from variable (assigning to CSSStyleDeclaration)
-
-        button.id = "exampleButton";
-
-        const icon = document.createElement("img");
-        icon.src = "./images/" + png;
-        icon.alt = "Draw";
-        // icon.className = "icon";
-        icon.classList.add("icon");
-
-        // icon.style.filter = 'invert(1) grayscale(100%)'; // messes hover if inline here
-
-        button.appendChild(icon);
-        return button;
-    };
-
-    // Create and append buttons
-
-    const testDrawMenu = createdElements.createMenu();
-    const testTextMenu = createdElements.createMenu();
-    const testVideoMenu = createdElements.createMenu();
-
-    let buttons = [
-      ["draw.png"       , () => { testDrawMenu.toggleVisibility(); }],
-      ["text.png"       , () => { testTextMenu.toggleVisibility(); }],
-      ["showVideo.png"  , () => { testVideoMenu.toggleVisibility(); }]
-    ];
-
-    buttons.forEach( ([img, action]) => {
-        const button = createButton(img);
-        button.addEventListener('click', action);
-        menuButtons.appendChild(button);
-
-    });
-
-    // Append menuButtons to controlBar
-    controlBar.appendChild(menuButtons);
-
 }

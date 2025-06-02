@@ -8,7 +8,32 @@
 </head>
 <body>
     <div id="videoContainer">
-        <div id="island_controlBar">
+
+        <!-- Main UI -->
+        <div id="controlBar" class="hidden">
+            <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
+
+            <!-- Zoom Controls -->
+            <div id="zoomControls">
+                <button data-locale-key="zoomOut" id="buttonZoomOut" title="Zoom Out" class="buttonSmall">-</button>
+                <input data-locale-key="zoom" title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
+                <button data-locale-key="zoomIn" title="Zoom In" id="buttonZoomIn" class="buttonSmall">+</button>
+                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
+            </div>
+            <!-- Container for items on the left -->
+            <div id="menuContainerLeft">
+            </div>
+            <!-- Spacer to compact surrounding containers -->
+            <div id="controlBarMidSpacer">
+            </div>
+            <!-- Container for items on the right -->
+            <div id="menuContainerRight">
+            </div>
+            <!-- Spacer under always visible buttons -->
+            <div id="controlBarEndSpacer">
+            </div>
+        </div>
+        <div id="island_controlBar" class="hidden">
 
             <!-- Rotate button -->
             <button data-locale-key="rotate" id="buttonRotate" title="Rotate">
@@ -46,42 +71,21 @@
                 <button data-locale-key="bigger" id="buttonBiggerFont" title="Bigger text size" class="buttonSmall">+</button>
             </div>
         </div>
+        <div id="avButtons">  <!-- Always visible buttons -->
+            <!-- Full screen button -->
+            <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
+                <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+            </button>
 
-        <!-- Full screen button -->
-        <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
-            <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
-        </button>
-
-        <!-- Button for hiding control bar and island -->
-        <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
-            <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
-        </button>
+            <!-- Button for hiding control bar and island -->
+            <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
+                <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
+            </button>
+        </div>
 
         <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
         <canvas id="canvasMain"></canvas>
 
-        <div id="controlBar">
-            <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
-
-            <!-- Zoom Controls -->
-            <div id="zoomControls">
-                <button data-locale-key="zoomOut" id="zoomOutButton" title="Zoom Out" class="buttonSmall">-</button>
-                <label for ="zoomSlider"></label>
-                <input data-locale-key="zoom" title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
-                <button data-locale-key="zoomIn" id="zoomInButton" title="Zoom In" class="buttonSmall">+</button>
-                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
-            </div>
-
-            <div id="languages">
-                <label>
-                    <select data-locale-selector class="locale-switcher" title="Change Language" data-locale-key="language">
-                        <option value="en" data-locale-key="english">English</option>
-                        <option value="fi" data-locale-key="finnish">Finnish</option>
-                    </select>
-                </label>
-            </div>
-
-        </div>
     </div>
 
     <!-- Load camera feed -->
