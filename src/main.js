@@ -17,7 +17,6 @@ let currentTranslations = {};                                       // Stores tr
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
 const selector              = document.getElementById('selectorDevice');             // Camera feed selector
-const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
 
@@ -28,9 +27,6 @@ let flip = 1;                                                                   
 let isFreeze = false;                                                                      // Video freeze on or off
 
 // UI state
-let isIslandDragging = false                                                               // Dragging island control bar
-let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
-let islandX, islandY;                                                                      // Initial position of the control island
 let mouseX;                                                                                // Initial position of the mouse
 let mouseY;
 
@@ -63,12 +59,9 @@ function start() {
         // Update video input list periodically
         setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases, onchange-event should already trigger update as well)
 
-        // Keep control island visible
-        setInterval(() => { moveElementToView(island) }, 5000); // Periodically ensures control island is visible
 
         // Render UI when ready
-        showElement(controlBar);
-        showElement(island);                                                                      // TODO: Should run when ToS agreed to
+        showElement(controlBar);                                                                  // TODO: Should run when ToS agreed to
         showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
 
     });
@@ -86,7 +79,6 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
-    listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
     listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
     listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
@@ -1075,60 +1067,7 @@ function getStreamInformation(stream, printOut = false) {
 
 // UI functions
 
-/**
- * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
- * @param event Mouse event 'mousedown'
- */
-function islandDragStart (event) {
 
-    print("islandDragStart(): Island drag initiated" );
-
-    isIslandDragging = true;
-
-    // Get current coordinates
-    mouseX = event.clientX;
-    mouseY = event.clientY;
-    islandX = parseInt(island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
-    islandY = parseInt(island.style.top, 10) || 0;
-
-    document.addEventListener('mousemove', islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
-    document.addEventListener('mouseup', islandDragStop);
-
-}
-
-/**
- * Calculate new position for island control bar. Update island style according new position.
- * @param event Mouse event 'mousemove'
- */
-function islandDragUpdater(event) {
-
-    print("islandDragUpdater(): Mass event: Island drag in progress");
-
-    if (isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
-        // Calculates new position
-        let pos1 = mouseX - event.clientX;
-        let pos2 = mouseY - event.clientY;
-        mouseX = event.clientX;
-        mouseY = event.clientY;
-
-        // Updates the dragged island's position
-        island.style.top = (island.offsetTop - pos2) + "px";
-        island.style.left = (island.offsetLeft - pos1) + "px";
-    }
-}
-
-/**
- * Stop Island dragging when mouse key is lifted. Remove event listeners.
- */
-function islandDragStop() {
-    isIslandDragging = false;
-    document.removeEventListener('mousemove', islandDragUpdater);
-    document.removeEventListener('mouseup', islandDragStop);
-
-    moveElementToView(island);
-
-    print("islandDragStop(): Island drag stopped");
-}
 
 /**
  * Updates zoom value and percentage level.
@@ -1173,9 +1112,6 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
             fullScreenButton.setAttribute("data-locale-key", "fullscreen");
             translateElement(fullScreenButton);
             fullScreenIcon.src = "./images/fullscreen.png";
-            // island.style.top = '';                                       // UI island to starting position
-            // island.style.left = '';
-            moveElementToView(island);
         }).catch(error => {
             console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });
@@ -1183,7 +1119,7 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
 }
 
 /**
- * Hides or shows control bar and island when collapseButton is clicked.
+ * Hides or shows control bar when collapseButton is clicked.
  * @param collapseIcon Icon for collapseButton
  * @param collapseButton Button for control visibility toggle
  */
@@ -1197,7 +1133,6 @@ function toggleControlCollapse(collapseIcon, collapseButton) {
         translateElement(collapseButton);
 
         hideElement(controlBar);
-        hideElement(island);
     }
     else {
         collapseButton.setAttribute("data-locale-key", "controlsHide");
@@ -1206,7 +1141,6 @@ function toggleControlCollapse(collapseIcon, collapseButton) {
         // collapseIcon.title = 'Hide controls';
         // collapseIcon.src = "./images/hideControls.png";
         showElement(controlBar, 'inline-flex'); // TODO: Set display states in CSS
-        showElement(island, 'flex');
     }
 }
 
@@ -1464,28 +1398,28 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
  *
  */
 async function moveElementToView(element) {
-    const {x: islandX, y: islandY} = getElementCenter(element);                                             // Get center of element
+    const {x: elementX, y: elementY} = getElementCenter(element);                                             // Get center of element
     const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();      // Get viewport edges
 
-    if (islandX < leftEdge || islandX > rightEdge || islandY > bottomEdge || islandY < topEdge) {           // Check if element is outside viewport (crude)
-        console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + islandX + " y = " + islandY + ", moving to view");
+    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {           // Check if element is outside viewport (crude)
+        console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + elementX + " y = " + elementY + ", moving to view");
         element.classList.toggle("animate_move");
 
         // TODO: Add value for clearance from edges
 
-        if (islandX < leftEdge) {
+        if (elementX < leftEdge) {
             // Element is to the left of viewport
             element.style.left = "0";
         }
-        if (islandX > rightEdge) {
+        if (elementX > rightEdge) {
             // Element is to the right of viewport
             element.style.left = "100vw";
         }
-        if (islandY > bottomEdge) {
+        if (elementY > bottomEdge) {
             // Element is below viewport edge
             element.style.top = `${80}vh`;                     // TODO: Ideally would calculate a position on the top edge of bottom bar
         }
-        if (islandY < topEdge) {
+        if (elementY < topEdge) {
             // Element is above viewport edge
             element.style.top = "0";
         }
@@ -1967,7 +1901,7 @@ class MovableElement {
         // Add element to DOM
         newElement.appendChild(removeButton);
         translateElement(removeButton);
-        // island.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
+        // element.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
         videoContainer.appendChild(newElement);
         newElement.style.opacity = "1";                           // TODO: Apply fade to creation
 
@@ -2877,4 +2811,85 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
     document.body.appendChild(label);
 
     return label;
+}
+
+/**
+ * Temporary container for obsolete island control bar functions.
+ * Use while generalizing drag handler.
+ */
+class islandControlBar {
+    island                = document.getElementById('island_controlBar');                  // Floating island control bar
+    isIslandDragging = false                                                               // Dragging island control bar
+    isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
+    islandX;                                                                               // Initial position of the control island
+    islandY;
+
+    setupAll() {
+        showElement(this.island);
+        listenerToElement('island_controlBar', 'mousedown', this.islandDragStart);                                // Draggable island bar
+
+        // Keep control island visible
+        setInterval(() => { moveElementToView(this.island) }, 5000); // Periodically ensures control island is visible
+
+        showElement(this.island, 'flex');
+
+    }
+
+
+
+    /**
+     * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
+     * @param event Mouse event 'mousedown'
+     */
+    islandDragStart (event) {
+
+        print("islandDragStart(): Island drag initiated" );
+
+        this.isIslandDragging = true;
+
+        // Get current coordinates
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+        this.islandX = parseInt(this.island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
+        this.islandY = parseInt(this.island.style.top, 10) || 0;
+
+        document.addEventListener('mousemove', this.islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
+        document.addEventListener('mouseup', this.islandDragStop);
+
+    }
+
+    /**
+     * Calculate new position for island control bar. Update island style according new position.
+     * @param event Mouse event 'mousemove'
+     */
+    islandDragUpdater(event) {
+
+        print("islandDragUpdater(): Mass event: Island drag in progress");
+
+        if (this.isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
+            // Calculates new position
+            let pos1 = mouseX - event.clientX;
+            let pos2 = mouseY - event.clientY;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+
+            // Updates the dragged island's position
+            this.island.style.top = (this.island.offsetTop - pos2) + "px";
+            this.island.style.left = (this.island.offsetLeft - pos1) + "px";
+        }
+    }
+
+    /**
+     * Stop Island dragging when mouse key is lifted. Remove event listeners.
+     */
+    islandDragStop() {
+        this.isIslandDragging = false;
+        document.removeEventListener('mousemove', this.islandDragUpdater);
+        document.removeEventListener('mouseup', this.islandDragStop);
+
+        moveElementToView(this.island);
+
+        print("islandDragStop(): Island drag stopped");
+    }
+
 }

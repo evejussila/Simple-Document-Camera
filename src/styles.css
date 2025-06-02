@@ -188,6 +188,82 @@ button:not(:hover) {
     color: var(--text-color);
 }
 
+
+/* Core UI */
+
+#menuContainerLeft, #menuContainerRight {
+    display: flex;
+    flex-direction: column;
+    margin: 0 5px 0 5px;
+    align-items: center;
+    visibility: visible;
+    gap: 10px;
+}
+#menuContainerLeft {
+    justify-content: flex-start;
+}
+#menuContainerRight {
+    justify-content: flex-end;
+}
+#controlBarMidSpacer {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
+}
+
+#avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
+    display: flex;
+    flex-direction: column;
+    margin: 0 5px 0 5px;
+    height: 50px;
+    right: 5px;
+    bottom: 0;
+    width: 100px; /* Width must apply to spacer in bottom bar */
+    gap: 0;
+
+    align-items: center;
+}
+#avButtons {
+    position: absolute;
+}
+#buttonCollapse, #buttonFullScreen {
+    aspect-ratio: 1/1;
+    margin: 4px;
+    z-index: 899; /* TODO: Use variable, always on top of UI */
+    visibility: visible;
+}
+
+#controlBar {
+    display: inline-flex;
+    flex-direction: column;
+    position: absolute;
+    width: 50px;
+    height: 100%;
+    z-index: 898;  /* TODO: Use variable, almost always on top of UI */
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+
+    align-items: center;
+
+    background-color: var(--bg-color-darkest);
+    color: var(--text-color);
+}
+
+#selectorDevice {
+    width: 200px;
+    height: 40px;
+    border-radius: 8px;
+    outline: none;
+    border: 1px solid var(--text-color);
+
+    background-color: var(--bg-color-basic);
+    color: var(--text-color);
+}
+
 #zoomControls {
     display: flex;
     margin-left: 15px;
@@ -204,93 +280,7 @@ button:not(:hover) {
 }
 
 
-/* Core UI */
-
-#avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
-    display: flex;
-    flex-direction: row-reverse;
-    margin: 0 5px 0 5px;
-    height: 50px;
-    right: 5px;
-    bottom: 0;
-    width: 100px; /* Width must apply to spacer in bottom bar */
-    gap: 0;
-
-    align-items: center;
-}
-
-#avButtons {
-    position: absolute;
-}
-
-#buttonCollapse, #buttonFullScreen {
-    aspect-ratio: 1/1;
-    margin: 4px;
-    z-index: 899; /* TODO: Use variable, always on top of UI */
-    visibility: visible;
-}
-
-#controlBar {
-    display: inline-flex;
-    position: absolute;
-    height: 50px;
-    max-width: 100%;
-    z-index: 898;  /* TODO: Use variable, almost always on top of UI */
-    bottom: 0;
-    left: 7px;
-    right: 7px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-
-    align-items: center;
-
-    background-color: var(--bg-color-darkest);
-    color: var(--text-color);
-}
-
-#island_controlBar::before {  /* Targets the element and applies the pseudo-element */
-    content: "";              /* Creates an empty pseudo-element */
-    display: block;           /* Ensures it behaves as block */
-    height: 15px;
-    width: 100%;
-} /* Spacer pseudo-element (for island drag handle) is not in DOM */
-
-#island_controlBar {
-    position: absolute;
-    left: 45px;
-    top: 190px;
-    transform: translateX(-50%) translateY(-50%);
-    cursor: move;
-    z-index: 897;  /* TODO: Use variable, usually on top of UI */
-    display: flex;
-    flex-direction: column;
-    width: 60px;
-    height: max-content;
-    border-radius: 10px;
-    padding-bottom: 10px;
-    padding-top: 10px;
-
-    gap: 7px;
-
-    background-color: var(--bg-color-lightest);
-    color: var(--text-color);
-
-
-}
-
-#selectorDevice {
-    width: 200px;
-    height: 40px;
-    border-radius: 8px;
-    outline: none;
-    border: 1px solid var(--text-color);
-
-    background-color: var(--bg-color-basic);
-    color: var(--text-color);
-}
-
-
-/* Core elements */
+/* Core video elements */
 
 #cameraFeed {
     display: block;
@@ -318,32 +308,6 @@ button:not(:hover) {
     width: 100%;
     height: 100%;
     z-index: var(--zindex-visual-core);
-}
-
-#menuContainerLeft, #menuContainerRight {
-    display: flex;
-    margin: 0 5px 0 5px;
-    align-items: center;
-    visibility: visible;
-    gap: 10px;
-
-}
-
-#menuContainerLeft {
-    justify-content: flex-start;
-}
-
-#menuContainerRight {
-    justify-content: flex-end;
-}
-
-
-/* Layout elements */
-
-#controlBarMidSpacer {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: auto;
 }
 
 
@@ -489,4 +453,37 @@ button:not(:hover) {
 
 #island_controlBar.animate_move {
     transition: left 1s, top 1s;
+}
+
+
+/* Obsolete */
+
+#island_controlBar::before {  /* Targets the element and applies the pseudo-element */
+    content: "";              /* Creates an empty pseudo-element */
+    display: block;           /* Ensures it behaves as block */
+    height: 15px;
+    width: 100%;
+} /* Spacer pseudo-element (for island drag handle) is not in DOM */
+
+#island_controlBar {
+    position: absolute;
+    left: 45px;
+    top: 190px;
+    transform: translateX(-50%) translateY(-50%);
+    cursor: move;
+    z-index: 897;  /* TODO: Use variable, usually on top of UI */
+    display: flex;
+    flex-direction: column;
+    width: 60px;
+    height: max-content;
+    border-radius: 10px;
+    padding-bottom: 10px;
+    padding-top: 10px;
+
+    gap: 7px;
+
+    background-color: var(--bg-color-lightest);
+    color: var(--text-color);
+
+
 }
