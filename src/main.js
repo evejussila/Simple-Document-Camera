@@ -1,7 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
 let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-05-06-alpha");
+const version = ("2025-06-02-alpha");
 console.log("Version: " + version);
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
@@ -620,7 +620,7 @@ async function videoStart() {
 async function getMediaPermission() {
     try {
         const testStream = await navigator.mediaDevices.getUserMedia({
-            // video: true                                      // On Chrome this alone returns a low-quality stream, which adversely affects future requests if this is the first interface access (2025)
+            // video: true                                      // DEV: On Chrome this alone returns a low-quality stream, which adversely affects future requests if this is the first interface access (2025)
             video: {
                 width: {ideal: 4096},                           // Request high-resolution stream (arbitrary width and height values)
                 height: {ideal: 4096},
@@ -947,7 +947,7 @@ async function getStreamFromInput(width, height, deviceId) {
         video: {
             deviceId: {exact: deviceId},                                // Constrain to specific camera
             width: {ideal: width},                                      // Request width
-            height: {ideal: height}                                    // Request height
+            height: {ideal: height}                                     // Request height
             // frameRate: {ideal: 60}                                   // Request framerate
             // facingMode: {ideal: 'environment'},                      // Request a camera that is facing away from the user
         }
@@ -1035,6 +1035,7 @@ function getStreamInformation(stream, printOut = false) {
 
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
+        // TODO: Limit decimals Number(value.toFixed(2))
 
         // Print
         if (printOut) {
@@ -1500,7 +1501,7 @@ async function moveElementToView(element) {
 }
 
 
-// Functionality functions
+// Feature functions
 
 /**
  * Saves the current view as a jpg file
@@ -1627,7 +1628,7 @@ function canvasDrawCurrentFrame() {
  * @param elementSub Element to match, will change
  */
 function matchElementDimensions(elementMaster, elementSub) {
-    elementSub.width = elementMaster.videoWidth;                  // DEV: Note that element.width refers to CSS width, videoWidth to feed width, may not work with two canvas elements for example
+    elementSub.width = elementMaster.videoWidth;                  // DEV: Note that element.width refers to CSS width, videoWidth to feed width, may not work with two canvas elements for example, consider using calculated properties
     elementSub.height = elementMaster.videoHeight;
 
     elementSub.style.transform = elementMaster.style.transform; // Matches ALL transformations, including rotation
@@ -2544,7 +2545,7 @@ function dumpLocalStorage() {
  * Used in development.
  * @param string String to output
  * @param color Text color string (optional)
- * @param tracePrint True to nclude short stack trace (optional)
+ * @param tracePrint True to include short stack trace (optional)
  */
 function print(string, color = "gray", tracePrint = false) {
     if (!debugMode) return;
@@ -2562,7 +2563,7 @@ function print(string, color = "gray", tracePrint = false) {
 
     // Colorize output
     let css;
-    switch(color) {
+    switch(color) {     // Ensure valid color
         case "gray":    css = "color: gray";    break;
         case "red":     css = "color: red";     break;
         case "green":   css = "color: green";   break;
@@ -2593,10 +2594,10 @@ function print(string, color = "gray", tracePrint = false) {
             if (location) {
                 functionName = functionNameRaw.trim();
                 const parts = location.split(":");
-                lineNumber = parseInt(parts[parts.length - 2]); // TODO: Does this tolerate port number or lack of?
+                lineNumber = parseInt(parts[parts.length - 2]); // TODO: Does this tolerate address port number or lack of?
             }
 
-            // TODO: Fix: Function name may have "/<" at the end
+            // TODO: Fix: Function name may have "/<" at the end in some circumstances
 
             return functionName + " (" + lineNumber + ")" + isAsync;
         }
