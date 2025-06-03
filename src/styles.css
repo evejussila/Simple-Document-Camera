@@ -3,13 +3,14 @@
 :root {
     /* Core colors */
     --text-color: #ffffff;
-    --bg-color-darkest: #2A2A2D;
+    --bg-color-darkest: #191818;
     --bg-color-basic: #494950;
     --bg-color-lightest: #F7F7F8;
-    --general-accent-color: rgba(255, 141, 44, 0.5);
+    --general-accent-color: #2A2A2D;
+    --bg-color-body: var(--bg-color-lightest);
 
     /* Other colors */
-    --button-bg-color: rgba(151, 151, 151, 0.25);            /* Must have contrast to background, must have transparency */
+    --button-bg-color: rgba(151, 151, 151, 0);            /* Must have contrast to background, must have transparency */
     --remove-button-bg-color: rgba(151, 151, 151, 0.6);      /* Likely requires more visibility than other buttons */
     --link-color: #ff7633;
     --link-hover: #ffa400;
@@ -97,7 +98,7 @@ body {
 
     font-family: 'Noto Sans', sans-serif;
 
-    background-color: var(--bg-color-basic);
+    background-color: var(--bg-color-body);
     color: var(--text-color);
 }
 
@@ -249,7 +250,7 @@ button:not(:hover) {
 
     align-items: center;
 
-    background-color: var(--bg-color-darkest);
+    background-color: var(--bg-color-basic);
     color: var(--text-color);
 }
 
@@ -315,15 +316,12 @@ button:not(:hover) {
 
 .createdMenu {
     position: fixed;
-    transform: translateX(-50%);
     width: max-content;
-    background-color: var(--bg-color-lightest);
+    background-color: var(--bg-color-basic);
     color: var(--text-color);
-    border-radius: 5px;
-    padding: 5px;
     z-index: 700;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 7px;
 }

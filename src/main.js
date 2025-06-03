@@ -2388,29 +2388,22 @@ class Menu extends MovableElement {
 
         // Get position of caller element
         const buttonPosition = getElementCenter(this.callerElement);
-        const elementDimensions = getElementDimensions(this.callerElement);
+        const buttonDimensions = getElementDimensions(this.callerElement);
 
         // Debug tools
-        // print(this.callerElement.id, "red");
-        // print("Width: " + getComputedStyle(this.callerElement).width, "orange");
-        // print("Height: " + getComputedStyle(this.callerElement).height, "orange");
-        // print("Parse w: " + parseFloat(getComputedStyle(this.callerElement).width), "yellow");
-        // print("Parse h: " + parseFloat(getComputedStyle(this.callerElement).height), "yellow");
-        // print("Math w: " + parseFloat(getComputedStyle(this.callerElement).width)/2, "yellow");
-        // print("Math h: " + parseFloat(getComputedStyle(this.callerElement).height)/2, "yellow");
+        // print(this.element.id, "red");
+        // print("Width: " + getComputedStyle(this.element).width, "orange"); // May be undefined or null etc.
+        // print("Height: " + getComputedStyle(this.element).height, "orange");
+        // print("Parse w: " + parseFloat(getComputedStyle(this.element).width), "yellow"); // May return NaN initially or in errors
+        // print("Parse h: " + parseFloat(getComputedStyle(this.element).height), "yellow");
+        // print("Math w: " + parseFloat(getComputedStyle(this.element).width)/2, "yellow"); // May return NaN initially or in errors
+        // print("Math h: " + parseFloat(getComputedStyle(this.element).height)/2, "yellow");
 
-        // Set position for menu
-        const offsetX = elementDimensions.width*2;
-        const offsetY = elementDimensions.height;
-        print(" " + offsetX + " " + offsetY, "red");
-        this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
-        this.element.style.top = this.position.y = `${buttonPosition.y - offsetY}px`;
-
-        // if relativeDirection == "bottomToUp";
-        // const offsetX = 0;
-        // const offsetY = 60; // Offset determines distance from caller button
-        // this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
-        // this.element.style.bottom = this.position.y = `${offsetY}px`;
+        // Set position for menu ("leftToRight", to the right of caller element)
+        const offsetX = buttonDimensions.width/2 + 1;                                  // Center + half of width + 1 px margin (in 2025 "twoday" design)
+        const offsetY = buttonDimensions.height/2;
+        this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`; // Addition: offset to the right of button position
+        this.element.style.top = this.position.y = `${buttonPosition.y - offsetY}px`;  // Subtraction: offset upwards from button position
 
     }
 
