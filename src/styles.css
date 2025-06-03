@@ -3,9 +3,9 @@
 :root {
     /* Core colors */
     --text-color: #ffffff;
-    --bg-color-darkest: #171717;
-    --bg-color-basic: #212121;
-    --bg-color-lightest: #454545;
+    --bg-color-darkest: #2A2A2D;
+    --bg-color-basic: #494950;
+    --bg-color-lightest: #F7F7F8;
     --general-accent-color: rgba(255, 141, 44, 0.5);
 
     /* Other colors */
@@ -60,6 +60,10 @@
     --link-active: #6161ff;
 }
 
+.darkMode {                                /* Toggleable dark mode */
+
+}
+
 
 /* Generic styles */
 
@@ -88,7 +92,8 @@ body {
     height:100%;
     overflow: hidden;
 
-    margin: 7px;
+    margin: 0;
+    padding: 0;
 
     font-family: 'Noto Sans', sans-serif;
 
@@ -105,11 +110,9 @@ body {
 /* Buttons, options, icons */
 
 button {
-    width: max-content;
-    min-width: 30px;
-    min-height: 30px;
-    padding: 5px;
-    margin: auto;
+    width: 48px;
+    height: 48px;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -120,7 +123,6 @@ button {
 
     background-size: cover;
     background-position: center;
-    border-radius: 5px;
 
     background-color: var(--button-bg-color);
     color: var(--text-color);
@@ -139,8 +141,8 @@ button:not(:hover) {
 .buttonSmall {
     color: var(--text-color);
 
-    min-width: 23px;
-    min-height: 23px;
+    width: 18px;
+    height: 18px;
 }
 
 .icon {
@@ -191,37 +193,35 @@ button:not(:hover) {
 
 /* Core UI */
 
-#menuContainerLeft, #menuContainerRight {
+#controlBarTopContainer, #controlBarBottomContainer {
     display: flex;
     flex-direction: column;
-    margin: 0 5px 0 5px;
     align-items: center;
     visibility: visible;
-    gap: 10px;
 }
-#menuContainerLeft {
+#controlBarTopContainer {
     justify-content: flex-start;
 }
-#menuContainerRight {
+#controlBarBottomContainer {
     justify-content: flex-end;
 }
-#controlBarMidSpacer {
+#controlBarMiddleContainer {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
     flex-shrink: 1;
     flex-basis: auto;
+    justify-content: center;
+    align-items: center;
 }
 
 #avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
     display: flex;
     flex-direction: column;
-    margin: 0 5px 0 5px;
     height: 50px;
     right: 5px;
     bottom: 0;
     width: 100px; /* Width must apply to spacer in bottom bar */
-    gap: 0;
 
     align-items: center;
 }
@@ -239,7 +239,7 @@ button:not(:hover) {
     display: inline-flex;
     flex-direction: column;
     position: absolute;
-    width: 50px;
+    width: 48px;
     height: 100%;
     z-index: 898;  /* TODO: Use variable, almost always on top of UI */
     top: 0;
@@ -282,6 +282,13 @@ button:not(:hover) {
 
 /* Core video elements */
 
+#videoContainer {
+    margin-left: 48px;
+    width: 100%;
+    height: 100%;
+    z-index: var(--zindex-visual-core);
+}
+
 #cameraFeed {
     display: block;
     min-width: 100%;
@@ -289,7 +296,6 @@ button:not(:hover) {
     object-fit: cover;
     position: relative;
     z-index: var(--zindex-visual-core);
-    border-radius: 5px;
 
     transition: transform 130ms linear;      /* Slight smoothing for zoom */
 }
@@ -301,12 +307,6 @@ button:not(:hover) {
     margin-left: auto;
     margin-right: auto;
     position: relative;
-    z-index: var(--zindex-visual-core);
-}
-
-#videoContainer {
-    width: 100%;
-    height: 100%;
     z-index: var(--zindex-visual-core);
 }
 

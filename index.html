@@ -12,7 +12,7 @@
     <div id="controlBar" class="hidden">
 
         <!-- Container for items on the top -->
-        <div id="menuContainerLeft">
+        <div id="controlBarTopContainer">
 
             <!-- Rotate button -->
             <button data-locale-key="rotate" id="buttonRotate" title="Rotate">
@@ -53,12 +53,17 @@
 
         </div>
 
-        <!-- Spacer to compact surrounding containers -->
-        <div id="controlBarMidSpacer">
+        <!-- Compactor for bar, container for items on the middle -->
+        <div id="controlBarMiddleContainer">
         </div>
 
-        <!-- Container for items on the right -->
-        <div id="menuContainerRight">
+        <!-- Container for items on the bottom -->
+        <div id="controlBarBottomContainer">
+
+
+
+
+
 
             <!-- Zoom controls -->
             <div id="zoomControls">
@@ -71,7 +76,8 @@
             <!-- Camera selector -->
             <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
 
-            <!-- Button for hiding control bar and island -->
+
+            <!-- Button for hiding controls -->
             <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
                 <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
             </button>
@@ -87,15 +93,16 @@
         <div id="controlBarEndSpacer">
         </div>
 
-        <!-- Always visible buttons -->
-        <div id="avButtons">
-        </div>
+    </div>
 
-        <!-- Obsolete -->
+    <!-- Always visible buttons -->
+    <div id="avButtons">
+    </div>
+
+    <!-- Obsolete UI solutions -->
+        <!-- Control island -->
         <div id="island_controlBar" class="hidden">
         </div>
-
-    </div>
 
     <!-- Core video -->
     <div id="videoContainer">

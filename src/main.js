@@ -29,6 +29,7 @@ let isFreeze = false;                                                           
 // UI state
 let mouseX;                                                                                // Initial position of the mouse
 let mouseY;
+let isControlCollapsed = false;                                                            // Are controls hidden
 
 // Other
 let createdElements;                                                                       // Handles created elements
@@ -447,14 +448,17 @@ function handleSettingStorage() {
 function createMenus() {
 
     // Get container elements of control bar
-    const menuContainerLeft           = document.getElementById('menuContainerLeft');
-    const menuContainerRight          = document.getElementById('menuContainerRight');
+    const menuContainerTop           = document.getElementById('controlBarTopContainer');
+    const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
+    const menuContainerBottom          = document.getElementById('controlBarBottomContainer');
 
     // Create menu buttons (left)
 
+    // Create menu buttons (middle)
+    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
+    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerMiddle);
+
     // Create menu buttons (right)
-    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
-    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerRight);
 
     // Settings menu creation
     let menuSettings = [];
@@ -2220,7 +2224,7 @@ class Menu extends MovableElement {
     menuDefinitions;                    // Contains definitions for the menu contents in an array
 
     // Examples
-    // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
+    // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerTop);
     // const menuTest = [
     //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
     //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip    },
@@ -2428,7 +2432,7 @@ function debug() {
     // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
 
     // const placement = document.getElementById('textControls');
-    document.getElementById('controlBarMidSpacer').appendChild(developerButton); // May run before DOM loaded
+    document.getElementById('controlBarMiddleContainer').appendChild(developerButton); // May run before DOM loaded
 
 }
 
@@ -2455,7 +2459,7 @@ function developerMenu() {
     ], "585px", "180px");
 
     // TODO: Create using Menu instead of prompt, use buttons with icons, add text support for buttons
-    // const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
+    // const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerTop'))
 
 
 }
@@ -2820,7 +2824,6 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
 class islandControlBar {
     island                = document.getElementById('island_controlBar');                  // Floating island control bar
     isIslandDragging = false                                                               // Dragging island control bar
-    isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
     islandX;                                                                               // Initial position of the control island
     islandY;
 
