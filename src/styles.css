@@ -147,9 +147,10 @@ button:not(:hover) {
 }
 
 .icon {
-    width: 30px;
-    height: 30px;
-    object-fit: contain; /* Ensures the icon fits within defined width and height */
+    width: 25px;
+    height: 25px;
+    /* object-fit: cover;   Fill, maintain aspect ratio, crop overflow */
+    object-fit: contain;   /* Fit, maintain aspect ratio, no overflow */
 
     filter: var(--icon-filter);
 }
@@ -194,11 +195,12 @@ button:not(:hover) {
 
 /* Core UI */
 
-#controlBarTopContainer, #controlBarBottomContainer {
+#controlBarTopContainer, #controlBarMiddleContainer, #controlBarBottomContainer {
     display: flex;
     flex-direction: column;
     align-items: center;
     visibility: visible;
+    width: 100%;
 }
 #controlBarTopContainer {
     justify-content: flex-start;
@@ -207,13 +209,10 @@ button:not(:hover) {
     justify-content: flex-end;
 }
 #controlBarMiddleContainer {
-    display: flex;
-    flex-direction: column;
     flex-grow: 1;
     flex-shrink: 1;
     flex-basis: auto;
     justify-content: center;
-    align-items: center;
 }
 
 #avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */

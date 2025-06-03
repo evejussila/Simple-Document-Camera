@@ -458,32 +458,115 @@ function createMenus() {
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
     const buttonVideoSelect = Menu.createButton("showVideo.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
 
+
     // Draw menu creation
     {                                   // Code block for collapsing
-        let menuDraw = [                // Creating basic buttons in menu
-            {id: "buttonFirstOption", text: "FirstOption", img: "firstIcon.png", action: firstOptionFunctionName},
-            {id: "buttonSecondOption", text: "SecondOption", img: "secondIcon.png", action: secondOptionFunctionName}
+        let menuDraw = [];
+
+        // Create color options
+
+        const colorOptions = [
+            { colorCode: '#000000', colorName: 'Black' , action: () => { setDrawColor('#000000') } },
+            { colorCode: '#FFFFFF', colorName: 'White' , action: () => { setDrawColor('#FFFFFF') } },
+            { colorCode: '#FFDE21', colorName: 'Yellow', action: () => { setDrawColor('#FFDE21') } },
+            { colorCode: '#90D5FF', colorName: 'Blue'  , action: () => { setDrawColor('#90D5FF') } },
+            { colorCode: '#FC6C85', colorName: 'Red'   , action: () => { setDrawColor('#FC6C85') } }
         ];
 
-        // Creating custom HTML in menu
-        const customContainer = document.createElement('div');     // Create container
-        const exampleLabel = document.createElement("div");                 // Create any type of HTML element to add to container
-        exampleLabel.textContent = "Example";                               // Example div with text
-        customContainer.appendChild(exampleLabel);
-        menuDraw.push( { id: "customSectionId", text: "Section tooltip", customHTML: customContainer } ); // Can push object to array or define directly in array
+        colorOptions.forEach(opt => {
+            menuDraw.push({
+                id: `buttonColor${opt.colorName}`,
+                text: opt.colorName,
+                customHTML: createColorBox(opt.colorCode)
+            });
+        });
 
         /**
-         * Nested function
+         * Nested function to create button boxes for color selection
+         *
+         * @param color
+         * @returns {HTMLDivElement}
          */
-        function firstOptionFunctionName() {
-            // Actions for first button
+        function createColorBox(color) {
+            const box = document.createElement('div');
+            box.style.width = '24px';
+            box.style.height = '24px';
+            box.style.background = color;
+            box.style.margin = "0 2px"
+            return box;
         }
 
         /**
-         * Nested function
+         * Changes active drawing color.
+         *
+         * @param color Color to use
          */
-        function secondOptionFunctionName() {
-            // Actions for first button
+        function setDrawColor(color) {
+            // Colors from parameter are strings of this type: '#000000' '#FFFFFF' '#FC6C85' etc
+            // Example call of this function: setDrawColor('#FFDE21')
+            print("setDrawColor(): Changing color to " + color, "green");
+        }
+
+        // Create separator
+        const separator = document.createElement('div');
+        separator.style.width = '1px';
+        separator.style.height = '38px';
+        separator.style.background = "#727277";
+        menuDraw.push( {id: "separator", text: "Separator", customHTML: separator} );
+
+        const thicknessOptions = [
+            { thickness: 2, thicknessName: 'Thin',    action: () => { setDrawThickness(2);  } },
+            { thickness: 4, thicknessName: 'Light',   action: () => { setDrawThickness(4);  } },
+            { thickness: 8, thicknessName: 'Medium',  action: () => { setDrawThickness(8);  } },
+            { thickness: 12, thicknessName: 'Thick',  action: () => { setDrawThickness(12); } },
+            { thickness: 18, thicknessName: 'Heavy',  action: () => { setDrawThickness(18); } }
+        ];
+
+        thicknessOptions.forEach(opt => {
+            menuDraw.push({
+                id: `buttonLine${opt.thickness}`,
+                text: opt.thicknessName,
+                customHTML: createCircleBox(opt.thickness)
+            });
+        });
+
+        /**
+         * Nested function to create button boxes for line thickness
+         *
+         * @param diameter
+         * @returns {HTMLDivElement}
+         */
+        function createCircleBox(diameter) {
+            const box = document.createElement('div');
+            box.style.width = '24px';
+            box.style.height = '24px';
+            box.style.position = 'relative';
+            box.style.background = "#F7F7F8";
+            box.style.margin = "0 2px"
+
+            const circle = document.createElement('div');
+            circle.style.width = `${diameter}px`;
+            circle.style.height = `${diameter}px`;
+            circle.style.borderRadius = '50%';
+            circle.style.background = '#000';
+            circle.style.position = 'absolute';
+            circle.style.top = `${(24 - diameter) / 2}px`;
+            circle.style.left = `${(24 - diameter) / 2}px`;
+
+            box.appendChild(circle);
+            return box;
+        }
+
+        /**
+         * Changes active drawing thickness.
+         *
+         * @param thickness
+         */
+        function setDrawThickness(thickness) {
+            // Thickness values from parameter are numbers of this type: 2 4 8 etc
+            // Example call of this function: setDrawThickness(12)
+            // Thickness values are diameters
+            print("setDrawThickness(): Changing thickness to " + thickness, "green");
         }
 
         // Create menu
@@ -568,9 +651,9 @@ function createMenus() {
     }
 
     // Info menu creation
-    {                                   // Code block for collapsing
+                                       // Code block for collapsing
         let menuInfo = [
-            {id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: showLegalInfo}
+            {id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalInfo(); } }
         ];
 
         /**
@@ -582,7 +665,7 @@ function createMenus() {
 
         // Create info menu
         createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
-    }
+
 
     // Zoom menu creation
     {                                   // Code block for collapsing
