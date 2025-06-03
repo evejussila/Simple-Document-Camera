@@ -1,11 +1,7 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
-let debugModeVisual = false;                                                                  // Enables visual debug tools
 const version = ("2025-06-02-alpha");
 console.log("Version: " + version);
-if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
-    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
-}
 
 // Localization
 const defaultLocale = "en";                                         // Default locale is english
@@ -36,7 +32,7 @@ let createdElements;                                                            
 
 
 // Initialization
-document.addEventListener('DOMContentLoaded', start);                                 // Start running scripts only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                 // Continue running script only after HTML has been loaded and elements are available
 
 function start() {
 
@@ -45,26 +41,21 @@ function start() {
 
     // Add core listeners for interface elements
     addCoreListeners();
-
+    
     // Create interface elements
     createMenus();
+    showElement(controlBar);
 
     // Add localization and wait for it to complete
     addLocalization().then(() => {
+        
         // Handle notices, consent and data storage
         handlePrivacy();
 
         // Start video feed
         videoStart().then(() => {});
-
-        // Update video input list periodically
-        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases, onchange-event should already trigger update as well)
-
-
-        // Render UI when ready
-        showElement(controlBar);                                                                  // TODO: Should run when ToS agreed to
-        showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
-
+        showElement(videoElement);
+        
     });
 
 }
@@ -121,6 +112,10 @@ function addCoreListeners() {
     navigator.mediaDevices.addEventListener('devicechange', () => {
         backgroundUpdateInputList().then( () => {} );
     });
+
+    // Update video input list periodically
+    setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases)
+    
 }
 
 /**
@@ -528,7 +523,7 @@ function createMenus() {
     menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
 
     // Create settings menu
-    createdElements.createMenu(menuSettings, buttonSettings, "above");
+    createdElements.createMenu(menuSettings, buttonSettings, "leftToRight");
 
     // Info menu creation
     let menuInfo = [
@@ -543,7 +538,7 @@ function createMenus() {
     }
 
     // Create info menu
-    createdElements.createMenu(menuInfo, buttonInfo, "above");
+    createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
 
 }
 
@@ -900,6 +895,7 @@ async function getMaxResolutionFallback(input = selector.value) {
     ];
 
     // Loop test
+    const maxResolutions = 3;
     let availableResolutions = 0;
     for (const res of testResolutions) {
         try {
@@ -908,9 +904,9 @@ async function getMaxResolutionFallback(input = selector.value) {
             res.available = await compareVideoQuality(res.width, res.height, stream);
             releaseVideoStream(stream);
             if (res.available === true) availableResolutions++;
-            print("getMaxResolutionFallback(): Tested resolution for " + shorten(input) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
+            print("getMaxResolutionFallback(): Tested resolution for " + shorten(input) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + "/" + maxResolutions + ")");
 
-            if (availableResolutions >= 3) break; // Only get three available resolutions to save time
+            if (availableResolutions >= maxResolutions) break; // Only get three available resolutions to save time
         } catch (e) {
             console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height + " : " + e);
         }
@@ -1070,8 +1066,6 @@ function getStreamInformation(stream, printOut = false) {
 
 
 // UI functions
-
-
 
 /**
  * Updates zoom value and percentage level.
@@ -1651,6 +1645,7 @@ function showElement(element, display = null) {
 
 /**
  * Gets the center coordinates of an HTML element.
+ *
  * @param {HTMLElement} element HTML element
  * @returns {{x: number, y: number}} Object with x, y coordinates
  */
@@ -1660,6 +1655,33 @@ function getElementCenter(element) {
     const y = rect.top + window.scrollY + rect.height / 2;  // TODO: Reconsider scroll values
 
     return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+}
+
+/**
+ * Gets the computed dimensions of an HTML element.
+ *
+ * @param {HTMLElement} element HTML element
+ * @returns {{width: number, height: number}}
+ */
+function getElementDimensions(element) {
+    const width = parseFloat(getComputedStyle(element).width);
+    const height = parseFloat(getComputedStyle(element).height);
+    return { width, height };
+}
+
+/**
+ * Gets the dimensions of an HTML element's bounding rectangle.
+ *
+ * @param {HTMLElement} element HTML element
+ * @returns {{width: number, height: number}}
+ */
+function getElementBoundingDimensions(element) {
+    const rect = element.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementBoundingDimensions(element);
+
 }
 
 /**
@@ -1781,6 +1803,13 @@ class CreatedElements {
     changeFontSize(size) {
         this.activeTextAreaObject.changeFontSize(size);
     }
+
+}
+
+/**
+ * Class for a dynamically created element.
+ */
+class CreatedElement {
 
 }
 
@@ -2233,19 +2262,21 @@ class Menu extends MovableElement {
     //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay   },
     //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText      }
     // ]
-    // createdElements.createMenu(menuTest, buttonTest, "above");
+    // createdElements.createMenu(menuTest, buttonTest, "leftToRight");
     //
     // const menuTest = [
-    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // WHere customHTML refers to any variable pointing to an HTML element
-    //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
+    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // Where customHTML refers to a variable referring to an HTML element
+    //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}     // All functionality (if any) for such custom elements must be created manually
     // ]
+    //
+    // Note that some functions need to be called through an anonymous function: action: () => { yourFunction(); }
 
     // Caller relations
     callerElement;                      // Element the menu is called from, e.g. a button
 
     // Positioning
     position = {x: null, y: null};      // Last set position for the menu
-
+    relativeDirection = "leftToRight";
 
     // Initialization
 
@@ -2275,9 +2306,6 @@ class Menu extends MovableElement {
         this.element.classList.add('hidden');                   // Initial state
         this.visible = false;
 
-        // Positioning
-        this.updatePosition();
-
         // Create controls
         this.menuDefinitions.forEach( (control) => {           // Parse definitions
             if (!control.customHTML) {                         // No custom HTML (falsy parameter value)
@@ -2291,6 +2319,9 @@ class Menu extends MovableElement {
                 this.element.appendChild(div);
             }
         });
+
+        // Positioning
+        this.updatePosition();
 
         // Append
         document.getElementById('videoContainer').appendChild(this.element);
@@ -2312,7 +2343,7 @@ class Menu extends MovableElement {
             icon.classList.add("icon");
             button.appendChild(icon);
 
-            return button;
+            return button; // TODO: Use static method below?
         }
 
     }
@@ -2357,12 +2388,29 @@ class Menu extends MovableElement {
 
         // Get position of caller element
         const buttonPosition = getElementCenter(this.callerElement);
+        const elementDimensions = getElementDimensions(this.callerElement);
+
+        // Debug tools
+        // print(this.callerElement.id, "red");
+        // print("Width: " + getComputedStyle(this.callerElement).width, "orange");
+        // print("Height: " + getComputedStyle(this.callerElement).height, "orange");
+        // print("Parse w: " + parseFloat(getComputedStyle(this.callerElement).width), "yellow");
+        // print("Parse h: " + parseFloat(getComputedStyle(this.callerElement).height), "yellow");
+        // print("Math w: " + parseFloat(getComputedStyle(this.callerElement).width)/2, "yellow");
+        // print("Math h: " + parseFloat(getComputedStyle(this.callerElement).height)/2, "yellow");
 
         // Set position for menu
-        const offsetX = 0;
-        const offsetY = 60; // Offset determines distance from caller button
+        const offsetX = elementDimensions.width*2;
+        const offsetY = elementDimensions.height;
+        print(" " + offsetX + " " + offsetY, "red");
         this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
-        this.element.style.bottom = this.position.y = `${offsetY}px`;
+        this.element.style.top = this.position.y = `${buttonPosition.y - offsetY}px`;
+
+        // if relativeDirection == "bottomToUp";
+        // const offsetX = 0;
+        // const offsetY = 60; // Offset determines distance from caller button
+        // this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
+        // this.element.style.bottom = this.position.y = `${offsetY}px`;
 
     }
 
@@ -2404,6 +2452,11 @@ class Menu extends MovableElement {
 
 // Developer functions (safe to delete)
 
+let debugModeVisual = false;                                                                  // Enables visual debug tools
+if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
+    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
+}
+
 /**
  * Function to enable debug mode.
  */
@@ -2414,25 +2467,25 @@ function debug() {
         print("Happy developing ✨");
     }
 
-    // Enable developer menu
-    const developerButton = document.createElement('button');
-    developerButton.id = 'buttonDev';
-    developerButton.title = 'Developer';
-    developerButton.textContent = 'Developer Options';
-    developerButton.addEventListener('click', developerMenu);
-    developerButton.style.zIndex = '9000';
-    // developerButton.style.border = "2px solid darkgray";
-    developerButton.style.border = "none";
-    // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
-    // developerButton.color = "red";
-    developerButton.style.borderRadius = "5px";
-    developerButton.style.height = '40px';
-    developerButton.style.marginLeft = "0";
+    // Get container element for menu button
+    const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
 
-    // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
+    // Create menu button
+    const buttonDeveloper = Menu.createButton("developer.png", "buttonDeveloper", "iconDeveloper", "Developer Options", menuContainerMiddle);
 
-    // const placement = document.getElementById('textControls');
-    document.getElementById('controlBarMiddleContainer').appendChild(developerButton); // May run before DOM loaded
+    // Define menu options
+    let menuDeveloper = [
+        {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png", action: debugVisual},
+        {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png", action: backgroundUpdateInputList},
+        {id: "buttonReleaseStream",       text: "Release video stream",      img: "trash.png", action: () => { releaseVideoStream(); }},
+        {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png", action: videoStart},
+        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png", action: () => { getMaxResolutionFallback(); }},
+        {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},
+        {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png", action: () => { localStorage.clear(); }},
+    ]; // TODO: Buttons needs text support
+
+    // Create menu
+    new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
 
 }
 
@@ -2694,7 +2747,7 @@ function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex
 function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '9004') {
 
     const canvas = document.createElement('canvas');
-    let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+    let { width: elementWidth, height: elementHeight } = getElementBoundingDimensions(element);
     canvas.width = elementWidth;
     canvas.height = elementHeight;
     canvas.style.zIndex = zindex;
@@ -2769,21 +2822,6 @@ function getElementCorners(element) {
 }
 
 /**
- * Gets dimensions of an element based on bounding rectangle.
- *
- * @param element
- * @returns {{width: number, height: number}}
- */
-function getElementDimensions(element) {
-    const rect = element.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-
-    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
-
-}
-
-/**
  * Draws a label (with the middle of its left edge) at the coordinates
  * HTML/CSS implementation.
  *
@@ -2821,7 +2859,7 @@ function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', 
  * Temporary container for obsolete island control bar functions.
  * Use while generalizing drag handler.
  */
-class islandControlBar {
+class IslandControlBar {
     island                = document.getElementById('island_controlBar');                  // Floating island control bar
     isIslandDragging = false                                                               // Dragging island control bar
     islandX;                                                                               // Initial position of the control island
