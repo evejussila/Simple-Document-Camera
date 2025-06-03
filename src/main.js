@@ -24,7 +24,6 @@ let isFreeze = false;                                                           
 // UI state
 let mouseX;                                                                                // Initial position of the mouse
 let mouseY;
-let isControlCollapsed = false;                                                            // Are controls hidden
 
 // Other
 let selector;                                                                              // Camera feed selector
@@ -1792,7 +1791,7 @@ function showElement(element, display = null) {
     } else {                                    // If element was hidden using hideElement()
         displayState = element.getAttribute("data-return-display-state");
         element.removeAttribute("data-return-display-state");
-    }
+    } // TODO: If neither applies, just remove the hidden class without fail
     element.style.display = displayState;       // Set display state
     // TODO: Dev: replace block with ternary
 
@@ -2606,7 +2605,17 @@ class Menu extends MovableElement {
         button.appendChild(icon);
 
         if (appendTo) {                          // Check for truthy parameter value
+            button.classList.add("hidden");
             appendTo.appendChild(button);
+            icon.onload = () => {
+                // button.classList.remove("hidden");
+                showElement(button);
+            };
+            icon.onerror = (e) => {
+                console.error("createButton(): Icon load failed: " + img + " : " + e?.message);
+                // button.classList.remove("hidden");
+                showElement(button);
+            };
         }
 
         return button;
