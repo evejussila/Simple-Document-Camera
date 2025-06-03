@@ -12,7 +12,6 @@ let currentTranslations = {};                                       // Stores tr
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
-const selector              = document.getElementById('selectorDevice');             // Camera feed selector
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
 
@@ -28,6 +27,7 @@ let mouseY;
 let isControlCollapsed = false;                                                            // Are controls hidden
 
 // Other
+let selector;                                                                              // Camera feed selector
 let createdElements;                                                                       // Handles created elements
 
 
@@ -39,12 +39,12 @@ function start() {
     // Instantiate class for created elements
     createdElements = new CreatedElements();
 
-    // Add core listeners for interface elements
-    addCoreListeners();
-    
     // Create interface elements
     createMenus();
     showElement(controlBar);
+
+    // Add core listeners for interface elements
+    addCoreListeners();
 
     // Add localization and wait for it to complete
     addLocalization().then(() => {
@@ -82,10 +82,7 @@ function addCoreListeners() {
     const fullScreenButton = document.getElementById('buttonFullScreen');
     fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
 
-    // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
-    const collapseIcon = document.getElementById("iconCollapse");
-    const collapseButton = document.getElementById('buttonCollapse');
-    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon, collapseButton));
+
 
     // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -444,8 +441,8 @@ function createMenus() {
 
     // Get container elements of control bar
     const menuContainerTop           = document.getElementById('controlBarTopContainer');
-    const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
-    const menuContainerBottom          = document.getElementById('controlBarBottomContainer');
+    const menuContainerMiddle        = document.getElementById('controlBarMiddleContainer');
+    const menuContainerBottom        = document.getElementById('controlBarBottomContainer');
 
     // Create menu buttons (top)
     const buttonDraw = Menu.createButton("draw.png", "buttonDraw", "iconDraw", "Draw", menuContainerTop);
@@ -454,9 +451,9 @@ function createMenus() {
     const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
 
     // Create menu buttons (bottom)
-    const buttonZoom = Menu.createButton("zoom.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
-    const buttonVideoSelect = Menu.createButton("showVideo.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
+    const buttonZoom = Menu.createButton("zoom.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
+    const buttonVideoSelect = Menu.createButton("switchCamera.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
 
 
     // Draw menu creation
@@ -560,7 +557,7 @@ function createMenus() {
         /**
          * Changes active drawing thickness.
          *
-         * @param thickness
+         * @param thickness Thickness to use
          */
         function setDrawThickness(thickness) {
             // Thickness values from parameter are numbers of this type: 2 4 8 etc
@@ -651,9 +648,13 @@ function createMenus() {
     }
 
     // Info menu creation
-                                       // Code block for collapsing
+    {                                   // Code block for collapsing
         let menuInfo = [
-            {id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalInfo(); } }
+            {
+                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => {
+                    showLegalInfo();
+                }
+            }
         ];
 
         /**
@@ -665,7 +666,7 @@ function createMenus() {
 
         // Create info menu
         createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
-
+    }
 
     // Zoom menu creation
     {                                   // Code block for collapsing
@@ -673,10 +674,45 @@ function createMenus() {
 
         // Creating custom HTML in menu
         const zoomContainer = document.createElement('div');                // Create container
-        const exampleLabel = document.createElement("div");                 // Create any type of HTML element to add to container
-        exampleLabel.textContent = "Example";                               // Example div with text
-        zoomContainer.appendChild(exampleLabel);
-        menuZoom.push( { id: "customSectionId", text: "Section tooltip", customHTML: zoomContainer } ); // Can push object to array or define directly in array
+        zoomContainer.id = "zoomControls";
+
+        const zoomFit = Menu.createButton("fit.png", "buttonZoomFit", "iconZoomFit", "Fit to window", zoomContainer);
+
+        const zoomOut = document.createElement("button");
+        zoomOut.dataset.localeKey = "zoomOut";
+        zoomOut.id = "buttonZoomOut";
+        zoomOut.title = "Zoom Out";
+        zoomOut.className = "buttonSmall";
+        zoomOut.textContent = "-";
+        zoomContainer.appendChild(zoomOut);
+
+        const zoomSlider = document.createElement("input");
+        zoomSlider.dataset.localeKey = "zoom";
+        zoomSlider.title = "Zoom";
+        zoomSlider.type = "range";
+        zoomSlider.id = "zoomSlider";
+        zoomSlider.min = "100";
+        zoomSlider.max = "200";
+        zoomSlider.step = "1";
+        zoomSlider.value = "100";
+        zoomContainer.appendChild(zoomSlider);
+
+        const zoomIn = document.createElement("button");
+        zoomIn.dataset.localeKey = "zoomIn";
+        zoomIn.id = "buttonZoomIn";
+        zoomIn.title = "Zoom In";
+        zoomIn.className = "buttonSmall";
+        zoomIn.textContent = "+";
+        zoomContainer.appendChild(zoomIn);
+
+        const zoomFill = Menu.createButton("fill.png", "buttonZoomFill", "iconZoomFill", "Fill window", zoomContainer);
+
+        const zoomLabel = document.createElement("span");
+        zoomLabel.id = "zoomPercentageLabel";
+        zoomLabel.textContent = "100%";
+        zoomContainer.appendChild(zoomLabel);
+
+        menuZoom.push( { id: "zoomControls", text: "Zoom", customHTML: zoomContainer } ); // Can push object to array or define directly in array
 
         // Create menu
         createdElements.createMenu(menuZoom, buttonZoom, "leftToRight");
@@ -688,10 +724,14 @@ function createMenus() {
 
         // Creating custom HTML in menu
         const videoSelectContainer = document.createElement('div');                // Create container
-        const exampleLabel = document.createElement("div");                 // Create any type of HTML element to add to container
-        exampleLabel.textContent = "Example";                               // Example div with text
-        videoSelectContainer.appendChild(exampleLabel);
-        menuVideoSelect.push( { id: "customSectionId", text: "Section tooltip", customHTML: videoSelectContainer } ); // Can push object to array or define directly in array
+        const videoSelector = document.createElement("select");
+        selector = videoSelector;
+        videoSelector.id = "selectorDevice";
+        videoSelector.title = "Select Camera";
+        videoSelector.setAttribute("data-locale-key", "selectCamera");
+
+        videoSelectContainer.appendChild(videoSelector);
+        menuVideoSelect.push({id: "videoSelector", text: "Camera selector", customHTML: videoSelectContainer}); // Can push object to array or define directly in array
 
         // Create menu
         createdElements.createMenu(menuVideoSelect, buttonVideoSelect, "leftToRight");
@@ -1273,31 +1313,6 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
     }
 }
 
-/**
- * Hides or shows control bar when collapseButton is clicked.
- * @param collapseIcon Icon for collapseButton
- * @param collapseButton Button for control visibility toggle
- */
-function toggleControlCollapse(collapseIcon, collapseButton) {
-    isControlCollapsed = !isControlCollapsed;
-
-    collapseIcon.style.transform += "scaleY(-1)";
-
-    if (isControlCollapsed) {
-        collapseButton.setAttribute("data-locale-key", "controlsShow");
-        translateElement(collapseButton);
-
-        hideElement(controlBar);
-    }
-    else {
-        collapseButton.setAttribute("data-locale-key", "controlsHide");
-        translateElement(collapseButton);
-
-        // collapseIcon.title = 'Hide controls';
-        // collapseIcon.src = "./images/hideControls.png";
-        showElement(controlBar, 'inline-flex'); // TODO: Set display states in CSS
-    }
-}
 
 /**
  * Creates a box with text or HTML from a file.
@@ -2627,7 +2642,7 @@ function debug() {
     let menuDeveloper = [
         {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png", action: debugVisual},
         {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png", action: backgroundUpdateInputList},
-        {id: "buttonReleaseStream",       text: "Release video stream",      img: "trash.png", action: () => { releaseVideoStream(); }},
+        {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png", action: () => { releaseVideoStream(); }},
         {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png", action: videoStart},
         {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png", action: () => { getMaxResolutionFallback(); }},
         {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},

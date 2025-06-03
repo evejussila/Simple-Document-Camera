@@ -51,7 +51,7 @@
 
     --option-bg-color: rgba(173, 231, 255, 0.51);
 
-    --icon-filter: invert(0);
+    --icon-filter: invert(1);
 
     --general-accent-color: rgba(0, 178, 255, 0.6);
 
@@ -218,16 +218,17 @@ button:not(:hover) {
 #avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
     display: flex;
     flex-direction: column;
-    height: 50px;
-    right: 5px;
+    height: 48px;
     bottom: 0;
-    width: 100px; /* Width must apply to spacer in bottom bar */
+    width: 48px;
 
     align-items: center;
 }
+
 #avButtons {
     position: absolute;
 }
+
 #buttonCollapse, #buttonFullScreen {
     aspect-ratio: 1/1;
     margin: 4px;

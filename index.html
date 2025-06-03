@@ -59,34 +59,6 @@
 
         <!-- Container for items on the bottom -->
         <div id="controlBarBottomContainer">
-
-
-
-
-
-
-            <!-- Zoom controls -->
-            <div id="zoomControls">
-                <button data-locale-key="zoomOut" id="buttonZoomOut" title="Zoom Out" class="buttonSmall">-</button>
-                <input data-locale-key="zoom" title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
-                <button data-locale-key="zoomIn" title="Zoom In" id="buttonZoomIn" class="buttonSmall">+</button>
-                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
-            </div>
-
-            <!-- Camera selector -->
-            <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
-
-
-            <!-- Button for hiding controls -->
-            <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
-                <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
-            </button>
-
-            <!-- Full screen button -->
-            <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
-                <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
-            </button>
-
         </div>
 
         <!-- Spacer under always visible buttons -->
@@ -97,6 +69,10 @@
 
     <!-- Always visible buttons -->
     <div id="avButtons">
+        <!-- Full screen button -->
+        <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
+            <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+        </button>
     </div>
 
     <!-- Obsolete UI solutions -->
