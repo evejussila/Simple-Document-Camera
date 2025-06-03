@@ -317,6 +317,7 @@ button:not(:hover) {
 .createdMenu {
     position: fixed;
     width: max-content;
+    min-height: 48px;
     background-color: var(--bg-color-basic);
     color: var(--text-color);
     z-index: 700;

@@ -447,98 +447,172 @@ function createMenus() {
     const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
     const menuContainerBottom          = document.getElementById('controlBarBottomContainer');
 
-    // Create menu buttons (left)
+    // Create menu buttons (top)
+    const buttonDraw = Menu.createButton("draw.png", "buttonDraw", "iconDraw", "Draw", menuContainerTop);
 
     // Create menu buttons (middle)
     const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
-    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerMiddle);
 
-    // Create menu buttons (right)
+    // Create menu buttons (bottom)
+    const buttonZoom = Menu.createButton("inspect.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
+    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
+    const buttonVideoSelect = Menu.createButton("showVideo.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
 
-    // Settings menu creation
-    let menuSettings = [];
+    // Draw menu creation
+    {                                   // Code block for collapsing
+        let menuDraw = [                // Creating basic buttons in menu
+            {id: "buttonFirstOption", text: "FirstOption", img: "firstIcon.png", action: firstOptionFunctionName},
+            {id: "buttonSecondOption", text: "SecondOption", img: "secondIcon.png", action: secondOptionFunctionName}
+        ];
 
-    // Create settings menu subsection: language selection
-    const selectLanguageContainer = document.createElement("div");
-    selectLanguageContainer.style.display = "flex";
-    selectLanguageContainer.style.flexDirection = "column";
-    selectLanguageContainer.style.alignItems = "center";
+        // Creating custom HTML in menu
+        const customContainer = document.createElement('div');     // Create container
+        const exampleLabel = document.createElement("div");                 // Create any type of HTML element to add to container
+        exampleLabel.textContent = "Example";                               // Example div with text
+        customContainer.appendChild(exampleLabel);
+        menuDraw.push( { id: "customSectionId", text: "Section tooltip", customHTML: customContainer } ); // Can push object to array or define directly in array
 
-    const languageImg = document.createElement("img");
-    languageImg.src = "./images/language.png";
-    languageImg.style.display = "block";
-    languageImg.style.width = "40px";
-    languageImg.classList.add("icon");
-    selectLanguageContainer.appendChild(languageImg);
+        /**
+         * Nested function
+         */
+        function firstOptionFunctionName() {
+            // Actions for first button
+        }
 
-    const languagesDiv = document.createElement("div");
-    languagesDiv.id = "languages";
+        /**
+         * Nested function
+         */
+        function secondOptionFunctionName() {
+            // Actions for first button
+        }
 
-    const select = document.createElement("select");
-    select.setAttribute("data-locale-selector", "");
-    select.className = "locale-switcher";
-    select.title = "Change Language";
-    select.style.width = "80px";
-    select.setAttribute("data-locale-key", "language");
-
-    // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
-
-    const optionEn = document.createElement("option");
-    optionEn.value = "en";
-    optionEn.setAttribute("data-locale-key", "english");
-    optionEn.textContent = "English";
-    select.appendChild(optionEn);
-
-    const optionFi = document.createElement("option");
-    optionFi.value = "fi";
-    optionFi.setAttribute("data-locale-key", "finnish");
-    optionFi.textContent = "Finnish";
-    select.appendChild(optionFi);
-
-    languagesDiv.appendChild(select);
-    selectLanguageContainer.appendChild(languagesDiv);
-
-    menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
-
-    // Create settings menu subsection: theme selection
-
-    const switchThemeContainer = document.createElement("div");
-    switchThemeContainer.style.display = "flex";
-    switchThemeContainer.style.flexDirection = "column";
-
-    const switchThemeLabel = document.createElement("div");
-    switchThemeLabel.textContent = "Light Theme";
-    switchThemeLabel.style.textAlign = "center";
-
-    const switchTheme = document.createElement("input");
-    switchTheme.type = "checkbox";
-
-    switchTheme.addEventListener("change", () => {
-        document.documentElement.classList.toggle("lightMode");
-    });
-
-    switchThemeContainer.appendChild(switchThemeLabel);
-    switchThemeContainer.appendChild(switchTheme);
-
-    menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
-
-    // Create settings menu
-    createdElements.createMenu(menuSettings, buttonSettings, "leftToRight");
-
-    // Info menu creation
-    let menuInfo = [
-        {id: "buttonLegalInfoPrompt",     text: "Show legal information",    img: "terms.png", action: showLegalInfo}
-    ];
-
-    /**
-     * Nested function to show info prompt
-     */
-    function showLegalInfo() {
-        showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
+        // Create menu
+        createdElements.createMenu(menuDraw, buttonDraw, "leftToRight");
     }
 
-    // Create info menu
-    createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
+    // Settings menu creation
+    {                                   // Code block for collapsing
+        let menuSettings = [];
+
+        // Create settings menu subsection: language selection
+        const selectLanguageContainer = document.createElement("div");
+        selectLanguageContainer.style.display = "flex";
+        selectLanguageContainer.style.flexDirection = "row";
+        selectLanguageContainer.style.alignItems = "center";
+        selectLanguageContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
+        selectLanguageContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
+
+        const languageImg = document.createElement("img");
+        languageImg.src = "./images/language.png";
+        languageImg.style.display = "block";
+        languageImg.style.width = "22px";
+        languageImg.style.height = "22px";
+        languageImg.classList.add("icon");
+        selectLanguageContainer.appendChild(languageImg);
+
+        const languagesDiv = document.createElement("div");
+        languagesDiv.id = "languages";
+
+        const select = document.createElement("select");
+        select.setAttribute("data-locale-selector", "");
+        select.className = "locale-switcher";
+        select.title = "Change Language";
+        select.style.width = "80px";
+        select.setAttribute("data-locale-key", "language");
+
+        // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
+
+        const optionEn = document.createElement("option");
+        optionEn.value = "en";
+        optionEn.setAttribute("data-locale-key", "english");
+        optionEn.textContent = "English";
+        select.appendChild(optionEn);
+
+        const optionFi = document.createElement("option");
+        optionFi.value = "fi";
+        optionFi.setAttribute("data-locale-key", "finnish");
+        optionFi.textContent = "Finnish";
+        select.appendChild(optionFi);
+
+        languagesDiv.appendChild(select);
+        selectLanguageContainer.appendChild(languagesDiv);
+
+        menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
+
+        // Create settings menu subsection: theme selection
+
+        const switchThemeContainer = document.createElement("div");
+        switchThemeContainer.style.display = "flex";
+        switchThemeContainer.style.flexDirection = "column";
+        switchThemeContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
+        switchThemeContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
+
+        const switchThemeLabel = document.createElement("div");
+        switchThemeLabel.textContent = "Light Theme";
+        switchThemeLabel.style.textAlign = "center";
+
+        const switchTheme = document.createElement("input");
+        switchTheme.type = "checkbox";
+
+        switchTheme.addEventListener("change", () => {
+            document.documentElement.classList.toggle("lightMode");
+        });
+
+        switchThemeContainer.appendChild(switchThemeLabel);
+        switchThemeContainer.appendChild(switchTheme);
+
+        menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
+
+        // Create settings menu
+        createdElements.createMenu(menuSettings, buttonSettings, "leftToRight");
+    }
+
+    // Info menu creation
+    {                                   // Code block for collapsing
+        let menuInfo = [
+            {id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: showLegalInfo}
+        ];
+
+        /**
+         * Nested function to show info prompt
+         */
+        function showLegalInfo() {
+            showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
+        }
+
+        // Create info menu
+        createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
+    }
+
+    // Zoom menu creation
+    {                                   // Code block for collapsing
+        let menuZoom = [];
+
+        // Creating custom HTML in menu
+        const zoomContainer = document.createElement('div');                // Create container
+        const exampleLabel = document.createElement("div");                 // Create any type of HTML element to add to container
+        exampleLabel.textContent = "Example";                               // Example div with text
+        zoomContainer.appendChild(exampleLabel);
+        menuZoom.push( { id: "customSectionId", text: "Section tooltip", customHTML: zoomContainer } ); // Can push object to array or define directly in array
+
+        // Create menu
+        createdElements.createMenu(menuZoom, buttonZoom, "leftToRight");
+    }
+
+    // Video selection menu creation
+    {                                   // Code block for collapsing
+        let menuVideoSelect = [];
+
+        // Creating custom HTML in menu
+        const videoSelectContainer = document.createElement('div');                // Create container
+        const exampleLabel = document.createElement("div");                 // Create any type of HTML element to add to container
+        exampleLabel.textContent = "Example";                               // Example div with text
+        videoSelectContainer.appendChild(exampleLabel);
+        menuVideoSelect.push( { id: "customSectionId", text: "Section tooltip", customHTML: videoSelectContainer } ); // Can push object to array or define directly in array
+
+        // Create menu
+        createdElements.createMenu(menuVideoSelect, buttonVideoSelect, "leftToRight");
+    }
 
 }
 
@@ -2404,7 +2478,7 @@ class Menu extends MovableElement {
         const offsetY = buttonDimensions.height/2;
         this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`; // Addition: offset to the right of button position
         this.element.style.top = this.position.y = `${buttonPosition.y - offsetY}px`;  // Subtraction: offset upwards from button position
-
+        // TODO: Currently only handles 48px menu height, calculate y.
     }
 
     // Related
