@@ -454,7 +454,7 @@ function createMenus() {
     const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
 
     // Create menu buttons (bottom)
-    const buttonZoom = Menu.createButton("inspect.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
+    const buttonZoom = Menu.createButton("zoom.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
     const buttonVideoSelect = Menu.createButton("showVideo.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
 
