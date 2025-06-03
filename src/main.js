@@ -1766,7 +1766,7 @@ function hideElement(element, removeAfter = false) {
     element.classList.add("hidden");                                                                         // Apply CSS class to hide element
 
     element.addEventListener("transitionend", function hideAfterTransition() {                               // Change display state after animation
-        element.style.display = "none";                                                                      // Required as hidden class only applies 0 opacity (display to none cannot be animated)
+        element.style.display = "none";                                                                      // Required as hidden class only applies 0 opacity (display to none cannot be animated) TODO: FIX: GLITCHES BUTTONS, GETS STUCK
         element.removeEventListener("transitionend", hideAfterTransition);
     });
 
@@ -1785,7 +1785,7 @@ function hideElement(element, removeAfter = false) {
  * @param display Display state to set (use for newly created elements)
  */
 function showElement(element, display = null) {
-    let displayState;
+    let displayState; // TODO: No more needed?
     if (display != null) {                      // If element has been given a specific display state to use
         displayState = display
     } else {                                    // If element was hidden using hideElement()
@@ -2470,8 +2470,6 @@ class Menu extends MovableElement {
         this.element = document.createElement('div');
         this.element.id = this.id = String(Date.now());         // Assign a (pseudo) unique id
 
-        print("Menu: create(): Creating menu: " + this.id);
-
         // Styling
         this.element.classList.add("createdMenu");
         this.element.classList.add('hidden');                   // Initial state
@@ -2492,13 +2490,16 @@ class Menu extends MovableElement {
         });
 
         // Positioning
-        this.updatePosition();
+        this.updatePosition(); // DEV: Using resize listener for this update is possible but excessive
 
         // Append
         document.getElementById('videoContainer').appendChild(this.element);
 
-        // Attach click listener
+        // Attach listener for clicks on button
         this.callerElement.addEventListener('click', () => this.toggleVisibility() );
+
+        // Attach listener for clicks outside menu
+        document.addEventListener("click", (e) => this.handleClickOutside(e), true);
 
         // Nested functions
         function createButton(id, text, img) {
@@ -2540,16 +2541,17 @@ class Menu extends MovableElement {
     /**
      * Toggles visibility of menu.
      */
-    toggleVisibility() {
-        print("Menu: toggleVisibility(): Toggling: " + this.id);
-        if (this.visible) {
+    toggleVisibility(hide = false) {
+        print("Menu: toggleVisibility(): Toggling: " + this.id + " from " + this.visible + ", override to hide: " + hide);
+        if (hide || this.visible) {
             hideElement(this.element);
+            this.visible = false;
         } else {
-            showElement(this.element, "flex");
+            this.updatePosition();
+            showElement(this.element);
+            this.visible = true;
         }
-        this.visible = !this.visible;
 
-        this.updatePosition();
     }
 
     /**
@@ -2578,10 +2580,25 @@ class Menu extends MovableElement {
         // TODO: Currently only handles 48px menu height, calculate y.
     }
 
+    handleClickOutside(e) {
+        if (!this.visible) { // Click detected but the menu related to the event listener is not visible
+            return;
+        }
+        print("Caller: " + this.callerElement.id + " Event: " + e.target.id, "red");
+        if ( !e.target.closest(".createdMenu") && !e.target.closest(`#${this.callerElement.id}`) ) { // DEV: Might be able to use e.target.id, [attribute=value] or other more specific selector
+            // DEV: Note that visibility toggle from pressing menu button is handled by a separate listener
+            this.toggleVisibility(true);
+        }
+
+        // DEV: Also available: e.target.id, this.callerElement.id
+    }
+
+
     // Related
 
     /**
      * Creates, appends and returns a button.
+     * This method should be used to create caller buttons for menus.
      *
      * @param img Image for icon
      * @param buttonId Id for button element
