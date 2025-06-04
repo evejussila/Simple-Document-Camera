@@ -54,6 +54,9 @@ function start() {
         // Start video feed
         videoStart().then(() => {});
         showElement(videoElement);
+
+        // Onboarding
+        handleOnboarding();
         
     });
 
@@ -78,10 +81,8 @@ function addCoreListeners() {
 
     // Fetch HTML element for full screen button and its icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
-    const fullScreenButton = document.getElementById('buttonFullScreen');
+    const fullScreenButton = document.getElementById("buttonFullScreen");
     fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
-
-
 
     // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -104,9 +105,12 @@ function addCoreListeners() {
         setVideoInput(e.target.value).then( () => {} );                                                                // TODO: Add catch for error
     })
 
-    // Add event listener to trigger input list update when new media device is plugged in
+    // Add event listener to trigger input list update and hint when new media device is plugged in
     navigator.mediaDevices.addEventListener('devicechange', () => {
-        backgroundUpdateInputList().then( () => {} );
+        backgroundUpdateInputList().then( () => {
+            print("listener(): Device change registered");
+            blinkVideoSelector();
+        } );
     });
 
     // Update video input list periodically
@@ -729,6 +733,7 @@ function createMenus() {
         const videoSelectContainer = document.createElement('div');                // Create container
         const videoSelector = document.createElement("select");
         selector = videoSelector;
+        selector.callerElement = buttonVideoSelect;                                        // Store reference to button for future use in onboarding
         videoSelector.id = "selectorDevice";
         videoSelector.title = "Select Camera";
         videoSelector.setAttribute("data-locale-key", "selectCamera");
@@ -742,6 +747,23 @@ function createMenus() {
 
 }
 
+function handleOnboarding() {
+    // Blink video selector button (hint)
+    blinkVideoSelector(300, 3);
+}
+
+function blinkVideoSelector(length = 300, repeats = 0) {
+    let count = 0;
+    const blink = () => {                           // Creates a series of async events that should fire sequentially
+        selector.callerElement.classList.add("buttonHighlight");
+        setTimeout(() => {
+            selector.callerElement.classList.remove("buttonHighlight");
+            count++;
+            if (count < repeats) setTimeout(blink, 200);
+        }, length);
+    };
+    blink();
+}
 
 // Camera control functions
 
@@ -953,7 +975,10 @@ function updateInputList(inputs) {
         // print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
     } else {                                                                                        // Original value invalid or not available
         selector.selectedIndex = 0;                                                                 // Select first option
-        if (originalSelection) {console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));} // Check for truthy value to prevent unneeded trigger at startup
+        if (originalSelection) {                                                                    // Check for truthy value to prevent unneeded trigger at startup
+            console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
+            blinkVideoSelector();
+        }
 
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
     }
@@ -1295,12 +1320,12 @@ function adjustZoom(increment) {
  */
 function switchToFullscreen(fullScreenIcon, fullScreenButton) {
 
-    if(!document.fullscreenElement) {                                   // Is fullscreen active?
-        videoContainer.requestFullscreen().then(() => {
-            print("switchToFullscreen(): Full screen mode activated");
+    if(!document.fullscreenElement) {                                   // True if fullscreen not active
+        document.documentElement.requestFullscreen().then(() => {
+            print("switchToFullscreen(): Fullscreen mode activated");
             fullScreenButton.setAttribute("data-locale-key", "fullscreenExit");
+            fullScreenIcon.src = "./images/fullscreenClose.png";
             translateElement(fullScreenButton);
-            fullScreenIcon.src = "./images/closeFullScreen.png";
         }).catch(error => {
             alert(`Error attempting to switch to fullscreen mode: ${error.message}`);
         });
@@ -1308,8 +1333,8 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
             print("switchToFullscreen(): Full screen mode closed");
             fullScreenButton.setAttribute("data-locale-key", "fullscreen");
-            translateElement(fullScreenButton);
             fullScreenIcon.src = "./images/fullscreen.png";
+            translateElement(fullScreenButton);
         }).catch(error => {
             console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });

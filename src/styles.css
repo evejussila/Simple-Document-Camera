@@ -2,7 +2,8 @@
 
 :root {
     /* Core colors */
-    --text-color: #ffffff;
+    --text-color: #2A2A2D;              /* Generic text color */
+    --text-color-contrast: #FCFCFC;     /* Text color on different backgrounds */
     --bg-color-darkest: #191818;
     --bg-color-basic: #494950;
     --bg-color-lightest: #F7F7F8;
@@ -96,7 +97,11 @@ body {
     margin: 0;
     padding: 0;
 
-    font-family: 'Noto Sans', sans-serif;
+    font-family: Roboto, sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0;
 
     background-color: var(--bg-color-body);
     color: var(--text-color);
@@ -229,9 +234,8 @@ button:not(:hover) {
     position: absolute;
 }
 
-#buttonCollapse, #buttonFullScreen {
+#buttonFullScreen {
     aspect-ratio: 1/1;
-    margin: 4px;
     z-index: 899; /* TODO: Use variable, always on top of UI */
     visibility: visible;
 }
@@ -449,6 +453,11 @@ button:not(:hover) {
 
 
 /* Special behavior */
+
+.buttonHighlight {
+    background-color: var(--bg-color-lightest);
+}
+
 
 #island_controlBar.animate_move {
     transition: left 1s, top 1s;
