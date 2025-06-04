@@ -488,7 +488,9 @@ function createMenus() {
             box.style.width = '24px';
             box.style.height = '24px';
             box.style.background = color;
-            box.style.margin = "0 2px"
+            box.style.margin = "0 2px";
+            box.style.outline = "1px solid #FFFFFF";
+            box.style.outlineOffset = "2px";
             return box;
         }
 
@@ -539,6 +541,8 @@ function createMenus() {
             box.style.position = 'relative';
             box.style.background = "#F7F7F8";
             box.style.margin = "0 2px"
+            box.style.outline = "1px solid #FFFFFF";
+            box.style.outlineOffset = "2px";
 
             const circle = document.createElement('div');
             circle.style.width = `${diameter}px`;
@@ -2563,15 +2567,6 @@ class Menu extends MovableElement {
         const buttonPosition = getElementCenter(this.callerElement);
         const buttonDimensions = getElementDimensions(this.callerElement);
 
-        // Debug tools
-        // print(this.element.id, "red");
-        // print("Width: " + getComputedStyle(this.element).width, "orange"); // May be undefined or null etc.
-        // print("Height: " + getComputedStyle(this.element).height, "orange");
-        // print("Parse w: " + parseFloat(getComputedStyle(this.element).width), "yellow"); // May return NaN initially or in errors
-        // print("Parse h: " + parseFloat(getComputedStyle(this.element).height), "yellow");
-        // print("Math w: " + parseFloat(getComputedStyle(this.element).width)/2, "yellow"); // May return NaN initially or in errors
-        // print("Math h: " + parseFloat(getComputedStyle(this.element).height)/2, "yellow");
-
         // Set position for menu ("leftToRight", to the right of caller element)
         const offsetX = buttonDimensions.width/2 + 1;                                  // Center + half of width + 1 px margin (in 2025 "twoday" design)
         const offsetY = buttonDimensions.height/2;
@@ -2581,16 +2576,16 @@ class Menu extends MovableElement {
     }
 
     handleClickOutside(e) {
-        if (!this.visible) { // Click detected but the menu related to the event listener is not visible
+        if (!this.visible) {
+            // Click detected but the menu related this instance's event listener is not visible, no action
             return;
         }
-        print("Caller: " + this.callerElement.id + " Event: " + e.target.id, "red");
-        if ( !e.target.closest(".createdMenu") && !e.target.closest(`#${this.callerElement.id}`) ) { // DEV: Might be able to use e.target.id, [attribute=value] or other more specific selector
-            // DEV: Note that visibility toggle from pressing menu button is handled by a separate listener
+
+        if ( !e.target.closest(".createdMenu") && !e.target.closest(`#${this.callerElement.id}`) ) {
+            // Click detected and the target was not any menu NOR the caller button for this instance's menu, hiding this menu
+            // Note that visibility toggle from pressing menu button is handled by a separate listener, this arrangement prevents multiple menus from being opened simultaneously
             this.toggleVisibility(true);
         }
-
-        // DEV: Also available: e.target.id, this.callerElement.id
     }
 
 
