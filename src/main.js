@@ -943,6 +943,7 @@ async function getVideoInputs() {
             return videoInputs;
         } else {
             console.error("getVideoInputs(): No video sources found")
+            blinkVideoSelector();
             throw new Error("getVideoInputs(): No valid video inputs");
         }
 
@@ -1415,7 +1416,7 @@ async function showContentBox(file, modal = false, clickOut = true) {
  * @param width Size of prompt
  * @param containerCSSOverrides Object with custom CSS style declarations, will override existing ones
  */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "50%", width = "200px", containerCSSOverrides = null) {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "50%", width = null, containerCSSOverrides = null) {
 
     // Examples of use:
 
@@ -1455,10 +1456,9 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         // Positioning
         prompt.style.position = 'fixed';                                  // Mobility
         prompt.style.left = positionX;                                    // Position
-        // TODO: Automate prevention of overlap of concurrent prompts (turn into class to determine overlap through instance management?)
 
         // Sizing
-        prompt.style.width = width;                                        // Sizing
+        // if (width != null) prompt.style.width = width;                    // Sizing
 
         // Initial state for animation
         prompt.style.opacity = '0';
@@ -1474,6 +1474,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
     // Create title text
     const textTitleElement = document.createElement('div');
+    textTitleElement.style.height = "80px";
     const textTitle = document.createTextNode(title);
 
     // Styling
@@ -1504,6 +1505,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
     // Create button container
     const optionContainer = document.createElement('div');
+    optionContainer.style.height = "80px";
 
     // Styling
     optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
