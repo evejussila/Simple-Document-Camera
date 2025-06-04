@@ -290,8 +290,9 @@ async function handlePrivacy() {
     }
 
     // Set button styles
-    const colorAccept = "rgba(70,136,255,0.5)";
-    const colorReject = "rgba(255,139,139,0.5)";
+    const colorAccept = "#5C5CD6";
+    const colorMinimum = "#EFEFF0";
+    const colorReject = "#D6C25C";
 
     // Interpret course of action
 
@@ -362,9 +363,9 @@ async function handlePrivacy() {
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title, texts[0].content.text, [
-            [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ],
-            [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                                      ],
-            [   texts[0].content.rejectStorage , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
+            [   texts[0].content.rejectStorage , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ],
+            [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                       , colorMinimum ],
+            [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ]
         ], "50%", "350px");
     }
 
@@ -376,9 +377,9 @@ async function handlePrivacy() {
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + " " + texts[1].content.text, [
-            [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                          , colorAccept  ],
-            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
-            [   texts[1].content.rejectTos    , () => { haltService(); }                                                 , colorReject  ]
+            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
+            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorMinimum ],
+            [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                                , colorAccept  ]
         ], "50%", "350px");
     }
 
@@ -390,8 +391,8 @@ async function handlePrivacy() {
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[1].content.title, texts[1].content.text, [
-            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],
-            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ]
+            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
+            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ]
         ], "50%", "350px");
 
     }
@@ -1416,7 +1417,7 @@ async function showContentBox(file, modal = false, clickOut = true) {
  * @param width Size of prompt
  * @param containerCSSOverrides Object with custom CSS style declarations, will override existing ones
  */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "50%", width = null, containerCSSOverrides = null) {
+function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "-50%", width = null, containerCSSOverrides = null) {
 
     // Examples of use:
 
@@ -1454,16 +1455,16 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         prompt.className = 'prompt';                                      // Set basic CSS class
 
         // Positioning
-        prompt.style.position = 'fixed';                                  // Mobility
-        prompt.style.left = positionX;                                    // Position
+        // prompt.style.position = 'fixed';                                  // Mobility
+        // prompt.style.left = positionX;                                    // Position
 
         // Sizing
         // if (width != null) prompt.style.width = width;                    // Sizing
 
         // Initial state for animation
-        prompt.style.opacity = '0';
-        prompt.style.bottom = `0px`;
-        prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
+        // prompt.style.opacity = '0';
+        // prompt.style.bottom = `0px`;
+        // prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
     }
 
     // Potential CSS overrides
@@ -1567,25 +1568,25 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // }
 
     // TODO: Replace animations with show and hide, extend show and hide arguments or use CSS classes
-
     // Animation: fade in
-    requestAnimationFrame(() => {
-        prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
-        prompt.style.opacity = '1';
-    });
+    // requestAnimationFrame(() => {
+    //     prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
+    //     prompt.style.opacity = '1';
+    // });
 
     // Nested function to dismiss prompt
     function dismiss() {
         print("customPrompt(): Dismissing prompt " + prompt.id);
+        hideElement(prompt, true)       // Animated hide, then remove
 
         // Animation: fade out
-        prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
-        prompt.style.bottom = '-100px';
-        prompt.style.opacity = '0';
-        setTimeout(() => {
-            prompt.style.display = 'none';
-            prompt.remove();
-        }, 300);
+        // prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
+        // prompt.style.bottom = '-100px';
+        // prompt.style.opacity = '0';
+        // setTimeout(() => {
+        //     prompt.style.display = 'none';
+        //     prompt.remove();
+        // }, 300);
 
     }
 

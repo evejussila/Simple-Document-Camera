@@ -166,10 +166,11 @@ button:not(:hover) {
 
 .promptOption {
     width: 100%;
-    margin: 4px 0;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
+    max-width: 175px;
+    height: 40px;
+    padding: 0 10px 0 10px;
+    border: 1px solid #2A2A2D33;
+    border-radius: 6px;
 
     background-color: var(--option-bg-color);
     color: var(--text-color);
@@ -415,7 +416,11 @@ button:not(:hover) {
 }
 
 .prompt {
-    transform: translateX(-50%);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
     background-color: var(--bg-color-lightest);
     border-radius: 8px;
     z-index: var(--zindex-prompts);
@@ -457,12 +462,13 @@ button:not(:hover) {
 
 .promptOptionContainer {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex-grow: 1;
-    justify-content: flex-end;
-    padding: 0 3px 0 3px;
-
-    gap: 0;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+    gap: 20px;
 }
 
 
@@ -475,6 +481,19 @@ button:not(:hover) {
 
 #island_controlBar.animate_move {
     transition: left 1s, top 1s;
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #494950;
+    border-top: 4px solid rgba(255, 255, 255, 0);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 
