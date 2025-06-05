@@ -290,9 +290,9 @@ async function handlePrivacy() {
     }
 
     // Set button styles
-    const colorAccept = "#5C5CD6";
-    const colorMinimum = "#EFEFF0";
-    const colorReject = "#D6C25C";
+    const colorAccept = "optionDefault";
+    const colorMinimum = "optionNeutral";
+    const colorReject = "optionNegative";
 
     // Interpret course of action
 
@@ -376,7 +376,7 @@ async function handlePrivacy() {
         console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
-        customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + " " + texts[1].content.text, [
+        customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
             [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorMinimum ],
             [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                                , colorAccept  ]
@@ -1488,7 +1488,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Create body text
     const textBody = document.createElement('div');
 
-    // Handle HTML text
+    // Handle potential custom HTML text
     if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
         print("customPrompt(): Prompt text identified as HTML");
         textBody.innerHTML = text;                                       // HTML text to innerHTML of div
@@ -1520,28 +1520,28 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
         // Styling
         button.className = 'promptOption';                                // Set basic CSS class
 
-        // Potential custom color
-        if (optionButton[2] != null) {                                    // Get potential color for button
-            // print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
-
-            // Set base color
-            button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
-
-            // Custom hover
-            let customHoverColor = optionButton[2];
-            if (customHoverColor.startsWith('rgba')) {
-                // print("customPrompt(): Color is rgba, hover enabled");
-
-                // Change color alpha for hover color
-                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 0.8)");
-                // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
-
-                // print("customPrompt(): Hover color: " + customHoverColor);
-            }
-
-            button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
-            button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
+        // Potential custom CSS class for button
+        if (optionButton[2] != null) {
+            button.classList.add(optionButton[2])
         }
+
+        // Potential custom color
+        // if (optionButton[2] != null) {                                    // Get potential color for button
+        //     // print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
+        //     // Set base color
+        //     button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
+        //     // Custom hover
+        //     let customHoverColor = optionButton[2];
+        //     if (customHoverColor.startsWith('rgba')) {
+        //         // print("customPrompt(): Color is rgba, hover enabled");
+        //         // Change color alpha for hover color
+        //         customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 0.8)");
+        //         // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
+        //         // print("customPrompt(): Hover color: " + customHoverColor);
+        //     }
+        //     button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
+        //     button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
+        // }
 
         // Attach action listener
         button.addEventListener('click', () => {

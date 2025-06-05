@@ -166,14 +166,40 @@ button:not(:hover) {
 
 .promptOption {
     width: 100%;
-    max-width: 175px;
+    max-width: 180px;
     height: 40px;
     padding: 0 10px 0 10px;
     border: 1px solid #2A2A2D33;
     border-radius: 6px;
+    font-weight: 500;
 
     background-color: var(--option-bg-color);
     color: var(--text-color);
+}
+
+.promptOption.optionDefault {
+    background-color: #5C5CD6;
+    border-color: #4747D1;
+    color: #FCFCFC;
+}
+.promptOption.optionDefault:hover{
+    background-color: #8989ec;
+}
+.promptOption.optionNeutral {
+    background-color: #EFEFF0;
+    border-color: #E4E4E7;
+    color: #4747D1;
+}
+.promptOption.optionNeutral:hover{
+    background-color: #bed9ff;
+}
+.promptOption.optionNegative {
+    background-color: #D6C25C;
+    border-color: #D1BA47;
+    color: #2A2A2D;
+}
+.promptOption.optionNegative:hover{
+    background-color: #ecdb86;
 }
 
 
@@ -484,11 +510,11 @@ button:not(:hover) {
 }
 
 .loader {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #494950;
-    border-top: 4px solid rgba(255, 255, 255, 0);
-    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    border: 6px solid #494950;
+    border-top: 6px solid rgba(255, 255, 255, 0);
+    border-radius: 80%;
     animation: spin 1s linear infinite;
 }
 

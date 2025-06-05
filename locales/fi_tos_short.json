@@ -1,6 +1,6 @@
 {
   "title": "Käyttöehdot",
-  "text": "Tämä palvelu tarjotaan sellaisena kuin se on.<br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('fi_tos_long', true, true)\">Palvelun käyttöehdot</a><br><br>",
+  "text": "Tämä palvelu tarjotaan sellaisena kuin se on.<br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('fi_tos_long', true, true)\">Palvelun käyttöehdot</a>",
   "agreeToAll": "Hyväksy kaikki",
   "agreeToTos": "Hyväksy käyttöehdot",
   "rejectTos": "Hylkää käyttöehdot"
