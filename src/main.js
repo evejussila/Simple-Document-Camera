@@ -2102,48 +2102,48 @@ class MovableElement {
     // Other
 
     /**
-     * Creates new element and a remove button for it.
+     * Creates new element.
      * @param type Element type to add (HTML tagName)
      * @param className Class name for element (should correspond with a CSS class)
      * @param id Unique identifier for added element
-     * @param elementStyle CSS style object for added element
-     * @param removeButtonStyle CSS style object for remove button
+     * @param createRemoveButton True of remove button should be created (optional, css class for button is classNameRemoveButton)
      */
-    createElement(type, className, id, elementStyle = {}, removeButtonStyle = {}) {
+    createElement(type, className, id, createRemoveButton = false) {
 
         // Create main element
         let newElement = document.createElement(type);
         newElement.id = this.id;
         newElement.className = className;                          // Assign basic class name to apply CSS styles
-        Object.assign(newElement.style, elementStyle);
-        newElement.style.opacity = "0";
+        newElement.classList.add("hidden");
         print("createElement(): Added " + newElement.className + " element: " + newElement.id);
 
         // Create remove button
-        let removeButton = document.createElement('button');
-        removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
-        removeButton.id = id + "RemoveButton";                    // Forms id for remove button
-        removeButton.title = "Remove";
-        removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
-        removeButton.textContent = "X";
-        Object.assign(removeButton.style, removeButtonStyle);     // TODO: Only assign if anything defined (set default to null and add conditional for != null)
-        removeButton.addEventListener('click', () => removeElement(newElement));
-        print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
+        if (createRemoveButton) {
+            let removeButton = document.createElement('button');
+            removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
+            removeButton.id = id + "RemoveButton";                    // Forms id for remove button
+            removeButton.title = "Remove";
+            removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
+            removeButton.textContent = "X";
+            removeButton.addEventListener('click', () => removeElement(newElement));
+            print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
 
-        // Remove button only visible when hovered over
-        newElement.addEventListener('mouseover', () => (          // TODO: Make sure fastest CSS animations apply
-            removeButton.style.display = "block"
-        ));
-        newElement.addEventListener('mouseout', () => (
-            removeButton.style.display = "none"
-        ));
+            // Remove button only visible when hovered over
+            newElement.addEventListener('mouseover', () => (
+                removeButton.style.display = "block"
+            ));
+            newElement.addEventListener('mouseout', () => (
+                removeButton.style.display = "none"
+            ));
 
-        // Add element to DOM
-        newElement.appendChild(removeButton);
-        translateElement(removeButton);
-        // element.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
+            // Add element to DOM
+            newElement.appendChild(removeButton);
+            translateElement(removeButton);
+
+        }
+
         videoContainer.appendChild(newElement);
-        newElement.style.opacity = "1";                           // TODO: Apply fade to creation
+        showElement(newElement);
 
         return newElement;
     }
@@ -2179,7 +2179,7 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "createdOverlay", this.id);
+        this.element = super.createElement("div", "createdOverlay", this.id, true);
 
         // Add listeners
         this.handleListeners();
@@ -2304,7 +2304,6 @@ class TextArea extends MovableElement {
         this.element.spellcheck = false;                                                                                               // Try to prevent spell checks by browsers
         this.container.appendChild(this.element);
         createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
-
 
         // Create contextual buttons
         const textAreaButtonContainer = document.createElement("div");
