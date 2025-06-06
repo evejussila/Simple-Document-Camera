@@ -2307,6 +2307,44 @@ class TextArea extends MovableElement {
         this.container.appendChild(this.element);
         createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
 
+
+        // Create contextual buttons
+        const textAreaButtonContainer = document.createElement("div");
+        textAreaButtonContainer.className = "createdTextAreaButtonContainer";
+
+        const buttonData = [
+            {
+                src: "./images/textLarger.png",
+                extraClass: "createdTextAreaButtonLarger",
+                onClick: () => this.fontSizeIncrease(),
+            },
+            {
+                src: "./images/textSmaller.png",
+                extraClass: "createdTextAreaButtonSmaller",
+                onClick: () => this.fontSizeDecrease(),
+            },
+            {
+                src: "./images/delete.png",
+                extraClass: "createdTextAreaButtonDelete",
+                onClick: () => this.deleteTextArea(),
+            },
+        ];
+
+        buttonData.forEach(({ src, extraClass, onClick }, index) => {
+            const button = document.createElement("button");
+            button.className = `createdTextAreaButton ${extraClass}`;
+            button.onclick = onClick;
+
+            const img = document.createElement("img");
+            img.src = src;
+            img.className = "createdTextAreaButtonImage";
+            button.appendChild(img);
+
+            textAreaButtonContainer.appendChild(button);
+        });
+
+        this.container.appendChild(textAreaButtonContainer);
+
         // Apply translation
         translateElement(this.element);
 
@@ -2450,6 +2488,21 @@ class TextArea extends MovableElement {
         let fontSize = parseFloat(element.style.fontSize);                                     // Get font size
         fontSize += size;                                                                                      // Make font size bigger or smaller
         element.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+
+    }
+
+    fontSizeIncrease() {
+
+    }
+
+    fontSizeDecrease() {
+
+    }
+
+
+    // Other
+
+    deleteTextArea() {
 
     }
 

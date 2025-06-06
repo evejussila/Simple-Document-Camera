@@ -394,7 +394,7 @@ button:not(:hover) {
     height: 100%;
     font-size: 30px;
     resize: none; /* Prefer custom implementation for resize */
-    overflow: auto;
+    overflow: hidden;
     background-color: #FFFFFF;
     border: 1px solid #C8C8C8;
     border-radius: 8px;
@@ -403,7 +403,6 @@ button:not(:hover) {
 }
 
 .createdTextAreaContainerRemoveButton { /* TODO: JS implementation breaks class naming */
-
     width: 20px;
     height: 20px;
     margin-top: -18px;
@@ -414,6 +413,49 @@ button:not(:hover) {
     z-index: 303; /* TODO: Use variable if possible */
 
     background-color: var(--remove-button-bg-color)
+}
+
+.createdTextAreaButtonContainer {
+    width: 70px;
+    height: 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border: none;
+    background: none;
+    visibility: hidden;
+    transform: translateY(-100%);
+    position: relative;
+    left: 8px;
+}
+
+.createdTextAreaButton {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #E7E7E7;
+    background-color: #494950;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: visible;
+}
+
+.createdTextAreaButtonImage {
+    width: 16px;
+    height: auto;
+    max-height: 16px;
+}
+
+.createdTextAreaButton:hover {}
+
+.createdTextAreaButtonLarger {
+    border-top-left-radius: 6px;
+}
+
+.createdTextAreaButtonSmaller {}
+
+.createdTextAreaButtonDelete {
+    border-top-right-radius: 6px;
 }
 
 .createdTextAreaResizeHandle {
