@@ -73,8 +73,6 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
     listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
-    listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
-    listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
     listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
     listenerToElement('buttonZoomIn', 'click', () => adjustZoom(0.1));              // Zoom in button
     listenerToElement('buttonZoomOut', 'click', () => adjustZoom(-0.1));            // Zoom out button
@@ -2356,8 +2354,7 @@ class TextArea extends MovableElement {
         this.resizeHandle.ondragstart = () => false; // Suppress all default drag features DEV: To replace this replace image-based handle
         this.container.appendChild(this.resizeHandle);
 
-
-        // Add resize listeners
+        // Add listeners
         this.handleListeners();
 
     }
@@ -2385,9 +2382,9 @@ class TextArea extends MovableElement {
     dragStart(e) {
         print("dragStart(): Text area drag initiated");
 
-        createdElements.setActiveTextArea(this.element, this);                         // TODO: Replace global variable use, climb instance ladder or ask super class etc.
+        createdElements.setActiveTextArea(this.element, this);
 
-        // this.container.style.zIndex = "399";                                           // Get on top
+        // this.container.style.zIndex = "399";                                        // Get on top
 
         if (e.target === this.element) {                                               // Check is the mouse click event is on the text area
             this.isMoving = true;
@@ -2427,9 +2424,20 @@ class TextArea extends MovableElement {
             const y = e.clientY - this.offsetYText;                                               // new position y
             this.container.style.left = `${x}px`;
             this.container.style.top = `${y}px`;
-        } else if (this.isResizing) {                                                                      // Expand the textarea when the mouse moves
-            const newWidth = this.startWidth + (e.clientX - this.offsetXText);                             // New width for textarea container
-            const newHeight = this.startHeight + (e.clientY - this.offsetYText);                           // New height
+        } else if (this.isResizing) {                                                                         // Expand the textarea when the mouse moves
+            // const newWidth = this.startWidth + (e.clientX - this.offsetXText);                             // New width for textarea container
+            // const newHeight = this.startHeight + (e.clientY - this.offsetYText);                           // New height
+            // this.container.style.width = `${newWidth}px`;
+            // this.container.style.height = `${newHeight}px`;
+            // this.element.style.width = `${newWidth}px`;
+            // this.element.style.height = `${newHeight}px`;
+
+            const style = getComputedStyle(this.container);
+            const minWidth = parseFloat(style.minWidth);
+            const minHeight = parseFloat(style.minHeight);
+
+            const newWidth = Math.max(minWidth, this.startWidth + (e.clientX - this.offsetXText));
+            const newHeight = Math.max(minHeight, this.startHeight + (e.clientY - this.offsetYText));
             this.container.style.width = `${newWidth}px`;
             this.container.style.height = `${newHeight}px`;
 
@@ -2463,11 +2471,12 @@ class TextArea extends MovableElement {
      */
     resizeToFitText(textArea, textAreaContainer) {
         if (textArea.scrollHeight > textArea.offsetHeight) {
-            textArea.style.height = `${textArea.scrollHeight}px`;
-            textAreaContainer.style.height = textArea.style.height;
+            requestAnimationFrame(() => {                                   // Attempt to animate resize
+                textArea.style.height = `${textArea.scrollHeight}px`;
+                textAreaContainer.style.height = textArea.style.height;
+            });
         }
         // TODO: Will not work if amount of text is very low (1-4 characters) or there are no spaces (impedes word wrap), possibly browser-dependent issue
-        // TODO: Should also be run when font + is pressed, see changeFontSize()
     }
 
 
@@ -2486,24 +2495,26 @@ class TextArea extends MovableElement {
         print("changeFontSize(): Called font size " + element.style.fontSize + " = " + window.getComputedStyle(element).fontSize + " change by " + size + " for: " + element.id);
 
         let fontSize = parseFloat(element.style.fontSize);                                     // Get font size
-        fontSize += size;                                                                                      // Make font size bigger or smaller
+        fontSize += size;                                                                      // Make font size bigger or smaller
         element.style.fontSize = fontSize + "px";                                              // Change active text area's font size
+
+        this.resizeToFitText(this.element, this.container);
 
     }
 
     fontSizeIncrease() {
-
+        this.changeFontSize(5);
     }
 
     fontSizeDecrease() {
-
+        this.changeFontSize(-5);
     }
 
 
     // Other
 
     deleteTextArea() {
-
+        hideElement(this.container, true);
     }
 
 }
