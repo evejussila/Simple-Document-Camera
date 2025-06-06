@@ -382,8 +382,8 @@ button:not(:hover) {
     position: absolute;
     left: 300px;
     top: 100px;
-    min-width: 150px;
-    min-height: 40px;
+    min-width: 240px;
+    min-height: 80px;
     z-index: 301; /* TODO: Use variable if possible */
 }
 
@@ -395,8 +395,11 @@ button:not(:hover) {
     font-size: 30px;
     resize: none; /* Prefer custom implementation for resize */
     overflow: auto;
+    background-color: #FFFFFF;
+    border: 1px solid #C8C8C8;
+    border-radius: 8px;
     cursor: move; /* TODO: Will not allow for text selection cursor, related: drag handler interferes with text selection */
-    z-index: 301; /* TODO: Use variable if possible */
+    z-index: 302; /* TODO: Use variable if possible */
 }
 
 .createdTextAreaContainerRemoveButton { /* TODO: JS implementation breaks class naming */
@@ -408,22 +411,23 @@ button:not(:hover) {
     display: none;
     border-radius: 10px;
     padding-bottom: 10px;
-    z-index: 300; /* TODO: Use variable if possible */
+    z-index: 303; /* TODO: Use variable if possible */
 
     background-color: var(--remove-button-bg-color)
 }
 
 .createdTextAreaResizeHandle {
-    width: 15px;
-    height: 15px;
-    background-color: gray;
+    width: 10px;
+    height: 10px;
     position: absolute;
     right: 0;
     bottom: 0;
     cursor: se-resize;
-    clip-path: polygon(100% 0, 0 100%, 100% 100%);
-    z-index: 302; /* TODO: Use variable if possible */
-
+    clip-path: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: auto;
+    z-index: 303; /* TODO: Use variable if possible */
 }
 
 .createdContentBox {

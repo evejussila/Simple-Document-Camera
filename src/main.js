@@ -2007,6 +2007,12 @@ class CreatedElements {
         this.activeTextAreaObject.changeFontSize(size);
     }
 
+    // Other
+
+    deleteCreatedElement() {
+
+    }
+
 }
 
 /**
@@ -2305,10 +2311,13 @@ class TextArea extends MovableElement {
         translateElement(this.element);
 
         // Add resize handle
-        this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
+        this.resizeHandle = document.createElement("img");
+        this.resizeHandle.src = "./images/textDrag.png";
         this.resizeHandle.className = "createdTextAreaResizeHandle";
         this.resizeHandle.id = this.id + "ResizeHandle";
+        this.resizeHandle.ondragstart = () => false; // Suppress all default drag features DEV: To replace this replace image-based handle
         this.container.appendChild(this.resizeHandle);
+
 
         // Add resize listeners
         this.handleListeners();
