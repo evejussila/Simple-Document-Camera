@@ -358,6 +358,12 @@ button:not(:hover) {
     gap: 7px;
 }
 
+.drawOptionSelection {
+    margin: 0 2px;
+    outline: 1px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
 .createdOverlay {
     width: 105%;
     height: 105%;

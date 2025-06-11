@@ -463,21 +463,19 @@ function createMenus() {
         let menuDraw = [];
 
         // Create color options
-
+        const colorSelectionGroupReference = { selectionStyle: "n", behavior: "exclusiveSwitch" };
         const colorOptions = [
-            { colorCode: '#000000', colorName: 'Black' , action: () => { setDrawColor('#000000') } },
-            { colorCode: '#FFFFFF', colorName: 'White' , action: () => { setDrawColor('#FFFFFF') } },
-            { colorCode: '#FFDE21', colorName: 'Yellow', action: () => { setDrawColor('#FFDE21') } },
-            { colorCode: '#90D5FF', colorName: 'Blue'  , action: () => { setDrawColor('#90D5FF') } },
-            { colorCode: '#FC6C85', colorName: 'Red'   , action: () => { setDrawColor('#FC6C85') } }
+            { colorCode: '#000000', colorName: 'Black' , action: () => { setDrawColor('#000000') } , selectionGroup: colorSelectionGroupReference },
+            { colorCode: '#FFFFFF', colorName: 'White' , action: () => { setDrawColor('#FFFFFF') } , selectionGroup: colorSelectionGroupReference },
+            { colorCode: '#FFDE21', colorName: 'Yellow', action: () => { setDrawColor('#FFDE21') } , selectionGroup: colorSelectionGroupReference },
+            { colorCode: '#90D5FF', colorName: 'Blue'  , action: () => { setDrawColor('#90D5FF') } , selectionGroup: colorSelectionGroupReference },
+            { colorCode: '#FC6C85', colorName: 'Red'   , action: () => { setDrawColor('#FC6C85') } , selectionGroup: colorSelectionGroupReference }
         ];
-
-        colorOptions.forEach(opt => {
-            menuDraw.push({
-                id: `buttonColor${opt.colorName}`,
-                text: opt.colorName,
-                customHTML: createColorBox(opt.colorCode)
-            });
+        colorOptions.forEach(option => {
+            option.id = `buttonColor${option.colorName}`;
+            option.text = option.colorName;
+            option.customHTML = createColorBox(option.colorCode);
+            menuDraw.push(option);
         });
 
         /**
@@ -491,9 +489,6 @@ function createMenus() {
             box.style.width = '24px';
             box.style.height = '24px';
             box.style.background = color;
-            box.style.margin = "0 2px";
-            box.style.outline = "1px solid #FFFFFF";
-            box.style.outlineOffset = "2px";
             return box;
         }
 
@@ -1912,6 +1907,17 @@ function getViewportEdges() {
     */
 }
 
+/**
+ * Checks if an array contains a specified value (strict).
+ *
+ * @param {Array} array - Array to parse
+ * @param {*} value - Value to check for
+ * @returns {boolean} True if value found in array
+ */
+function arrayContains(array, value) {
+    return array.some(v => Object.is(v, value));
+}
+
 
 // Simple caller methods
 
@@ -2527,7 +2533,7 @@ class Menu extends MovableElement {
     // Generic
     menuDefinitions;                    // Contains definitions for the menu contents in an array
 
-    // Examples
+    // Example use of class
     // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerTop);
     // const menuTest = [
     //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
@@ -2539,6 +2545,7 @@ class Menu extends MovableElement {
     // ]
     // createdElements.createMenu(menuTest, buttonTest, "leftToRight");
     //
+    // Example of custom HTML use for button
     // const menuTest = [
     //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // Where customHTML refers to a variable referring to an HTML element
     //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}     // All functionality (if any) for such custom elements must be created manually
@@ -2552,6 +2559,11 @@ class Menu extends MovableElement {
     // Positioning
     position = {x: null, y: null};      // Last set position for the menu
     relativeDirection = "leftToRight";
+
+    // Selector logics
+    selectionGroups = [];
+
+    // Example use of selection group
 
     // Initialization
 
@@ -2581,15 +2593,45 @@ class Menu extends MovableElement {
 
         // Create controls
         this.menuDefinitions.forEach( (control) => {           // Parse definitions
-            if (!control.customHTML) {                         // No custom HTML (falsy parameter value)
+
+            // Create basic or custom buttons
+            let buttonElement;
+            if (!control.customHTML) {                         // No custom HTML (falsy)
                 // noinspection JSUnresolvedReference          // Object is dynamic
-                const button = createButton(control.id, control.text, control.img);
-                button.addEventListener('click', control.action);
-                this.element.appendChild(button);
-            } else {                                           // Custom HTML
-                const div = document.createElement("div");     // Contain custom menu element
-                div.appendChild(control.customHTML);
-                this.element.appendChild(div);
+                buttonElement = createButton(control.id, control.text, control.img);
+                this.element.appendChild(buttonElement);
+            } else {                                               // Custom HTML
+                buttonElement = document.createElement("div");     // Contain custom menu element
+                buttonElement.appendChild(control.customHTML);
+                this.element.appendChild(buttonElement);
+            }
+
+            // Store references
+            control.elementReference = buttonElement;              // Adds HTML element reference to object in case needed
+            buttonElement.definitionObject = control;              // Adds object reference to HTML element in case needed
+
+            // Apply click action if defined
+            if (control.action) {                                  // Check if action defined (truthy)
+                buttonElement.addEventListener('click', control.action);
+            }
+
+            // Build selection logic if needed
+            if (control.selectionGroup) {                          // Check if selection logic requested (truthy)
+                if (!arrayContains(this.selectionGroups, control.selectionGroup)) {
+                    this.selectionGroups.push(control.selectionGroup);
+                }
+                if (!control.selectionGroup.buttonsArray) control.selectionGroup.buttonsArray = [];
+                control.selectionGroup.buttonsArray.push(buttonElement);
+
+                if (control.selectionGroup.behavior === "exclusiveSwitch") {
+                    buttonElement.addEventListener('click', () => {
+                        const thisButton = buttonElement;
+                        thisButton.definitionObject.selectionGroup.buttonsArray.forEach(button => {
+                            button.classList.remove('drawOptionSelection');
+                        });
+                        buttonElement.classList.add('drawOptionSelection');
+                    });
+                }
             }
         });
 
@@ -2724,11 +2766,13 @@ class Menu extends MovableElement {
                 showElement(button);
             };
             icon.onerror = (e) => {
-                console.error("createButton(): Icon load failed: " + img + " : " + e?.message);
+                console.error("createButton(): Icon load for " + buttonId + " failed: " + img + " : " + e?.message);
                 // button.classList.remove("hidden");
                 showElement(button);
             };
         }
+
+        // TODO: Create icon swapping functionality here or listenerToElement method
 
         return button;
     }
