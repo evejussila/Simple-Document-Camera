@@ -358,10 +358,20 @@ button:not(:hover) {
     gap: 7px;
 }
 
-.drawOptionSelection {
+.drawMenuOptionSelection {
     margin: 0 2px;
     outline: 1px solid #FFFFFF;
     outline-offset: 2px;
+}
+
+.drawMenuColorOption {
+    width: 24px;
+    height: 24px;
+}
+
+.drawMenuThicknessOption {
+    width: 24px;
+    height: 24px;
 }
 
 .createdOverlay {

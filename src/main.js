@@ -463,17 +463,18 @@ function createMenus() {
         let menuDraw = [];
 
         // Create color options
-        const colorSelectionGroupReference = { selectionStyle: "n", behavior: "exclusiveSwitch" };
+        const colorSelectionGroupReference = { behavior: "exclusiveSwitch", styleClass: 'drawMenuOptionSelection' };
         const colorOptions = [
-            { colorCode: '#000000', colorName: 'Black' , action: () => { setDrawColor('#000000') } , selectionGroup: colorSelectionGroupReference },
-            { colorCode: '#FFFFFF', colorName: 'White' , action: () => { setDrawColor('#FFFFFF') } , selectionGroup: colorSelectionGroupReference },
-            { colorCode: '#FFDE21', colorName: 'Yellow', action: () => { setDrawColor('#FFDE21') } , selectionGroup: colorSelectionGroupReference },
-            { colorCode: '#90D5FF', colorName: 'Blue'  , action: () => { setDrawColor('#90D5FF') } , selectionGroup: colorSelectionGroupReference },
-            { colorCode: '#FC6C85', colorName: 'Red'   , action: () => { setDrawColor('#FC6C85') } , selectionGroup: colorSelectionGroupReference }
+            { colorCode: '#000000', colorName: 'Black' , action: () => { setDrawColor('#000000') } },
+            { colorCode: '#FFFFFF', colorName: 'White' , action: () => { setDrawColor('#FFFFFF') } },
+            { colorCode: '#FFDE21', colorName: 'Yellow', action: () => { setDrawColor('#FFDE21') } },
+            { colorCode: '#90D5FF', colorName: 'Blue'  , action: () => { setDrawColor('#90D5FF') } },
+            { colorCode: '#FC6C85', colorName: 'Red'   , action: () => { setDrawColor('#FC6C85') } }
         ];
         colorOptions.forEach(option => {
             option.id = `buttonColor${option.colorName}`;
             option.text = option.colorName;
+            option.selectionGroup = colorSelectionGroupReference;
             option.customHTML = createColorBox(option.colorCode);
             menuDraw.push(option);
         });
@@ -486,8 +487,7 @@ function createMenus() {
          */
         function createColorBox(color) {
             const box = document.createElement('div');
-            box.style.width = '24px';
-            box.style.height = '24px';
+            box.classList.add("drawMenuColorOption");
             box.style.background = color;
             return box;
         }
@@ -510,6 +510,7 @@ function createMenus() {
         separator.style.background = "#727277";
         menuDraw.push( {id: "separator", text: "Separator", customHTML: separator} );
 
+        const thicknessSelectionGroupReference = { behavior: "exclusiveSwitch", styleClass: 'drawMenuOptionSelection' };
         const thicknessOptions = [
             { thickness: 2, thicknessName: 'Thin',    action: () => { setDrawThickness(2);  } },
             { thickness: 4, thicknessName: 'Light',   action: () => { setDrawThickness(4);  } },
@@ -519,11 +520,11 @@ function createMenus() {
         ];
 
         thicknessOptions.forEach(opt => {
-            menuDraw.push({
-                id: `buttonLine${opt.thickness}`,
-                text: opt.thicknessName,
-                customHTML: createCircleBox(opt.thickness)
-            });
+            opt.id = `buttonLine${opt.thickness}`;
+            opt.text = opt.thicknessName;
+            opt.selectionGroup = thicknessSelectionGroupReference;
+            opt.customHTML = createCircleBox(opt.thickness);
+            menuDraw.push(opt);
         });
 
         /**
@@ -534,13 +535,9 @@ function createMenus() {
          */
         function createCircleBox(diameter) {
             const box = document.createElement('div');
-            box.style.width = '24px';
-            box.style.height = '24px';
+            box.classList.add("drawMenuThicknessOption");
             box.style.position = 'relative';
             box.style.background = "#F7F7F8";
-            box.style.margin = "0 2px"
-            box.style.outline = "1px solid #FFFFFF";
-            box.style.outlineOffset = "2px";
 
             const circle = document.createElement('div');
             circle.style.width = `${diameter}px`;
@@ -2607,8 +2604,8 @@ class Menu extends MovableElement {
             }
 
             // Store references
-            control.elementReference = buttonElement;              // Adds HTML element reference to object in case needed
-            buttonElement.definitionObject = control;              // Adds object reference to HTML element in case needed
+            // control.elementReference = buttonElement;              // Adds HTML element reference to object in case needed
+            // buttonElement.definitionObject = control;              // Adds object reference to HTML element in case needed
 
             // Apply click action if defined
             if (control.action) {                                  // Check if action defined (truthy)
@@ -2621,15 +2618,14 @@ class Menu extends MovableElement {
                     this.selectionGroups.push(control.selectionGroup);
                 }
                 if (!control.selectionGroup.buttonsArray) control.selectionGroup.buttonsArray = [];
-                control.selectionGroup.buttonsArray.push(buttonElement);
+                control.selectionGroup.buttonsArray.push(buttonElement);                // Store associated button references to selection group object
 
                 if (control.selectionGroup.behavior === "exclusiveSwitch") {
                     buttonElement.addEventListener('click', () => {
-                        const thisButton = buttonElement;
-                        thisButton.definitionObject.selectionGroup.buttonsArray.forEach(button => {
-                            button.classList.remove('drawOptionSelection');
+                        control.selectionGroup.buttonsArray.forEach(button => {         // DEV: Arrow function completely inherits values of used variables from this context
+                            button.classList.remove(control.selectionGroup.styleClass);
                         });
-                        buttonElement.classList.add('drawOptionSelection');
+                        buttonElement.classList.add(control.selectionGroup.styleClass);
                     });
                 }
             }
