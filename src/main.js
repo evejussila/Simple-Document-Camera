@@ -1,6 +1,6 @@
 // Development tools
 let debugMode = false;                                                                        // Sets default level of console output
-const version = ("2025-06-02-alpha");
+const version = ("2025-06-12-alpha");
 console.log("Version: " + version);
 
 // Localization
@@ -446,13 +446,13 @@ function createMenus() {
     const menuContainerMiddle        = document.getElementById('controlBarMiddleContainer');
     const menuContainerBottom        = document.getElementById('controlBarBottomContainer');
 
-    // Create menu buttons (top)
+    // Create menu caller buttons (top)
     const buttonDraw = Menu.createButton("draw.png", "buttonDraw", "iconDraw", "Draw", menuContainerTop);
 
-    // Create menu buttons (middle)
+    // Create menu caller buttons (middle)
     const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
 
-    // Create menu buttons (bottom)
+    // Create menu caller buttons (bottom)
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
     const buttonZoom = Menu.createButton("zoom.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
     const buttonVideoSelect = Menu.createButton("switchCamera.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
@@ -463,18 +463,19 @@ function createMenus() {
         let menuDraw = [];
 
         // Create color options
-        const colorSelectionGroupReference = { behavior: "exclusiveSwitch", styleClass: 'drawMenuOptionSelection' };
-        const colorOptions = [
-            { colorCode: '#000000', colorName: 'Black' , action: () => { setDrawColor('#000000') } },
-            { colorCode: '#FFFFFF', colorName: 'White' , action: () => { setDrawColor('#FFFFFF') } },
-            { colorCode: '#FFDE21', colorName: 'Yellow', action: () => { setDrawColor('#FFDE21') } },
-            { colorCode: '#90D5FF', colorName: 'Blue'  , action: () => { setDrawColor('#90D5FF') } },
-            { colorCode: '#FC6C85', colorName: 'Red'   , action: () => { setDrawColor('#FC6C85') } }
+        const colorSelectionGroupReference = { behavior: "exclusive", styleClass: 'drawMenuOptionSelection' };
+        const colorOptions = [                                  // Define necessary literals
+            { colorCode: '#000000', colorName: 'Black'  },
+            { colorCode: '#FFFFFF', colorName: 'White'  },
+            { colorCode: '#FFDE21', colorName: 'Yellow' },
+            { colorCode: '#90D5FF', colorName: 'Blue'   },
+            { colorCode: '#FC6C85', colorName: 'Red'    }
         ];
-        colorOptions.forEach(option => {
-            option.id = `buttonColor${option.colorName}`;
+        colorOptions.forEach(option => {                        // Fill mandatory properties
+            option.id = `buttonDrawColor${option.colorName}`;
             option.text = option.colorName;
             option.selectionGroup = colorSelectionGroupReference;
+            option.action = () => { setDrawColor(option.colorCode) };
             option.customHTML = createColorBox(option.colorCode);
             menuDraw.push(option);
         });
@@ -504,27 +505,24 @@ function createMenus() {
         }
 
         // Create separator
-        const separator = document.createElement('div');
-        separator.style.width = '1px';
-        separator.style.height = '38px';
-        separator.style.background = "#727277";
-        menuDraw.push( {id: "separator", text: "Separator", customHTML: separator} );
+        menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
 
-        const thicknessSelectionGroupReference = { behavior: "exclusiveSwitch", styleClass: 'drawMenuOptionSelection' };
-        const thicknessOptions = [
-            { thickness: 2, thicknessName: 'Thin',    action: () => { setDrawThickness(2);  } },
-            { thickness: 4, thicknessName: 'Light',   action: () => { setDrawThickness(4);  } },
-            { thickness: 8, thicknessName: 'Medium',  action: () => { setDrawThickness(8);  } },
-            { thickness: 12, thicknessName: 'Thick',  action: () => { setDrawThickness(12); } },
-            { thickness: 18, thicknessName: 'Heavy',  action: () => { setDrawThickness(18); } }
+        const thicknessSelectionGroupReference = { behavior: "exclusive", styleClass: 'drawMenuOptionSelection' };
+        const thicknessOptions = [                                  // Define necessary literals
+            { thickness: 2, thicknessName: 'Thin'    },
+            { thickness: 4, thicknessName: 'Light'   },
+            { thickness: 8, thicknessName: 'Medium'  },
+            { thickness: 12, thicknessName: 'Thick'  },
+            { thickness: 18, thicknessName: 'Heavy'  }
         ];
 
-        thicknessOptions.forEach(opt => {
-            opt.id = `buttonLine${opt.thickness}`;
-            opt.text = opt.thicknessName;
-            opt.selectionGroup = thicknessSelectionGroupReference;
-            opt.customHTML = createCircleBox(opt.thickness);
-            menuDraw.push(opt);
+        thicknessOptions.forEach(option => {                        // Fill mandatory properties
+            option.id = `buttonDrawThickness${option.thickness}`;
+            option.text = option.thicknessName;
+            option.selectionGroup = thicknessSelectionGroupReference;
+            option.action = () => { setDrawThickness(option.thickness) };
+            option.customHTML = createCircleBox(option.thickness);
+            menuDraw.push(option);
         });
 
         /**
@@ -536,8 +534,6 @@ function createMenus() {
         function createCircleBox(diameter) {
             const box = document.createElement('div');
             box.classList.add("drawMenuThicknessOption");
-            box.style.position = 'relative';
-            box.style.background = "#F7F7F8";
 
             const circle = document.createElement('div');
             circle.style.width = `${diameter}px`;
@@ -739,7 +735,7 @@ function createMenus() {
 }
 
 function handleOnboarding() {
-    // Blink video selector button (hint)
+    // Blink video selector button at start (hint)
     blinkVideoSelector(300, 3);
 }
 
@@ -1333,7 +1329,6 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
     }
 }
 
-
 /**
  * Creates a box with text or HTML from a file.
  * Can be used for showing terms, notices, tutorials and various content.
@@ -1705,6 +1700,22 @@ function videoFreeze(freezeIcon) {
     }
 }
 
+/**
+ * Adds new overlay.
+ * Simple caller.
+ */
+function addOverlay() {
+    createdElements.createOverlay();
+}
+
+/**
+ * Adds new text area.
+ * Simple caller.
+ */
+function addText() {
+    createdElements.createTextArea();
+}
+
 
 // Utility functions
 
@@ -1915,21 +1926,17 @@ function arrayContains(array, value) {
     return array.some(v => Object.is(v, value));
 }
 
-
-// Simple caller methods
-
 /**
- * Adds new overlay.
+ * Shortens a long string.
+ * Used for long hex device ids.
+ * @param id
+ * @returns {string}
  */
-function addOverlay() {
-    createdElements.createOverlay();
-}
-
-/**
- * Adds new text area.
- */
-function addText() {
-    createdElements.createTextArea();
+function shorten(id) {
+    let shortenedId = id.trim();
+    shortenedId = shortenedId.replace(/[{}]/g, '');
+    shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
+    return shortenedId;
 }
 
 
@@ -2018,16 +2025,9 @@ class CreatedElements {
 
 /**
  * Class for a dynamically created element.
- */
-class CreatedElement {
-
-}
-
-/**
- * Parent class for dynamically created movable elements.
  * This class should not be directly instantiated (use inheritors instead).
  */
-class MovableElement {
+class CreatedElement {
 
     // Generic
     type;                                           // For fast identification of inheritor instance type
@@ -2038,28 +2038,15 @@ class MovableElement {
     container;                                      // Container reference
     resizeHandle;                                   // Reference for resize handle
 
-    // Potential listener references that are not deleted along with element via garbage collection
-    // dragListeners = [];                          // Listeners for drag operation
-    // removeListener;                              // Listener for the remove button
-    // removeHoverListeners = [];                   // Listeners for the hover visibility of remove button
-    // resizeHandleListeners = [];                  // Listeners for resize operation through handle
-    // resizeHandleHoverListeners = [];             // Listeners for hover visibility of resize handle
-
     // Switches
-    allowMove;                                      // Is drag ability enabled
     visible;                                        // Is element visible
 
 
     // Initialization
 
-    /**
-     * Instantiates class.
-     * Relies on parent class.
-     */
-    constructor(type, allowMove = true) {
+    constructor(type) {
         this.type = type;
         this.id = String(Date.now());
-        this.allowMove = allowMove;
     }
 
 
@@ -2074,7 +2061,7 @@ class MovableElement {
     }
 
 
-    // Styling
+    // Styling // TODO: Use these
 
     hide() {
         hideElement(this.element);
@@ -2097,9 +2084,45 @@ class MovableElement {
 
     // Functionality
 
-    // TODO: Generalized drag handlers here
-
     // TODO: Resize handle implementation here
+
+
+}
+
+/**
+ * Parent class for dynamically created movable elements.
+ * This class should not be directly instantiated (use inheritors instead).
+ */
+class MovableElement extends CreatedElement {
+
+    // Switches
+    allowMove;                                      // Is drag ability enabled
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
+    constructor(type, allowMove = true) {
+        super(type);
+        this.allowMove = allowMove;
+    }
+
+
+    // Functionality
+
+
+    // Drag handling (TODO: Write and implement generic)
+
+    dragStart() {
+    }
+
+    dragUpdater() {
+    }
+
+    dragStop() {
+    }
 
 
     // Other
@@ -2525,13 +2548,14 @@ class TextArea extends MovableElement {
  * Class for creating a menu programmatically.
  * Used for multiple or custom menus.
  */
-class Menu extends MovableElement {
+class Menu extends CreatedElement {
 
-    // Generic
-    menuDefinitions;                    // Contains definitions for the menu contents in an array
-
-    // Example use of class
-    // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerTop);
+    // Examples
+    //
+    // Process: Create caller button -> Define menu options and buttons in array -> Create menu
+    //
+    // ------ ------ Example of basic use: ------ ------
+    // const buttonTest = Menu.createButton("settings.png", "buttonId", "iconId", "Test button text", elementToAppendMenuTo);
     // const menuTest = [
     //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
     //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip    },
@@ -2542,25 +2566,36 @@ class Menu extends MovableElement {
     // ]
     // createdElements.createMenu(menuTest, buttonTest, "leftToRight");
     //
-    // Example of custom HTML use for button
+    // ------ ------ Notes ------ ------
+    // Some functions and code blocks may need to be called through an arrow/anonymous function: action: () => { yourFunction(contextualVariable); }
+    // Above example generates generic buttons. Menus can also be populated with virtually any content by passing any custom HTML element in the definitions.
+    // Such content can be purely visual (separators, icons, animations, text) or functional (selectors, custom buttons, links).
+    //  ------ ------ Example of custom HTML use: ------ ------
     // const menuTest = [
-    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // Where customHTML refers to a variable referring to an HTML element
+    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // Property customHTML refers to an HTML element
     //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}     // All functionality (if any) for such custom elements must be created manually
     // ]
     //
-    // Note that some functions need to be called through an anonymous function: action: () => { yourFunction(); }
+    // ------ ------ Notes ------ ------
+    // Menus may require selections between buttons. A key example is the color selection in a drawing menu, where only one color may be selected at a time.
+    // This can be achieved by using a selection group.
+    // ------ ------ Example use of selection group ------ ------
+    //
+
+    // Generic
+    menuDefinitions;                    // Contains definitions for the menu contents in an array
 
     // Caller relations
     callerElement;                      // Element the menu is called from, e.g. a button
 
     // Positioning
     position = {x: null, y: null};      // Last set position for the menu
-    relativeDirection = "leftToRight";
+    relativeDirection = "leftToRight";  // Direction and orientation of menu
 
     // Selector logics
-    selectionGroups = [];
+    selectionGroups = [];               // Selection groups used in this menu
 
-    // Example use of selection group
+
 
     // Initialization
 
@@ -2617,10 +2652,11 @@ class Menu extends MovableElement {
                 if (!arrayContains(this.selectionGroups, control.selectionGroup)) {
                     this.selectionGroups.push(control.selectionGroup);
                 }
-                if (!control.selectionGroup.buttonsArray) control.selectionGroup.buttonsArray = [];
-                control.selectionGroup.buttonsArray.push(buttonElement);                // Store associated button references to selection group object
+                if (!control.selectionGroup.buttonsArray) control.selectionGroup.buttonsArray = [];     // Make sure array property can be pushed to
+                control.selectionGroup.buttonsArray.push(buttonElement);                                // Store associated button references to selection group object
 
-                if (control.selectionGroup.behavior === "exclusiveSwitch") {
+                // Create exclusive selection behavior (single selection, selection excludes others within same group)
+                if (control.selectionGroup.behavior === "exclusive") {
                     buttonElement.addEventListener('click', () => {
                         control.selectionGroup.buttonsArray.forEach(button => {         // DEV: Arrow function completely inherits values of used variables from this context
                             button.classList.remove(control.selectionGroup.styleClass);
@@ -2660,21 +2696,6 @@ class Menu extends MovableElement {
             return button; // TODO: Use static method below?
         }
 
-    }
-
-
-    // Drag handling (TODO: Replace with generic in MovableElement)
-
-    dragStart() {
-        // Use generic from MovableElement!
-    }
-
-    dragUpdater() {
-        // Use generic from MovableElement!
-    }
-
-    dragStop() {
-        // Use generic from MovableElement!
     }
 
 
@@ -2773,89 +2794,16 @@ class Menu extends MovableElement {
         return button;
     }
 
-}
-
-
-// Developer functions (safe to delete)
-
-let debugModeVisual = false;                                                                  // Enables visual debug tools
-if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
-    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
-}
-
-/**
- * Function to enable debug mode.
- */
-function debug() {
-    debugMode = true;
-    if (debugMode) {
-        print("Debug mode is enabled!");
-        print("Happy developing ✨");
+    static createSeparator() {
+        const separator = document.createElement('div');
+        separator.classList.add("menuSeparator");
+        return separator;
     }
 
-    // Get container element for menu button
-    const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
-
-    // Create menu button
-    const buttonDeveloper = Menu.createButton("developer.png", "buttonDeveloper", "iconDeveloper", "Developer Options", menuContainerMiddle);
-
-    // Define menu options
-    let menuDeveloper = [
-        {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png", action: debugVisual},
-        {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png", action: backgroundUpdateInputList},
-        {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png", action: () => { releaseVideoStream(); }},
-        {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png", action: videoStart},
-        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png", action: () => { getMaxResolutionFallback(); }},
-        {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},
-        {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png", action: () => { localStorage.clear(); }},
-    ]; // TODO: Buttons needs text support
-
-    // Create menu
-    new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
-
 }
 
-/**
- * Function to create and show developer options -menu.
- *
- */
-function developerMenu() {
-    print("developerMenu(): Developer menu button pressed");
 
-    // ADD NEW BUTTONS HERE
-    customPrompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                                 }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
-        [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
-        [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
-        [   "Fallback resolution test"         , () => { getMaxResolutionFallback();                                     }],
-        [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
-        [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
-        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
-        // Template:
-    //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
-        [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
-    ], "585px", "180px");
-
-    // TODO: Create using Menu instead of prompt, use buttons with icons, add text support for buttons
-    // const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerTop'))
-
-
-}
-
-/**
- * Prints out all local storage key-value pairs to console
- * @returns {{}} Object containing all key-value pairs
- */
-function dumpLocalStorage() {
-    let localStorageDataPairs = {};                             // Object instead of array
-    Object.keys(localStorage).forEach(key => {
-        localStorageDataPairs[key] = localStorage.getItem(key);
-    });
-    console.log(JSON.stringify(localStorageDataPairs));         // Formatted output
-    // console.log(localStorageDataPairs);
-    return localStorageDataPairs;
-}
+// Developer functions (do not delete)
 
 /**
  * Outputs strings to console if debug is enabled.
@@ -2922,17 +2870,58 @@ function print(string, color = "gray", tracePrint = false) {
 
 }
 
+
+// Developer functions (safe to delete)
+
+let debugModeVisual = false;                                                                  // Enables visual debug tools
+if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
+    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
+}
+
 /**
- * Shortens a long string.
- * Used for long hex device ids.
- * @param id
- * @returns {string}
+ * Function to enable debug mode.
  */
-function shorten(id) {
-    let shortenedId = id.trim();
-    shortenedId = shortenedId.replace(/[{}]/g, '');
-    shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
-    return shortenedId;
+function debug() {
+    debugMode = true;
+    if (debugMode) {
+        print("Debug mode is enabled!");
+        print("Happy developing ✨");
+    }
+
+    // Get container element for menu button
+    const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
+
+    // Create menu button
+    const buttonDeveloper = Menu.createButton("developer.png", "buttonDeveloper", "iconDeveloper", "Developer Options", menuContainerMiddle);
+
+    // Define menu options
+    let menuDeveloper = [
+        {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png", action: debugVisual},
+        {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png", action: backgroundUpdateInputList},
+        {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png", action: () => { releaseVideoStream(); }},
+        {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png", action: videoStart},
+        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png", action: () => { getMaxResolutionFallback(); }},
+        {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},
+        {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png", action: () => { localStorage.clear(); }},
+    ]; // TODO: Buttons needs text support
+
+    // Create menu
+    new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
+
+}
+
+/**
+ * Prints out all local storage key-value pairs to console
+ * @returns {{}} Object containing all key-value pairs
+ */
+function dumpLocalStorage() {
+    let localStorageDataPairs = {};                             // Object instead of array
+    Object.keys(localStorage).forEach(key => {
+        localStorageDataPairs[key] = localStorage.getItem(key);
+    });
+    console.log(JSON.stringify(localStorageDataPairs));         // Formatted output
+    // console.log(localStorageDataPairs);
+    return localStorageDataPairs;
 }
 
 /**

@@ -21,7 +21,7 @@
     --icon-filter: ;                                /* Allows color inversion for icons */
 
     /* Animations and hovers */
-    --general-transitions: opacity 400ms ease, background-color 25ms linear, transform 300ms ease-in-out;
+    --general-transitions: opacity 300ms ease, background-color 25ms linear, transform 300ms ease-in-out;
     --button-bg-color-hover: var(--general-accent-color);
     --general-hover-filter: opacity(1) brightness(1);
 
@@ -356,6 +356,13 @@ button:not(:hover) {
     flex-direction: row;
     align-items: center;
     gap: 7px;
+    padding: 0 7px;
+}
+
+.menuSeparator {
+    width: 1px;
+    height: 38px;
+    background-color: #727277;
 }
 
 .drawMenuOptionSelection {
@@ -372,6 +379,8 @@ button:not(:hover) {
 .drawMenuThicknessOption {
     width: 24px;
     height: 24px;
+    position: relative;
+    background-color: #F7F7F8;
 }
 
 .createdOverlay {
