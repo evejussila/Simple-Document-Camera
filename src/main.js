@@ -362,10 +362,11 @@ async function handlePrivacy() {
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title, texts[0].content.text, [
-            [   texts[0].content.rejectStorage , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ],
-            [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                       , colorMinimum ],
-            [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ]
-        ]);
+                { buttonText: texts[0].content.rejectStorage, action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
+                { buttonText: texts[0].content.notNow, action: () => { /* Only implicit rejection, ask again later */ }, customCSS: colorMinimum },
+                { buttonText: texts[0].content.agreeStorage, action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+            ]
+        );
     }
 
     /**
@@ -376,10 +377,11 @@ async function handlePrivacy() {
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
-            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
-            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorMinimum ],
-            [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                                , colorAccept  ]
-        ]);
+                { buttonText: texts[1].content.rejectTos, action: () => { haltService(); }, customCSS: colorReject },
+                { buttonText: texts[1].content.agreeToTos, action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
+                { buttonText: texts[1].content.agreeToAll, action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+            ]
+        );
     }
 
     /**
@@ -390,9 +392,10 @@ async function handlePrivacy() {
 
         // noinspection JSUnresolvedReference                                   // Object is dynamic
         customPrompt(texts[1].content.title, texts[1].content.text, [
-            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
-            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ]
-        ]);
+                { buttonText: texts[1].content.rejectTos, action: () => { haltService(); }, customCSS: colorReject },
+                { buttonText: texts[1].content.agreeToTos, action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
+            ]
+        );
 
     }
 
@@ -771,9 +774,9 @@ async function videoStart() {
     let genericPromptText = currentTranslations.videoProblemPromptText;
     // noinspection JSUnresolvedReference                                   // Object is dynamic
     let genericPromptActions = [
-        [currentTranslations.retry,        () =>       { videoStart(); } ],
-        [currentTranslations.dismiss,      () =>       {               } ]
-    ];
+            { buttonText: currentTranslations.retry, action: () => { videoStart(); } },
+            { buttonText: currentTranslations.dismiss, action: () => { } }
+        ];
 
     // Get permission and inputs
     let error = false;
@@ -1372,41 +1375,31 @@ async function showContentBox(file, modal = false, clickOut = true, options = un
  * @param clickOut Should modal prompt exit when modal overlay is clicked
  * @param forceExecutionBlocking If true, function returns a value only after a button was pressed (synchronous, blocking)
  */
-function customPrompt(title = "Title", text = "Text", options = [["Close", () => {  }]], containerCSSOverrides = null, modal = false, clickOut = false, forceExecutionBlocking = false) {
+function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = false, forceExecutionBlocking = false) {
 
-    // Examples of use:
-
+    // Examples TODO: redo
     // customPrompt("Title", "Text or HTML for body",                                                               [
     //     [   "Button"                , () => { console.log("Button pressed")                                  }   ],
     //     [   "Dismiss"               , () => {                                                                }   ]
-    // ], "50%");
+    // ]);
 
-    // customPrompt("Title of test prompt", "String or a variable containing string, string can contain HTML code", [
-    //     [   "Option 1"              , () => { function_name1()                                               }   ],
-    //     [   "Option 2"              , () => { function_name2();                                              }   ],
-    //     [   "Option 3 "             , () => { function_name2(); function_name3();                            }   ],
-    //     [   "Text for button"       , () => { console.log("functions and code blocks supported")             }   ],
-    //     [   "Text for button"       , () => { console.log("any command can be run here")                     }   ],
-    //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }   ],
-    //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }   ]
-    // ], "50%");
+    let returnValue = undefined;        // Value is used in execution blocking
 
-    // Buttons also support optional custom colors (note that only rgba colors with reduced transparency get hover effects)
-    // Custom width (in px) and x-axis positioning (distance from left edge in % or px) are supported
-    // For special uses, CSS style overrides can be passed as an object argument.
-    // customPrompt("Title", "Text or HTML",                                                                          [
-    //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
-    //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
-    //     [   "Red button"          , () => { console.log("Red button pressed")           }  , "rgba(255,0,0,0.74)"  ]
-    // ], "70%", "100px");
+    const exampleOptions = [
+        { buttonText: "Close", action: () => { console.log("Prompt closed") }, dismissOnPress: true, returnValue: 0, customCSS: undefined }
+    ];
+    // If forceExecutionBlocking is true
+    //    The prompt function returns the returnValue of the button that was pressed. The value is optional.
+    //    Default returnValue for buttons is integer 0, but failed execution of button action returns a boolean false.
 
     // Create prompt container
-    const prompt = document.createElement('div');                 // Create element
-    prompt.id = String(Date.now());                                       // Assign a (pseudo) unique id
+    const prompt = document.createElement('div');                      // Create element
+    // hideElement(prompt);
+    prompt.id = String(Date.now());                                   // Assign a (pseudo) unique id
     prompt.className = 'prompt';                                      // Set basic CSS class
 
     // Potential CSS overrides
-    if (containerCSSOverrides != null) {
+    if (containerCSSOverrides) {
         if (typeof containerCSSOverrides === "object") {
             print("customPrompt(): Applying CSS overrides (object) to prompt");
             Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
@@ -1442,6 +1435,17 @@ function customPrompt(title = "Title", text = "Text", options = [["Close", () =>
     // Append
     prompt.appendChild(textBody);
 
+    // Modal functionality
+    const modalOverlay = document.createElement("div");              // Create container element
+    if (modal) {                                                     // Create modal overlay if requested
+        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
+        document.body.appendChild(modalOverlay);                     // Append
+        showElement(modalOverlay);
+        if (clickOut) {
+            modalOverlay.addEventListener('click', dismiss);
+        }
+    }
+
     // Create button container
     const optionContainer = document.createElement('div');
     optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
@@ -1450,20 +1454,35 @@ function customPrompt(title = "Title", text = "Text", options = [["Close", () =>
     options.forEach((optionButton) => {
         // Create button
         const button = document.createElement('button');
-        button.textContent = `${optionButton[0]}`;                        // Get text for button
+        button.textContent = optionButton.buttonText;                        // Get text for button
 
         // Styling
-        button.className = 'promptOption';                                // Set basic CSS class
+        button.className = 'promptOption';                                   // Set basic CSS class
 
-        // Potential custom CSS class for button
-        if (optionButton[2] != null) {
-            button.classList.add(optionButton[2])
+        // Potential custom style for button
+        if (optionButton.customCSS) {
+            button.classList.add(optionButton.customCSS)
+            if (typeof optionButton.customCSS === "object") {
+                print("customPrompt(): Applying CSS overrides (object) to button");
+                Object.assign(button.style, optionButton.customCSS);                // Assigns CSS key-value pairs to element from argument for custom styles
+            } else if (typeof optionButton.customCSS === "string") {
+                print("customPrompt(): Applying CSS overrides (class) to button: " + optionButton.customCSS);
+                button.classList.add(optionButton.customCSS);
+            }
         }
 
         // Attach action listener
         button.addEventListener('click', () => {
-            dismiss();                                                    // Buttons always dismiss prompt
-            optionButton[1]();                                            // Run function or code block
+            if (!optionButton.dismissOnPress) {
+                dismiss();                      // Buttons dismiss prompt by default
+            }
+            try {
+                optionButton.action();                                        // Run function or code block
+                returnValue = (optionButton.returnValue) ? optionButton.returnValue : 0;
+            } catch (e) {
+                console.error("customPrompt(): Button action failed: " + e.message);
+                returnValue = false;
+            }
         });
 
         // Append
@@ -1473,24 +1492,10 @@ function customPrompt(title = "Title", text = "Text", options = [["Close", () =>
     // Append
     prompt.appendChild(optionContainer);
 
-    // Modal functionality
-    const modalOverlay = document.createElement("div");      // Create container element
-    if (modal) {                                                     // Create modal overlay if requested
-        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
-        document.body.appendChild(modalOverlay);                     // Append
-        showElement(modalOverlay);
-        if (clickOut) {
-            modalOverlay.addEventListener('click', removeModalPrompt);
-        }
-    }
-    function removeModalPrompt() {
-        removeElement(modalOverlay);
-        removeElement(prompt);                                  // Remove prompt when not dismissed
-    }
-
     // Append prompt
     print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
+    showElement(prompt);
 
     // Dismiss prompt after timeout
     // const timeout = 1000;
@@ -1510,7 +1515,10 @@ function customPrompt(title = "Title", text = "Text", options = [["Close", () =>
     // Nested function to dismiss prompt
     function dismiss() {
         print("customPrompt(): Dismissing prompt " + prompt.id);
-        hideElement(prompt, true)       // Animated hide, then remove
+        if (modal) {
+            removeElement(modalOverlay);
+        }
+        removeElement(prompt)       // Animated hide, then remove
 
         // Animation: fade out
         // prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
@@ -1521,6 +1529,12 @@ function customPrompt(title = "Title", text = "Text", options = [["Close", () =>
         //     prompt.remove();
         // }, 300);
 
+    }
+
+    if (forceExecutionBlocking) {
+        while (returnValue === undefined) {             // Block execution until return value is available
+        }
+        return returnValue;
     }
 
     return prompt;

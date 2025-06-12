@@ -1,4 +1,4 @@
 {
-  "title": "Tietosuojailmoitus (pitkä)",
-  "text": "Tämä teksti ei ole valmis ja lisätään myöhemmässä päivityksessä. Joka tapauksessa, voit olla varma, että sovelluksen kehittäjät kunnioittavat yksityisyyttäsi ja oikeuksiasi. Tämän sovelluksen koodi on täysin julkista sekä tarkastettavissa selaimesi kehitystyökaluissa ja GitHubissa."
+  "title": "Tietosuojailmoitus",
+  "text": "SDC ei kerää käyttäjistä tietoja eikä vaadi kirjautumista. Palvelu ei käytä evästeitä, mutta voi käyttäjän luvalla tallentaa paikallisesti ohjelmassa käytettyjä asetuksia sekä ehtojen hyväksyntään annetun vastauksen."
 }
