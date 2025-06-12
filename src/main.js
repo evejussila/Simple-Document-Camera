@@ -31,6 +31,7 @@ let createdElements;                                                            
 
 
 // Initialization
+
 document.addEventListener('DOMContentLoaded', start);                                 // Continue running script only after HTML has been loaded and elements are available
 
 function start() {
@@ -364,7 +365,7 @@ async function handlePrivacy() {
             [   texts[0].content.rejectStorage , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ],
             [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                       , colorMinimum ],
             [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ]
-        ], "50%", "350px");
+        ]);
     }
 
     /**
@@ -378,7 +379,7 @@ async function handlePrivacy() {
             [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorMinimum ],
             [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                                , colorAccept  ]
-        ], "50%", "350px");
+        ]);
     }
 
     /**
@@ -391,7 +392,7 @@ async function handlePrivacy() {
         customPrompt(texts[1].content.title, texts[1].content.text, [
             [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ],
             [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ]
-        ], "50%", "350px");
+        ]);
 
     }
 
@@ -752,6 +753,7 @@ function blinkVideoSelector(length = 300, repeats = 0) {
     blink();
 }
 
+
 // Camera control functions
 
 /**
@@ -807,7 +809,7 @@ async function videoStart() {
         }
     }
 
-    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "108px", "180px"); }                   // Prompt user
+    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
     // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
@@ -1334,13 +1336,12 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
  * Can be used for showing terms, notices, tutorials and various content.
  * Assumes file path ./locales/
  * @param {string} file File to load text from
- * @param modal Should the prompt be modal
- * @param clickOut Should modal prompt exit when overlay is clicked
+ * @param modal Should the prompt be modal (optional)
+ * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
+ * @param options Button option definitions (optional)
  */
-async function showContentBox(file, modal = false, clickOut = true) {
+async function showContentBox(file, modal = false, clickOut = true, options = undefined) {
     print("showContentBox(): Showing content from file: " + file);
-
-    // Load text from file
 
     let title;
     let contentToShow;
@@ -1350,59 +1351,28 @@ async function showContentBox(file, modal = false, clickOut = true) {
         title = text.title;
         contentToShow = text.text;
         print("showContentBox(): Found text: " + file + " with title: " + text.title);
+
+        return customPrompt(title, contentToShow, options, "promptContentBox", modal, clickOut);
     } catch (e) {
         console.warn("showContentBox(): Did not find text: " + file + " : " + e);
     }
 
-    const modalOverlay = document.createElement("div");      // Create container element
-
-    if (modal) {                                                     // Create modal overlay if requested
-        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
-        document.body.appendChild(modalOverlay);                     // Append
-        showElement(modalOverlay);
-        if (clickOut) {
-            modalOverlay.addEventListener('click', removeModalPrompt);
-        }
-    }
-
-    const customPromptStyle = {                         // Style overrides for prompt
-        position: "fixed",
-        top: "50%",                                     // Centering
-        left: "50%",                                    // Centering
-        transform: "translate(-50%, -50%)",             // Centering
-        aspectRatio: "16 / 9",                          // Sizing
-        bottom: "unset",                                // Remove default value that conflicts with purpose
-        display: "flex",
-        flexDirection: "column",
-        zIndex: "1050",
-    };
-
-    const prompt = customPrompt(title, contentToShow, [
-        ["Close", () => { removeModalPrompt() }]
-    ], "50%", "500px", customPromptStyle);        // Apply custom definitions
-
-    // Nested functions for options
-
-    function removeModalPrompt() {
-        removeElement(modalOverlay);
-        removeElement(prompt);                                  // Remove prompt when not dismissed
-    }
-
+    return false;
 }
 
 /**
- * Creates a prompt with text and buttons.
+ * Creates a prompt with text or HTML content and buttons.
  * Executes actions based on button press.
- * Every button will dismiss prompt.
  *
  * @param title Title text for prompt
  * @param text Body text for prompt (can contain HTML)
  * @param options Array with text and code to run for buttons
- * @param positionX Position of prompt (string value for property style.left)
- * @param width Size of prompt
- * @param containerCSSOverrides Object with custom CSS style declarations, will override existing ones
+ * @param containerCSSOverrides CSS class to add to class list or object with custom CSS style declarations, will apply to prompt container
+ * @param modal Should the prompt be modal
+ * @param clickOut Should modal prompt exit when modal overlay is clicked
+ * @param forceExecutionBlocking If true, function returns a value only after a button was pressed (synchronous, blocking)
  */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "-50%", width = null, containerCSSOverrides = null) {
+function customPrompt(title = "Title", text = "Text", options = [["Close", () => {  }]], containerCSSOverrides = null, modal = false, clickOut = false, forceExecutionBlocking = false) {
 
     // Examples of use:
 
@@ -1433,38 +1403,23 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Create prompt container
     const prompt = document.createElement('div');                 // Create element
     prompt.id = String(Date.now());                                       // Assign a (pseudo) unique id
-
-    // CSS block for prompt container
-    {
-        // Styling
-        prompt.className = 'prompt';                                      // Set basic CSS class
-
-        // Positioning
-        // prompt.style.position = 'fixed';                                  // Mobility
-        // prompt.style.left = positionX;                                    // Position
-
-        // Sizing
-        // if (width != null) prompt.style.width = width;                    // Sizing
-
-        // Initial state for animation
-        // prompt.style.opacity = '0';
-        // prompt.style.bottom = `0px`;
-        // prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
-    }
+    prompt.className = 'prompt';                                      // Set basic CSS class
 
     // Potential CSS overrides
     if (containerCSSOverrides != null) {
-        print("customPrompt(): Applying CSS overrides to prompt");
-        Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
+        if (typeof containerCSSOverrides === "object") {
+            print("customPrompt(): Applying CSS overrides (object) to prompt");
+            Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
+        } else if (typeof containerCSSOverrides === "string") {
+            print("customPrompt(): Applying CSS overrides (class) to prompt: " + containerCSSOverrides);
+            prompt.classList.add(containerCSSOverrides);
+        }
     }
 
     // Create title text
     const textTitleElement = document.createElement('div');
-    textTitleElement.style.height = "80px";
-    const textTitle = document.createTextNode(title);
-
-    // Styling
     textTitleElement.className = 'promptTitle';                           // Set basic CSS class
+    const textTitle = document.createTextNode(title);
 
     // Append
     textTitleElement.appendChild(textTitle);
@@ -1472,6 +1427,7 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
 
     // Create body text
     const textBody = document.createElement('div');
+    textBody.className = 'promptText';                                   // Set basic CSS class
 
     // Handle potential custom HTML text
     if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
@@ -1483,17 +1439,11 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     }
     // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed can be fine and won't throw errors but should be noticed
 
-    // Styling
-    textBody.className = 'promptText';                                   // Set basic CSS class
-
     // Append
     prompt.appendChild(textBody);
 
     // Create button container
     const optionContainer = document.createElement('div');
-    optionContainer.style.height = "80px";
-
-    // Styling
     optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
 
     // Create buttons
@@ -1510,24 +1460,6 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
             button.classList.add(optionButton[2])
         }
 
-        // Potential custom color
-        // if (optionButton[2] != null) {                                    // Get potential color for button
-        //     // print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
-        //     // Set base color
-        //     button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
-        //     // Custom hover
-        //     let customHoverColor = optionButton[2];
-        //     if (customHoverColor.startsWith('rgba')) {
-        //         // print("customPrompt(): Color is rgba, hover enabled");
-        //         // Change color alpha for hover color
-        //         customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 0.8)");
-        //         // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
-        //         // print("customPrompt(): Hover color: " + customHoverColor);
-        //     }
-        //     button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
-        //     button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
-        // }
-
         // Attach action listener
         button.addEventListener('click', () => {
             dismiss();                                                    // Buttons always dismiss prompt
@@ -1541,6 +1473,22 @@ function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () =
     // Append
     prompt.appendChild(optionContainer);
 
+    // Modal functionality
+    const modalOverlay = document.createElement("div");      // Create container element
+    if (modal) {                                                     // Create modal overlay if requested
+        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
+        document.body.appendChild(modalOverlay);                     // Append
+        showElement(modalOverlay);
+        if (clickOut) {
+            modalOverlay.addEventListener('click', removeModalPrompt);
+        }
+    }
+    function removeModalPrompt() {
+        removeElement(modalOverlay);
+        removeElement(prompt);                                  // Remove prompt when not dismissed
+    }
+
+    // Append prompt
     print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
 
@@ -2024,7 +1972,7 @@ class CreatedElements {
 }
 
 /**
- * Class for a dynamically created element.
+ * Parent class for dynamically created elements.
  * This class should not be directly instantiated (use inheritors instead).
  */
 class CreatedElement {
@@ -2090,7 +2038,7 @@ class CreatedElement {
 }
 
 /**
- * Parent class for dynamically created movable elements.
+ * Parent class for movable elements.
  * This class should not be directly instantiated (use inheritors instead).
  */
 class MovableElement extends CreatedElement {
@@ -2802,6 +2750,31 @@ class Menu extends CreatedElement {
 
 }
 
+/**
+ * Class for creating drawings.
+ */
+class Drawing extends CreatedElement {
+
+
+    /**
+     * Draws a line between two points.
+     *
+     * @param context Canvas 2d context to draw to
+     * @param x1
+     * @param y1
+     * @param x2
+     * @param y2
+     * @param stroke
+     */
+    static drawLine(context, x1, y1, x2, y2, stroke = true) {
+        context.beginPath();
+        context.moveTo(x1, y1);
+        context.lineTo(x2, y2);
+        if (stroke) { context.stroke(); }
+    }
+
+}
+
 
 // Developer functions (do not delete)
 
@@ -2903,7 +2876,16 @@ function debug() {
         {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png", action: () => { getMaxResolutionFallback(); }},
         {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},
         {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png", action: () => { localStorage.clear(); }},
-    ]; // TODO: Buttons needs text support
+        {id: "buttonClearStorage",        text: "Clear URL parameters",      img: "clean.png", action: () => { clearURLParameters(); }},
+    ];
+
+    function clearURLParameters() {
+        const url = new URL(window.location.href);
+        const debug = url.searchParams.get("debug");
+        url.search = "";
+        if (debug !== null) url.searchParams.set("debug", debug);
+        window.history.replaceState(null, "", url.toString());
+    }
 
     // Create menu
     new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
@@ -3078,8 +3060,8 @@ function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zin
     context.lineWidth = lineWidth;
     context.strokeStyle = color;
     let { bottomLeft: bottomLeft, topRight: topRight, topLeft: topLeft, bottomRight: bottomRight } = getElementCorners(element);
-    drawLine(context, bottomLeft.x, bottomLeft.y, topRight.x, topRight.y);
-    drawLine(context, topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
+    Drawing.drawLine(context, bottomLeft.x, bottomLeft.y, topRight.x, topRight.y);
+    Drawing.drawLine(context, topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
 
     document.body.appendChild(canvas);
 
@@ -3098,22 +3080,6 @@ function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zin
     const labelBottomRight =    drawLabel(rect1.right - horizontalOffset*3, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,   "BR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
 
     return {canvas, labelTopLeft, labelTopRight, labelBottomLeft, labelBottomRight};
-}
-
-/**
- * Draws a line between two points.
- *
- * @param context Canvas 2d context to draw to
- * @param x1
- * @param y1
- * @param x2
- * @param y2
- */
-function drawLine(context, x1, y1, x2, y2) {
-    context.beginPath();
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
-    context.stroke();
 }
 
 /**
