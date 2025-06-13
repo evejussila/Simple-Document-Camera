@@ -1037,7 +1037,7 @@ async function setVideoInput(input = selector.value, width = null, height = null
         if (!trackQualityMatches) {
             console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + resolution.width + " x " + resolution.height);
         }
-        print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
+        if (debugMode) { print("setVideoInput(): Track info: " + getStreamInformation(stream, true)); }
 
         // Assign stream to visible element
         videoElement.srcObject = stream;
@@ -1542,18 +1542,21 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
 }
 
 /**
- * Moves an element to view if it is outside the viewport
+ * Moves an element to view IF it is outside the viewport.
  *
+ * @param element
+ * @returns {Promise<boolean>}
  */
 async function moveElementToView(element) {
-    const {x: elementX, y: elementY} = getElementCenter(element);                                             // Get center of element
-    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();      // Get viewport edges
+    const { x: elementX, y: elementY } = getElementCenter(element);                                             // Get center of element
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();        // Get viewport edges
 
-    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {           // Check if element is outside viewport (crude)
+    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {         // Check if element is outside viewport (crude)
         console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + elementX + " y = " + elementY + ", moving to view");
-        element.classList.toggle("animate_move");
+        element.classList.add("animateMove");
 
-        // TODO: Add value for clearance from edges
+        // TODO: Add value for clearance from edges when moving
+        // TODO: Add value for threshold from edges to determine when to move
 
         if (elementX < leftEdge) {
             // Element is to the left of viewport
@@ -1561,11 +1564,11 @@ async function moveElementToView(element) {
         }
         if (elementX > rightEdge) {
             // Element is to the right of viewport
-            element.style.left = "100vw";
+            element.style.left = `${80}vw`;
         }
         if (elementY > bottomEdge) {
             // Element is below viewport edge
-            element.style.top = `${80}vh`;                     // TODO: Ideally would calculate a position on the top edge of bottom bar
+            element.style.top = `${80}vh`;
         }
         if (elementY < topEdge) {
             // Element is above viewport edge
@@ -1573,8 +1576,8 @@ async function moveElementToView(element) {
         }
 
         setTimeout(() => {                              // Animate movement
-            element.classList.toggle('animate_move');
-        }, 1000);
+            element.classList.remove("animateMove");
+        }, 500);
 
         return true;
     }
@@ -1811,43 +1814,40 @@ function showElement(element, display = null) {
 
 /**
  * Gets the center coordinates of an HTML element.
+ * Relative to viewport, based on bounding rectangle.
  *
  * @param {HTMLElement} element HTML element
  * @returns {{x: number, y: number}} Object with x, y coordinates
  */
 function getElementCenter(element) {
     const rect = element.getBoundingClientRect();
-    const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
-    const y = rect.top + window.scrollY + rect.height / 2;  // TODO: Reconsider scroll values
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
 
-    return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+    return { x, y };
 }
 
 /**
- * Gets the computed dimensions of an HTML element.
+ * Gets the dimensions of an HTML element.
+ * Choice available between computed and bounding rectangle dimensions.
  *
  * @param {HTMLElement} element HTML element
+ * @param bounding If true, dimensions are based on bounding rectangle
  * @returns {{width: number, height: number}}
  */
-function getElementDimensions(element) {
-    const width = parseFloat(getComputedStyle(element).width);
-    const height = parseFloat(getComputedStyle(element).height);
-    return { width, height };
-}
+function getElementDimensions(element, bounding = false) {
+    let width, height;
 
-/**
- * Gets the dimensions of an HTML element's bounding rectangle.
- *
- * @param {HTMLElement} element HTML element
- * @returns {{width: number, height: number}}
- */
-function getElementBoundingDimensions(element) {
-    const rect = element.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    if (!bounding) {
+        width = parseFloat(getComputedStyle(element).width);
+        height = parseFloat(getComputedStyle(element).height);
+    } else {
+        const rect = element.getBoundingClientRect();
+        width = rect.width;
+        height = rect.height;
+    }
 
-    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementBoundingDimensions(element);
-
+    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
 }
 
 /**
@@ -2344,6 +2344,15 @@ class TextArea extends MovableElement {
         // Add listeners
         this.handleListeners();
 
+        // Ensure element stays within viewport
+        const interval = setInterval(() => {
+            if (!this.container) {
+                clearInterval(interval);
+                return;
+            }
+            moveElementToView(this.container);
+        }, 3000);
+
     }
 
     /**
@@ -2770,6 +2779,8 @@ class Menu extends CreatedElement {
 class Drawing extends CreatedElement {
 
 
+    // Draw functions
+
     /**
      * Draws a line between two points.
      *
@@ -2778,13 +2789,154 @@ class Drawing extends CreatedElement {
      * @param y1
      * @param x2
      * @param y2
-     * @param stroke
+     * @param draw
      */
-    static drawLine(context, x1, y1, x2, y2, stroke = true) {
+    static drawLine(context, x1, y1, x2, y2, draw = true) {
         context.beginPath();
         context.moveTo(x1, y1);
         context.lineTo(x2, y2);
-        if (stroke) { context.stroke(); }
+        if (draw) { context.stroke(); }
+    }
+
+    /**
+     * Draws a circle at given coordinates.
+     *
+     * @param context Canvas 2d context to draw to
+     * @param x X-coordinate of the center
+     * @param y Y-coordinate of the center
+     * @param diameter Diameter of the circle
+     * @param fill Whether to fill the circle
+     * @param draw Whether to draw immediately (stroke or fill)
+     */
+    static drawCircle(context, x, y, diameter, fill = false, draw = true) {
+        const radius = diameter / 2;
+        context.beginPath();
+        context.arc(x, y, radius, 0, Math.PI * 2);
+        if (draw) {
+            if (fill) {
+                context.fill();
+            } else {
+                context.stroke();
+            }
+        }
+    }
+
+
+    // Positioning and sizing functions
+
+    /**
+     * Moves an element to the center of another element.
+     *
+     * @param {HTMLElement} referenceElement Element to center on
+     * @param {HTMLElement} elementToMove Element to move
+     */
+    static moveToElementCenter(referenceElement, elementToMove) {
+        const center = getElementCenter(referenceElement);
+        const { width, height } = getElementDimensions(elementToMove, true);
+        elementToMove.style.position = 'fixed';
+        elementToMove.style.left = `${center.x - width / 2}px`;
+        elementToMove.style.top = `${center.y - height / 2}px`;
+    }
+
+    /**
+     * Resizes and optionally aligns a canvas to an HTML element.
+     *
+     * @param {HTMLElement} element Target HTML element
+     * @param {HTMLCanvasElement} canvas Canvas to resize and align
+     * @param {boolean} align If true, aligns canvas position to element's bounding rectangle
+     */
+    static resizeCanvasToElement(element, canvas, align = true) {
+        const { width, height } = getElementDimensions(element, true);
+        canvas.width = width;
+        canvas.height = height;
+        if (align) {
+            const rect = element.getBoundingClientRect();
+            canvas.style.top = `${rect.top}px`;
+            canvas.style.left = `${rect.left}px`;
+        }
+    }
+
+
+    // Test functions
+
+    static test() {
+        let removalFunction = drawElementTrackingIndicators(videoElement);
+        setTimeout(() => {
+            removalFunction();
+        }, 5000);
+    }
+
+    static testCenterTrackingCircle() {
+        const testElement = videoElement;
+
+        const canvas = document.createElement('canvas');
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.className = 'developer animateMove';
+        document.body.appendChild(canvas);
+
+        const diameter = 50;
+        canvas.width = diameter;
+        canvas.height = diameter;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.strokeStyle = 'orange';
+        Drawing.drawCircle(ctx, diameter / 2, diameter / 2, diameter, false, true);
+
+        setInterval(() => {
+            Drawing.moveToElementCenter(testElement, canvas);
+        }, 300);
+
+
+    }
+
+    static testBasicFunctions1() {
+        const testElement = videoElement;
+
+        const canvas = document.createElement('canvas');
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.className = 'developer';
+        document.body.appendChild(canvas);
+
+        const diameter = 50;
+        canvas.width = diameter;
+        canvas.height = diameter;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.strokeStyle = 'orange';
+        Drawing.drawCircle(ctx, diameter / 2, diameter / 2, diameter, false, true);
+
+        Drawing.moveToElementCenter(testElement, canvas);
+
+    }
+
+    static testBasicDraw() {
+
+        const testElement = videoElement;
+        const canvas = document.createElement('canvas');
+        Drawing.resizeCanvasToElement(testElement, canvas, true);
+
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.className = 'developer';
+        document.body.appendChild(canvas);
+
+        const ctx = canvas.getContext('2d');
+        const center = getElementCenter(testElement);
+
+        ctx.strokeStyle = 'orange';
+        Drawing.drawCircle(ctx, center.x, center.y, 50, false, true);
+
+        ctx.fillStyle = 'orange';
+        Drawing.drawCircle(ctx, center.x + 300, center.y, 30, true, true);
+
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        Drawing.drawLine(ctx, center.x, center.y, center.x + 300, center.y, true);
+
     }
 
 }
@@ -2891,6 +3043,7 @@ function debug() {
         {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},
         {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png", action: () => { localStorage.clear(); }},
         {id: "buttonClearStorage",        text: "Clear URL parameters",      img: "clean.png", action: () => { clearURLParameters(); }},
+        {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png", action: () => { Drawing.test(); }},
     ];
 
     function clearURLParameters() {
@@ -2920,180 +3073,108 @@ function dumpLocalStorage() {
     return localStorageDataPairs;
 }
 
-/**
- * Function to enable visual debug features.
- */
 function debugVisual() {
+    debugVisual.removalFunction ??= null;
     debugModeVisual = !debugModeVisual;
     if (debugModeVisual) {
         print("Visual debug enabled!");
-
-        // Indicate element centers
-        debugVisualDrawElementTrackingIndicator(videoElement, 20, 'red', '0.9');
-        debugVisualDrawElementTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-        debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
+        debugVisual.removalFunction = drawElementTrackingIndicators(videoElement);
     } else {
         print("Visual debug disabled!");
+        if (debugVisual.removalFunction) {
+            debugVisual.removalFunction();
+            debugVisual.removalFunction = null;
+        }
     }
 }
 
-/**
- * Creates center tracking indicator on HTML element.
- * @param element
- * @param size
- * @param color
- * @param opacity
- */
-function debugVisualDrawElementTrackingIndicator(element, size, color, opacity) {
-
-    // TODO: Make this flow explicitly async
-
-    let interval = setInterval(() => {
-        if (debugModeVisual === false) {clearInterval(interval);}
-
-        const {ball: ball, label: label} = drawCenterIndicator(element, size, color, opacity);
-        const {canvas: cross, labelTopLeft: l1, labelTopRight: l2, labelBottomLeft: l3, labelBottomRight: l4} = drawCrossingLines(element, size/10, color, opacity);
-        const {t:t, b:b, r:r, l:l} = drawViewPortEdges();
-
-        setTimeout(() => {
-            ball.remove();
-            label.remove();
-            cross.remove();
-            l1.remove();
-            l2.remove();
-            l3.remove();
-            l4.remove();
-            t.remove();
-            b.remove();
-            r.remove();
-            l.remove();
-        }, 300);
-    }, 300);
-}
-
-/**
- * Creates an indicator for the center of an HTML element.
- * @param element
- * @param size
- * @param color
- * @param opacity
- * @param zindex
- * @returns {{ball: HTMLDivElement, label: HTMLDivElement}}
- */
-function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '9001') {
-    let horizontalOffset = size / 2 * 1.05 + 10;                // Offset for label to place it next to indicator
-    let {x: centerX, y: centerY} = getElementCenter(element);
-    let text = centerX + " " + centerX  + " " + " is center of: " + (element.getAttribute('id') || 'id_undefined') + " " + (element.getAttribute('class') || '');
-
-    const ball = drawBall(centerX, centerY, size, color, opacity, zindex);
-    const label = drawLabel(centerX + horizontalOffset, centerY, size, color, opacity, zindex, text);
-
-    return { ball, label };
-}
-
-/**
- * Draws a ball (with its center) at the coordinates.
- * HTML/CSS implementation.
- *
- * @param coordinateX
- * @param coordinateY
- * @param diameter
- * @param color
- * @param opacity
- * @param zindex
- * @returns {HTMLDivElement}
- */
-function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity = '1', zindex = '9002') {
-    // print("Drew " + color + " ball at X: " + coordinateX + " Y: " + coordinateY);
-
-    const ball = document.createElement('div');
-    ball.style.position = 'absolute';
-    ball.style.left = `${coordinateX - diameter / 2}px`;
-    ball.style.top = `${coordinateY - diameter / 2}px`;
-    ball.style.width = `${diameter}px`;
-    ball.style.height = `${diameter}px`;
-    ball.style.backgroundColor = color;
-    ball.style.borderRadius = '50%';
-    ball.style.zIndex = zindex;
-    ball.style.opacity = opacity;
-    ball.style.pointerEvents = 'none';                    // Make not clickable
-
-    document.body.appendChild(ball);
-
-    return ball;
-}
-
-/**
- * Draws balls centered at each viewport edge.
- *
- * @param size
- * @param color
- * @param opacity
- * @param zindex
- * @returns {{b: HTMLDivElement, r: HTMLDivElement, t: HTMLDivElement, l: HTMLDivElement}}
- */
-function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '9003') {
-    const {top: top, right: right, bottom: bottom, left: left} = getViewportEdges();
-
-    const t = drawBall(right/2, top, size, color, opacity, zindex);
-    const b = drawBall(right/2, bottom, size, color, opacity, zindex);
-
-    const r = drawBall(right, bottom/2, size, color, opacity, zindex);
-    const l = drawBall(left, bottom/2, size, color, opacity, zindex);
-
-    return {t, b, r, l};
-
-}
-
-/**
- * Draws diagonal lines that cross from the edges of bounding rectangles.
- *
- * @param element
- * @param lineWidth
- * @param color
- * @param opacity
- * @param zindex
- * @returns {{labelTopLeft: HTMLDivElement, canvas: HTMLCanvasElement, labelBottomRight: HTMLDivElement, labelTopRight: HTMLDivElement, labelBottomLeft: HTMLDivElement}}
- */
-function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '9004') {
+function drawElementTrackingIndicators(element) {
 
     const canvas = document.createElement('canvas');
-    let { width: elementWidth, height: elementHeight } = getElementBoundingDimensions(element);
-    canvas.width = elementWidth;
-    canvas.height = elementHeight;
-    canvas.style.zIndex = zindex;
-    canvas.style.opacity = opacity;
-    canvas.style.position = 'absolute';
-    canvas.style.pointerEvents = 'none';                    // Make not clickable
-
-    const rect = element.getBoundingClientRect();
-    canvas.style.left = rect.left + 'px';
-    canvas.style.top = rect.top + 'px';
-
-    const context = canvas.getContext('2d');
-    context.lineWidth = lineWidth;
-    context.strokeStyle = color;
-    let { bottomLeft: bottomLeft, topRight: topRight, topLeft: topLeft, bottomRight: bottomRight } = getElementCorners(element);
-    Drawing.drawLine(context, bottomLeft.x, bottomLeft.y, topRight.x, topRight.y);
-    Drawing.drawLine(context, topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
-
+    canvas.style.position = 'fixed';
+    canvas.style.pointerEvents = 'none';
+    canvas.className = 'developer animateMove';
     document.body.appendChild(canvas);
 
+    const ctx = canvas.getContext('2d');
 
+    const mainDiameter = 50;
+    const cornerDiameter = 60;
+    const cornerMiniDiameter = 30;
+    const edgeDiameter = 40;
 
-    // Draw labels at rect for troubleshooting coordinate mismatches between rect coordinates and actual view coordinates
-    const rect1 = element.getBoundingClientRect();
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
+    canvas.width = mainDiameter;
+    canvas.height = mainDiameter;
 
-    const horizontalOffset = 100;
-    const verticalOffset = 100;
-    const labelTopLeft =        drawLabel(rect1.left + horizontalOffset, rect1.top + verticalOffset, 35, color, opacity, zindex,           "TL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.top + " + " +        scrollY);
-    const labelBottomLeft =     drawLabel(rect1.left + horizontalOffset, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,      "BL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
-    const labelTopRight =       drawLabel(rect1.right - horizontalOffset*3, rect1.top + verticalOffset, 35, color, opacity, zindex,        "TR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.top + " + " +        scrollY);
-    const labelBottomRight =    drawLabel(rect1.right - horizontalOffset*3, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,   "BR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
+    ctx.strokeStyle = 'orange';
+    Drawing.drawCircle(ctx, mainDiameter / 2, mainDiameter / 2, mainDiameter, false, true);
 
-    return {canvas, labelTopLeft, labelTopRight, labelBottomLeft, labelBottomRight};
+    const centerInterval = setInterval(() => {
+        Drawing.moveToElementCenter(element, canvas);
+    }, 300);
+
+    function drawAt(x, y, diameter, color) {
+        const c = document.createElement('canvas');
+        c.width = diameter;
+        c.height = diameter;
+        c.style.position = 'fixed';
+        c.style.pointerEvents = 'none';
+        c.className = 'developer animateMove';
+        document.body.appendChild(c);
+
+        const cx = c.getContext('2d');
+        cx.strokeStyle = color;
+        Drawing.drawCircle(cx, diameter / 2, diameter / 2, diameter, false, true);
+        c.style.left = `${x - diameter / 2}px`;
+        c.style.top = `${y - diameter / 2}px`;
+        return c;
+    }
+
+    function drawCornerAndEdgeCircles() {
+        const rect = element.getBoundingClientRect();
+
+        return [
+            drawAt(rect.left, rect.top, cornerDiameter, 'red'),
+            drawAt(rect.left, rect.top, cornerMiniDiameter, 'red'),
+            drawAt(rect.right, rect.top, cornerDiameter, 'red'),
+            drawAt(rect.left, rect.bottom, cornerDiameter, 'red'),
+            drawAt(rect.right, rect.bottom, cornerDiameter, 'red'),
+            drawAt((rect.left + rect.right) / 2, rect.top, edgeDiameter, 'green'),
+            drawAt((rect.left + rect.right) / 2, rect.bottom, edgeDiameter, 'green'),
+            drawAt(rect.left, (rect.top + rect.bottom) / 2, edgeDiameter, 'green'),
+            drawAt(rect.right, (rect.top + rect.bottom) / 2, edgeDiameter, 'green'),
+        ];
+    }
+
+    const extraCanvases = drawCornerAndEdgeCircles();
+
+    const updateInterval = setInterval(() => {
+        const rect = element.getBoundingClientRect();
+        const coords = [
+            [rect.left, rect.top, cornerDiameter],
+            [rect.left, rect.top, cornerMiniDiameter],
+            [rect.right, rect.top, cornerDiameter],
+            [rect.left, rect.bottom, cornerDiameter],
+            [rect.right, rect.bottom, cornerDiameter],
+            [(rect.left + rect.right) / 2, rect.top, edgeDiameter],
+            [(rect.left + rect.right) / 2, rect.bottom, edgeDiameter],
+            [rect.left, (rect.top + rect.bottom) / 2, edgeDiameter],
+            [rect.right, (rect.top + rect.bottom) / 2, edgeDiameter],
+        ];
+
+        extraCanvases.forEach((c, i) => {
+            const [x, y, d] = coords[i];
+            c.style.left = `${x - d / 2}px`;
+            c.style.top = `${y - d / 2}px`;
+        });
+    }, 200);
+
+    return () => {
+        clearInterval(centerInterval);
+        clearInterval(updateInterval);
+        removeElement(canvas);
+        extraCanvases.forEach(c => removeElement(c));
+    };
 }
 
 /**
@@ -3114,40 +3195,6 @@ function getElementCorners(element) {
         bottomRight:    { x: rect.right + scrollX,  y: rect.bottom + scrollY    }
     };
 
-}
-
-/**
- * Draws a label (with the middle of its left edge) at the coordinates
- * HTML/CSS implementation.
- *
- * @param coordinateX
- * @param coordinateY
- * @param height
- * @param backgroundColor
- * @param opacity
- * @param zindex
- * @param text
- * @returns {HTMLDivElement}
- */
-function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', opacity = '1', zindex = '9005', text = "text") {
-    // print("Drew " + backgroundColor + " label at X: " + coordinateX + " Y: " + coordinateY);
-
-    const label = document.createElement('div');
-    label.style.position = 'absolute';
-    label.style.left = `${coordinateX}px`;
-    label.style.top = `${coordinateY - height / 2}px`;
-    label.style.width = 'auto';
-    label.style.height = `${height}px`;
-    label.style.backgroundColor = backgroundColor;
-    label.style.color = 'black';
-    label.style.opacity = opacity;
-    label.style.zIndex = zindex;
-    label.style.pointerEvents = 'none';
-    label.textContent = text;
-
-    document.body.appendChild(label);
-
-    return label;
 }
 
 /**

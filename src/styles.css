@@ -597,6 +597,10 @@ button:not(:hover) {
     animation: spin 1s linear infinite;
 }
 
+.animateMove {
+    transition: top 400ms, left 400ms;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
