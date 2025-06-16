@@ -386,7 +386,8 @@ button:not(:hover) {
 .createdOverlay {
     width: 105%;
     height: 105%;
-    background: linear-gradient(to bottom, #e6e6e6, #222222);
+    background: linear-gradient(to bottom, #ffffff, #b19e90);
+    filter: drop-shadow(0px 2px 8px rgba(204, 204, 204, 0.25));
     cursor: move;
     z-index: var(--zindex-overlays);
     position: absolute;

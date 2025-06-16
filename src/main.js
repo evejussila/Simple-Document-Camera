@@ -1842,12 +1842,12 @@ function getElementDimensions(element, bounding = false) {
         width = parseFloat(getComputedStyle(element).width);
         height = parseFloat(getComputedStyle(element).height);
     } else {
-        const rect = element.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();                   // Element must be in DOM, otherwise consider element.width, element.height
         width = rect.width;
         height = rect.height;
     }
 
-    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element); OR getElementDimensions(element).width
 }
 
 /**
@@ -2149,6 +2149,15 @@ class Overlay extends MovableElement {
     // Other
     overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
+    defaultTextureBackground;                                                               // Inline style for overlay background
+    defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
+        240, 254,               // r min, max
+        230, 240,               // g min, max
+        220, 230,               // b min, max
+        160, 254                // a min, max
+    ];
+    static noiseCanvas;         // Static variable for shared single-render noise canvas
+
 
     // Initialization
 
@@ -2168,6 +2177,19 @@ class Overlay extends MovableElement {
     create() {
         // Create main element
         this.element = super.createElement("div", "createdOverlay", this.id, true);
+
+        const canvas = document.createElement('canvas');
+        canvas.style.pointerEvents = 'none';
+        const { width, height } = getElementDimensions(this.element, true);
+        canvas.width = width;
+        canvas.height = height;
+
+        // TODO: Make into async block, enable fade-in
+        Overlay.fillCanvasWithNoiseMatrix(canvas, this.defaultTextureColors, 1, 200);
+        this.element.appendChild(canvas);
+
+        // Regenerate texture on element resize
+        // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
 
         // Add listeners
         this.handleListeners();
@@ -2247,6 +2269,226 @@ class Overlay extends MovableElement {
         document.removeEventListener('mousemove', mouseMoveHandler);
         document.removeEventListener('mouseup', mouseUpHandler);
     }
+
+
+    // Other
+
+    /**
+     * Fills a canvas with noise.
+     *
+     * @param canvas Canvas to fill with noise (must have width and height set)
+     * @param settings Array of rgba min, max values
+     * @param clustering
+     * @param smoothing Amount of smoothing 0-255
+     */
+    static fillCanvasWithNoise(canvas, settings = null, clustering = 1, smoothing = 0) {
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const imageData = ctx.createImageData(width, height);
+        const data = imageData.data;
+
+        function getIndex(x, y) {
+            return (y * width + x) * 4;
+        }
+        function getBlockRGBA(bx, by) {
+            let r = 0, g = 0, b = 0, a = 0, count = 0;
+            for (let dy = 0; dy < clustering; dy++) {
+                for (let dx = 0; dx < clustering; dx++) {
+                    const px = bx * clustering + dx;
+                    const py = by * clustering + dy;
+                    if (px >= width || py >= height) continue;
+                    const i = getIndex(px, py);
+                    r += data[i];
+                    g += data[i + 1];
+                    b += data[i + 2];
+                    a += data[i + 3];
+                    count++;
+                }
+            }
+            if (count === 0) return null;
+            return { r: r / count, g: g / count, b: b / count, a: a / count };
+        }
+        function setBlockRGBA(bx, by, rgba) {
+            for (let dy = 0; dy < clustering; dy++) {
+                for (let dx = 0; dx < clustering; dx++) {
+                    const px = bx * clustering + dx;
+                    const py = by * clustering + dy;
+                    if (px >= width || py >= height) continue;
+                    const i = getIndex(px, py);
+                    data[i] = rgba.r;
+                    data[i + 1] = rgba.g;
+                    data[i + 2] = rgba.b;
+                    data[i + 3] = rgba.a;
+                }
+            }
+        }
+        function getBlockUp(bx, by) { if (by <= 0) return null; return getBlockRGBA(bx, by - 1); }
+        function getBlockDown(bx, by) { if (by >= Math.floor(height / clustering) - 1) return null; return getBlockRGBA(bx, by + 1); }
+        function getBlockLeft(bx, by) { if (bx <= 0) return null; return getBlockRGBA(bx - 1, by); }
+        function getBlockRight(bx, by) { if (bx >= Math.floor(width / clustering) - 1) return null; return getBlockRGBA(bx + 1, by); }
+        function getBlockUpLeft(bx, by) { if (bx <= 0 || by <= 0) return null; return getBlockRGBA(bx - 1, by - 1); }
+        function getBlockUpRight(bx, by) { if (bx >= Math.floor(width / clustering) - 1 || by <= 0) return null; return getBlockRGBA(bx + 1, by - 1); }
+        function getBlockDownLeft(bx, by) { if (bx <= 0 || by >= Math.floor(height / clustering) - 1) return null; return getBlockRGBA(bx - 1, by + 1); }
+        function getBlockDownRight(bx, by) { if (bx >= Math.floor(width / clustering) - 1 || by >= Math.floor(height / clustering) - 1) return null; return getBlockRGBA(bx + 1, by + 1); }
+
+        const blocksX = Math.ceil(width / clustering);
+        const blocksY = Math.ceil(height / clustering);
+
+        // First pass: generate base colors
+        for (let by = 0; by < blocksY; by++) {
+            for (let bx = 0; bx < blocksX; bx++) {
+                const r = Math.min(255, settings[0] + Math.floor(Math.random() * (settings[1] - settings[0] + 1)));
+                const g = Math.min(255, settings[2] + Math.floor(Math.random() * (settings[3] - settings[2] + 1)));
+                const b = Math.min(255, settings[4] + Math.floor(Math.random() * (settings[5] - settings[4] + 1)));
+                const a = Math.min(255, settings[6] + Math.floor(Math.random() * (settings[7] - settings[6] + 1)));
+                setBlockRGBA(bx, by, { r, g, b, a });
+            }
+        }
+
+        if (smoothing > 0) {
+            // Second pass: smooth colors by blending with neighbors weighted by smoothing
+            for (let by = 0; by < blocksY; by++) {
+                for (let bx = 0; bx < blocksX; bx++) {
+                    let neighbors = [
+                        getBlockUp(bx, by), getBlockDown(bx, by),
+                        getBlockLeft(bx, by), getBlockRight(bx, by),
+                        getBlockUpLeft(bx, by), getBlockUpRight(bx, by),
+                        getBlockDownLeft(bx, by), getBlockDownRight(bx, by)
+                    ].filter(n => n !== null);
+
+                    const center = getBlockRGBA(bx, by);
+                    neighbors.push(center);
+
+                    const avg = neighbors.reduce((acc, c) => ({
+                        r: acc.r + c.r,
+                        g: acc.g + c.g,
+                        b: acc.b + c.b,
+                        a: acc.a + c.a
+                    }), { r: 0, g: 0, b: 0, a: 0 });
+
+                    const count = neighbors.length;
+                    const neighborAvg = {
+                        r: avg.r / count,
+                        g: avg.g / count,
+                        b: avg.b / count,
+                        a: avg.a / count
+                    };
+
+                    // Blend center with neighborAvg by smoothing factor [0..255]
+                    const blend = (c, n) => (c * (255 - smoothing) + n * smoothing) / 255;
+
+                    setBlockRGBA(bx, by, {
+                        r: blend(center.r, neighborAvg.r),
+                        g: blend(center.g, neighborAvg.g),
+                        b: blend(center.b, neighborAvg.b),
+                        a: blend(center.a, neighborAvg.a)
+                    });
+                }
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    static fillCanvasWithNoiseMatrix(canvas, settings = null, clustering = 1, smoothing = 0) {
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        const imageData = ctx.createImageData(width, height);
+        const data = imageData.data;
+
+        if (!settings || settings.length < 8) {
+            settings = [0, 255, 0, 255, 0, 255, 255, 255];
+        }
+
+        const bw = Math.ceil(width / clustering);
+        const bh = Math.ceil(height / clustering);
+
+        // Generate noise blocks matrix [bh][bw]
+        const blocks = new Array(bh);
+        for (let y = 0; y < bh; y++) {
+            blocks[y] = new Array(bw);
+            for (let x = 0; x < bw; x++) {
+                blocks[y][x] = {
+                    r: Math.min(255, settings[0] + Math.floor(Math.random() * (settings[1] - settings[0] + 1))),
+                    g: Math.min(255, settings[2] + Math.floor(Math.random() * (settings[3] - settings[2] + 1))),
+                    b: Math.min(255, settings[4] + Math.floor(Math.random() * (settings[5] - settings[4] + 1))),
+                    a: Math.min(255, settings[6] + Math.floor(Math.random() * (settings[7] - settings[6] + 1))),
+                };
+            }
+        }
+
+        if (smoothing > 0) {
+            const kernelSize = 3;
+            const kernel = new Array(kernelSize);
+            const baseWeight = 1 / 16; // to sum weights to 1 (1+4+4+4+4+1 pattern simplified)
+            for (let i = 0; i < kernelSize; i++) {
+                kernel[i] = new Array(kernelSize).fill(baseWeight);
+            }
+            // Center weight larger, edges smaller, scaled by smoothing
+            const centerWeight = 4 * baseWeight;
+            for (let y = 0; y < kernelSize; y++) {
+                for (let x = 0; x < kernelSize; x++) {
+                    kernel[y][x] *= smoothing / 255;
+                }
+            }
+            kernel[1][1] = centerWeight * (smoothing / 255) + (1 - smoothing / 255);
+
+            const smoothedBlocks = [];
+            const kHalf = Math.floor(kernelSize / 2);
+
+            for (let y = 0; y < bh; y++) {
+                smoothedBlocks[y] = [];
+                for (let x = 0; x < bw; x++) {
+                    let r = 0, g = 0, b = 0, a = 0, wSum = 0;
+                    for (let ky = 0; ky < kernelSize; ky++) {
+                        for (let kx = 0; kx < kernelSize; kx++) {
+                            const nx = x + kx - kHalf;
+                            const ny = y + ky - kHalf;
+                            if (nx >= 0 && nx < bw && ny >= 0 && ny < bh) {
+                                const w = kernel[ky][kx];
+                                const p = blocks[ny][nx];
+                                r += p.r * w;
+                                g += p.g * w;
+                                b += p.b * w;
+                                a += p.a * w;
+                                wSum += w;
+                            }
+                        }
+                    }
+                    smoothedBlocks[y][x] = { r: r / wSum, g: g / wSum, b: b / wSum, a: a / wSum };
+                }
+            }
+            for (let y = 0; y < bh; y++) {
+                for (let x = 0; x < bw; x++) {
+                    blocks[y][x] = smoothedBlocks[y][x];
+                }
+            }
+        }
+
+        for (let y = 0; y < bh; y++) {
+            for (let x = 0; x < bw; x++) {
+                const px = blocks[y][x];
+                for (let dy = 0; dy < clustering; dy++) {
+                    for (let dx = 0; dx < clustering; dx++) {
+                        const pxX = x * clustering + dx;
+                        const pxY = y * clustering + dy;
+                        if (pxX >= width || pxY >= height) continue;
+                        const i = (pxY * width + pxX) * 4;
+                        data[i] = px.r;
+                        data[i + 1] = px.g;
+                        data[i + 2] = px.b;
+                        data[i + 3] = px.a;
+                    }
+                }
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+    }
+
 
 }
 
