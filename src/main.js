@@ -2156,6 +2156,8 @@ class Overlay extends MovableElement {
         220, 230,               // b min, max
         160, 254                // a min, max
     ];
+    defaultTextureBlockSize = 1;
+    defaultTextureSmoothing = 200;
     static noiseCanvas;         // Static variable for shared single-render noise canvas
 
 
@@ -2178,15 +2180,13 @@ class Overlay extends MovableElement {
         // Create main element
         this.element = super.createElement("div", "createdOverlay", this.id, true);
 
-        const canvas = document.createElement('canvas');
-        canvas.style.pointerEvents = 'none';
-        const { width, height } = getElementDimensions(this.element, true);
-        canvas.width = width;
-        canvas.height = height;
+        if (!Overlay.noiseCanvas) {
+            this.renderNoiseCanvas();
+            print("creating", "red");
+        }
 
         // TODO: Make into async block, enable fade-in
-        Overlay.fillCanvasWithNoiseMatrix(canvas, this.defaultTextureColors, 1, 200);
-        this.element.appendChild(canvas);
+        this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas));
 
         // Regenerate texture on element resize
         // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
@@ -2281,7 +2281,7 @@ class Overlay extends MovableElement {
      * @param clustering
      * @param smoothing Amount of smoothing 0-255
      */
-    static fillCanvasWithNoise(canvas, settings = null, clustering = 1, smoothing = 0) {
+    static fillCanvasWithNoiseOld(canvas, settings = null, clustering = 1, smoothing = 0) {
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
         const height = canvas.height;
@@ -2391,103 +2391,190 @@ class Overlay extends MovableElement {
         ctx.putImageData(imageData, 0, 0);
     }
 
-    static fillCanvasWithNoiseMatrix(canvas, settings = null, clustering = 1, smoothing = 0) {
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
+    /**
+     * Fills a canvas with noise.
+     *
+     * @param canvas Canvas to fill with noise (must have width and height set)
+     * @param colors Array of rgba min, max values
+     * @param clustering Size of noise blocks
+     * @param smoothing Smoothing amount (0–255)
+     */
+    static fillCanvasWithNoise(canvas, colors = null, clustering = 1, smoothing = 0) {
+        const ctx = canvas.getContext('2d');                 // get canvas context
+        const width = canvas.width;                           // canvas width
+        const height = canvas.height;                         // canvas height
+        const imageData = ctx.createImageData(width, height);// allocate image buffer
+        const data = imageData.data;                          // pixel data array
 
-        const imageData = ctx.createImageData(width, height);
-        const data = imageData.data;
-
-        if (!settings || settings.length < 8) {
-            settings = [0, 255, 0, 255, 0, 255, 255, 255];
+        if (!colors || colors.length < 8) {
+            colors = [0, 255, 0, 255, 0, 255, 255, 255];   // default rgba range
         }
 
-        const bw = Math.ceil(width / clustering);
-        const bh = Math.ceil(height / clustering);
+        const bw = Math.ceil(width / clustering);            // blocks horizontal count
+        const bh = Math.ceil(height / clustering);           // blocks vertical count
 
-        // Generate noise blocks matrix [bh][bw]
-        const blocks = new Array(bh);
-        for (let y = 0; y < bh; y++) {
-            blocks[y] = new Array(bw);
-            for (let x = 0; x < bw; x++) {
-                blocks[y][x] = {
-                    r: Math.min(255, settings[0] + Math.floor(Math.random() * (settings[1] - settings[0] + 1))),
-                    g: Math.min(255, settings[2] + Math.floor(Math.random() * (settings[3] - settings[2] + 1))),
-                    b: Math.min(255, settings[4] + Math.floor(Math.random() * (settings[5] - settings[4] + 1))),
-                    a: Math.min(255, settings[6] + Math.floor(Math.random() * (settings[7] - settings[6] + 1))),
-                };
-            }
+        /**
+         * Generate a random rgba value within settings range
+         * @returns {{r:number, g:number, b:number, a:number}}
+         */
+        function generateRandomRGBA() {
+            return {
+                r: Math.min(255, colors[0] + Math.floor(Math.random() * (colors[1] - colors[0] + 1))), // red
+                g: Math.min(255, colors[2] + Math.floor(Math.random() * (colors[3] - colors[2] + 1))), // green
+                b: Math.min(255, colors[4] + Math.floor(Math.random() * (colors[5] - colors[4] + 1))), // blue
+                a: Math.min(255, colors[6] + Math.floor(Math.random() * (colors[7] - colors[6] + 1)))  // alpha
+            };
         }
 
-        if (smoothing > 0) {
-            const kernelSize = 3;
-            const kernel = new Array(kernelSize);
-            const baseWeight = 1 / 16; // to sum weights to 1 (1+4+4+4+4+1 pattern simplified)
-            for (let i = 0; i < kernelSize; i++) {
-                kernel[i] = new Array(kernelSize).fill(baseWeight);
-            }
-            // Center weight larger, edges smaller, scaled by smoothing
-            const centerWeight = 4 * baseWeight;
-            for (let y = 0; y < kernelSize; y++) {
-                for (let x = 0; x < kernelSize; x++) {
-                    kernel[y][x] *= smoothing / 255;
+        /**
+         * Create initial noise blocks matrix
+         * @returns {Array<Array<{r:number,g:number,b:number,a:number}>>}
+         */
+        function createNoiseBlocks() {
+            const blocks = new Array(bh);
+            for (let y = 0; y < bh; y++) {
+                blocks[y] = new Array(bw);
+                for (let x = 0; x < bw; x++) {
+                    blocks[y][x] = generateRandomRGBA();         // fill with random rgba noise
                 }
             }
-            kernel[1][1] = centerWeight * (smoothing / 255) + (1 - smoothing / 255);
+            return blocks;
+        }
 
-            const smoothedBlocks = [];
-            const kHalf = Math.floor(kernelSize / 2);
+        /**
+         * Creates smoothing kernel scaled by smoothing parameter
+         * @returns {number[][]}
+         */
+        function createKernel() {
+            const size = 3;                                     // 3x3 kernel size
+            const kernel = new Array(size);
+            const smoothingRatio = smoothing / 255;            // normalize smoothing to 0..1
+            const baseWeight = 1 / 16;                          // base weight for edges
+            for (let i = 0; i < size; i++) {
+                kernel[i] = new Array(size).fill(baseWeight * smoothingRatio);
+            }
+            kernel[1][1] = (4 / 16) * smoothingRatio + (1 - smoothingRatio); // center weight with smoothing blend
+            return kernel;
+        }
+
+        /**
+         * Apply smoothing convolution kernel to noise blocks
+         * @param blocks Noise blocks matrix
+         * @param kernel Convolution kernel matrix
+         * @returns {Array<Array<{r:number,g:number,b:number,a:number}>>} Smoothed blocks
+         */
+        function smoothBlocks(blocks, kernel) {
+            const kHalf = Math.floor(kernel.length / 2);
+            const smoothed = new Array(bh);
 
             for (let y = 0; y < bh; y++) {
-                smoothedBlocks[y] = [];
+                smoothed[y] = new Array(bw);
                 for (let x = 0; x < bw; x++) {
                     let r = 0, g = 0, b = 0, a = 0, wSum = 0;
-                    for (let ky = 0; ky < kernelSize; ky++) {
-                        for (let kx = 0; kx < kernelSize; kx++) {
+
+                    // Apply kernel weights to neighbors
+                    for (let ky = 0; ky < kernel.length; ky++) {
+                        for (let kx = 0; kx < kernel.length; kx++) {
                             const nx = x + kx - kHalf;
                             const ny = y + ky - kHalf;
+
                             if (nx >= 0 && nx < bw && ny >= 0 && ny < bh) {
-                                const w = kernel[ky][kx];
-                                const p = blocks[ny][nx];
-                                r += p.r * w;
-                                g += p.g * w;
-                                b += p.b * w;
-                                a += p.a * w;
-                                wSum += w;
+                                const w = kernel[ky][kx];              // kernel weight
+                                const p = blocks[ny][nx];              // neighbor block
+                                r += p.r * w;                         // accumulate weighted red
+                                g += p.g * w;                         // accumulate weighted green
+                                b += p.b * w;                         // accumulate weighted blue
+                                a += p.a * w;                         // accumulate weighted alpha
+                                wSum += w;                           // sum weights for normalization
                             }
                         }
                     }
-                    smoothedBlocks[y][x] = { r: r / wSum, g: g / wSum, b: b / wSum, a: a / wSum };
+
+                    // Normalize colors by total weight
+                    smoothed[y][x] = {
+                        r: r / wSum,
+                        g: g / wSum,
+                        b: b / wSum,
+                        a: a / wSum
+                    };
                 }
             }
-            for (let y = 0; y < bh; y++) {
-                for (let x = 0; x < bw; x++) {
-                    blocks[y][x] = smoothedBlocks[y][x];
-                }
-            }
+            return smoothed;
         }
 
-        for (let y = 0; y < bh; y++) {
-            for (let x = 0; x < bw; x++) {
-                const px = blocks[y][x];
-                for (let dy = 0; dy < clustering; dy++) {
-                    for (let dx = 0; dx < clustering; dx++) {
-                        const pxX = x * clustering + dx;
-                        const pxY = y * clustering + dy;
-                        if (pxX >= width || pxY >= height) continue;
-                        const i = (pxY * width + pxX) * 4;
-                        data[i] = px.r;
-                        data[i + 1] = px.g;
-                        data[i + 2] = px.b;
-                        data[i + 3] = px.a;
+        /**
+         * Write noise blocks into pixel data array
+         * @param blocks Noise blocks matrix to write
+         */
+        function writeBlocksToData(blocks) {
+            for (let y = 0; y < bh; y++) {
+                for (let x = 0; x < bw; x++) {
+                    const px = blocks[y][x];
+                    for (let dy = 0; dy < clustering; dy++) {
+                        for (let dx = 0; dx < clustering; dx++) {
+                            const pxX = x * clustering + dx;
+                            const pxY = y * clustering + dy;
+                            if (pxX >= width || pxY >= height) continue; // bounds check
+                            const i = (pxY * width + pxX) * 4;         // pixel index in data array
+                            data[i] = px.r;                            // red channel
+                            data[i + 1] = px.g;                        // green channel
+                            data[i + 2] = px.b;                        // blue channel
+                            data[i + 3] = px.a;                        // alpha channel
+                        }
                     }
                 }
             }
         }
 
-        ctx.putImageData(imageData, 0, 0);
+        // Main flow
+
+        let blocks = createNoiseBlocks();                      // generate initial noise
+
+        if (smoothing > 0) {
+            const kernel = createKernel();                      // create smoothing kernel
+            blocks = smoothBlocks(blocks, kernel);              // apply smoothing
+        }
+
+        writeBlocksToData(blocks);                              // write final blocks to image data
+
+        ctx.putImageData(imageData, 0, 0);                      // draw on canvas
     }
+
+
+    /**
+     *
+     * @param colors
+     * @param clustering
+     * @param smoothing
+     * @returns {HTMLCanvasElement}
+     */
+    renderNoiseCanvas(colors = this.defaultTextureColors, clustering = this.defaultTextureBlockSize, smoothing = this.defaultTextureSmoothing) {
+        const canvas = document.createElement('canvas');
+        canvas.style.pointerEvents = 'none';
+        const { width, height } = getElementDimensions(this.element, true);
+        canvas.width = width;
+        canvas.height = height;
+        Overlay.fillCanvasWithNoise(canvas, colors, clustering, smoothing);
+        Overlay.noiseCanvas = canvas;
+        return canvas;
+    }
+
+    /**
+     *
+     * @param {HTMLCanvasElement} canvas Source canvas to copy.
+     * @returns {HTMLCanvasElement} Cloned canvas with copied image and dimensions.
+     */
+    copyCanvas(canvas) {
+        const clone = document.createElement('canvas');
+        clone.width = canvas.width;
+        clone.height = canvas.height;
+
+        const ctx = clone.getContext('2d');
+        ctx.drawImage(canvas, 0, 0);
+
+        return clone;
+    }
+
 
 
 }
