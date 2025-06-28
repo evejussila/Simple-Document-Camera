@@ -31,6 +31,7 @@ canvasDrawing.height = canvasDrawing.clientHeight;
 
 let drawingEnabled = false;             // Shows if drawing tool is selected
 let isDrawing = false;                  // Shows if user is actively drawing (mousedown)
+let isEraser = false;
 
 // Default line style
 drawingContext.lineWidth = 5;
@@ -42,6 +43,9 @@ const lineWidthInput = document.getElementById('lineWidth');
 
 // Update stroke color
 strokeInput.addEventListener('input', (e) => {
+    isEraser = false;
+    drawingContext.globalCompositeOperation = 'source-over';
+
     drawingContext.strokeStyle = e.target.value;
 });
 
@@ -60,6 +64,8 @@ canvasDrawing.addEventListener('mousedown', e => {
     drawingContext.beginPath();                                  // Start new drawing
     drawingContext.moveTo(e.clientX - rect.left, e.clientY - rect.top);
 });
+
+// TODO: Fix for drawing dots.
 
 // Mouse up -> stop drawing
 canvasDrawing.addEventListener('mouseup', () => {
@@ -86,9 +92,21 @@ function toggleDrawingMode() {
     drawingEnabled = !drawingEnabled;
     console.log(`Drawing mode: ${drawingEnabled ? "enabled" : "disabled"}`);
 
+    // When new color is selected, it's for a new drawing. This part of code makes sure eraser is not selected anymore.
+    isEraser = false;
+    drawingContext.globalCompositeOperation = 'source-over';
+
     // Cursor change to indicate drawing mode
     canvasDrawing.style.cursor = drawingEnabled ? "crosshair" : "default";
 }
+
+function eraseDrawing() {
+    isEraser = !isEraser;
+    drawingContext.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over'; // destination-out removes pixels, source-over adds pixels
+}
+
+// TODO: Prompt: Are you sure you want to clear the canvas?
+
 
 //_____________________________
 
@@ -149,6 +167,7 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
     listenerToElement('buttonOverlay', 'click', addOverlay);
     listenerToElement('buttonDraw', 'click', toggleDrawingMode);
+    listenerToElement('buttonEraser', 'click', eraseDrawing);
     listenerToElement('buttonClearDrawing', 'click', () => drawingContext.clearRect(0, 0, canvasDrawing.width, canvasDrawing.height)); // Remove all drawings
     listenerToElement('buttonAddText', 'click', addText);                                                // Text button
     listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
