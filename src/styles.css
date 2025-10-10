@@ -397,11 +397,12 @@ button:not(:hover) {
 }
 
 .createdOverlayRemoveButton {
-    width: 5%;
-    height: 20px;
-    margin: -10px auto auto;
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 40px;
+    height: 40px;
     display: none; /* Displayed programmatically */
-
     background-color: var(--remove-button-bg-color);
 }
 

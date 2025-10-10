@@ -924,7 +924,7 @@ async function getVideoInputs() {
         devices.forEach(device => {
             if (device.kind === 'videoinput') {                                                       // Only accept video sources
                 if (device.deviceId === "") {                                                         // Detect and filter invalid values
-                    // DEV: In some cases (like missing permissions) empty values may be returned.
+                    // DEV: In some cases (like missing permissions or page loading in background tab) empty values may be returned.
                     // DEV: These values will be objects of the right kind but do not have device Ids and cannot be used.
                     console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
@@ -2185,7 +2185,6 @@ class Overlay extends MovableElement {
 
         if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
             Overlay.renderNoiseCanvas(this.element);
-            print("creating", "red");
         }
 
         // TODO: Make into async block, enable fade-in
@@ -2208,14 +2207,14 @@ class Overlay extends MovableElement {
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
     }
 
-    static preRenderNoiseCanvas() {
+    static async preRenderNoiseCanvas() {
         // Create temporary container element for actual dimensions
         let newElement = document.createElement("div");
         newElement.id = String(Date.now());
         newElement.className = "createdOverlay";
         newElement.classList.add("hidden");
         videoContainer.appendChild(newElement);
-        print("Created newElement temporary", "red");
+        print("Overlay: preRenderNoiseCanvas: Pre-rendering noise canvas (async)");
 
         // Prerender
         Overlay.renderNoiseCanvas(newElement);
@@ -2291,124 +2290,6 @@ class Overlay extends MovableElement {
 
 
     // Other
-
-    /**
-     * Fills a canvas with noise.
-     *
-     * @param canvas Canvas to fill with noise (must have width and height set)
-     * @param settings Array of rgba min, max values
-     * @param clustering
-     * @param smoothing Amount of smoothing 0-255
-     */
-    static fillCanvasWithNoiseOld(canvas, settings = null, clustering = 1, smoothing = 0) {
-        const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        const imageData = ctx.createImageData(width, height);
-        const data = imageData.data;
-
-        function getIndex(x, y) {
-            return (y * width + x) * 4;
-        }
-        function getBlockRGBA(bx, by) {
-            let r = 0, g = 0, b = 0, a = 0, count = 0;
-            for (let dy = 0; dy < clustering; dy++) {
-                for (let dx = 0; dx < clustering; dx++) {
-                    const px = bx * clustering + dx;
-                    const py = by * clustering + dy;
-                    if (px >= width || py >= height) continue;
-                    const i = getIndex(px, py);
-                    r += data[i];
-                    g += data[i + 1];
-                    b += data[i + 2];
-                    a += data[i + 3];
-                    count++;
-                }
-            }
-            if (count === 0) return null;
-            return { r: r / count, g: g / count, b: b / count, a: a / count };
-        }
-        function setBlockRGBA(bx, by, rgba) {
-            for (let dy = 0; dy < clustering; dy++) {
-                for (let dx = 0; dx < clustering; dx++) {
-                    const px = bx * clustering + dx;
-                    const py = by * clustering + dy;
-                    if (px >= width || py >= height) continue;
-                    const i = getIndex(px, py);
-                    data[i] = rgba.r;
-                    data[i + 1] = rgba.g;
-                    data[i + 2] = rgba.b;
-                    data[i + 3] = rgba.a;
-                }
-            }
-        }
-        function getBlockUp(bx, by) { if (by <= 0) return null; return getBlockRGBA(bx, by - 1); }
-        function getBlockDown(bx, by) { if (by >= Math.floor(height / clustering) - 1) return null; return getBlockRGBA(bx, by + 1); }
-        function getBlockLeft(bx, by) { if (bx <= 0) return null; return getBlockRGBA(bx - 1, by); }
-        function getBlockRight(bx, by) { if (bx >= Math.floor(width / clustering) - 1) return null; return getBlockRGBA(bx + 1, by); }
-        function getBlockUpLeft(bx, by) { if (bx <= 0 || by <= 0) return null; return getBlockRGBA(bx - 1, by - 1); }
-        function getBlockUpRight(bx, by) { if (bx >= Math.floor(width / clustering) - 1 || by <= 0) return null; return getBlockRGBA(bx + 1, by - 1); }
-        function getBlockDownLeft(bx, by) { if (bx <= 0 || by >= Math.floor(height / clustering) - 1) return null; return getBlockRGBA(bx - 1, by + 1); }
-        function getBlockDownRight(bx, by) { if (bx >= Math.floor(width / clustering) - 1 || by >= Math.floor(height / clustering) - 1) return null; return getBlockRGBA(bx + 1, by + 1); }
-
-        const blocksX = Math.ceil(width / clustering);
-        const blocksY = Math.ceil(height / clustering);
-
-        // First pass: generate base colors
-        for (let by = 0; by < blocksY; by++) {
-            for (let bx = 0; bx < blocksX; bx++) {
-                const r = Math.min(255, settings[0] + Math.floor(Math.random() * (settings[1] - settings[0] + 1)));
-                const g = Math.min(255, settings[2] + Math.floor(Math.random() * (settings[3] - settings[2] + 1)));
-                const b = Math.min(255, settings[4] + Math.floor(Math.random() * (settings[5] - settings[4] + 1)));
-                const a = Math.min(255, settings[6] + Math.floor(Math.random() * (settings[7] - settings[6] + 1)));
-                setBlockRGBA(bx, by, { r, g, b, a });
-            }
-        }
-
-        if (smoothing > 0) {
-            // Second pass: smooth colors by blending with neighbors weighted by smoothing
-            for (let by = 0; by < blocksY; by++) {
-                for (let bx = 0; bx < blocksX; bx++) {
-                    let neighbors = [
-                        getBlockUp(bx, by), getBlockDown(bx, by),
-                        getBlockLeft(bx, by), getBlockRight(bx, by),
-                        getBlockUpLeft(bx, by), getBlockUpRight(bx, by),
-                        getBlockDownLeft(bx, by), getBlockDownRight(bx, by)
-                    ].filter(n => n !== null);
-
-                    const center = getBlockRGBA(bx, by);
-                    neighbors.push(center);
-
-                    const avg = neighbors.reduce((acc, c) => ({
-                        r: acc.r + c.r,
-                        g: acc.g + c.g,
-                        b: acc.b + c.b,
-                        a: acc.a + c.a
-                    }), { r: 0, g: 0, b: 0, a: 0 });
-
-                    const count = neighbors.length;
-                    const neighborAvg = {
-                        r: avg.r / count,
-                        g: avg.g / count,
-                        b: avg.b / count,
-                        a: avg.a / count
-                    };
-
-                    // Blend center with neighborAvg by smoothing factor [0..255]
-                    const blend = (c, n) => (c * (255 - smoothing) + n * smoothing) / 255;
-
-                    setBlockRGBA(bx, by, {
-                        r: blend(center.r, neighborAvg.r),
-                        g: blend(center.g, neighborAvg.g),
-                        b: blend(center.b, neighborAvg.b),
-                        a: blend(center.a, neighborAvg.a)
-                    });
-                }
-            }
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-    }
 
     /**
      * Fills a canvas with noise.
