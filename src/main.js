@@ -1,6 +1,6 @@
 // Development tools
-let debugMode = false;                                                                        // Sets default level of console output
-const version = ("2025-06-12-alpha");
+let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
+const version = ("2025-10-10-alpha");
 console.log("Version: " + version);
 
 // Localization
@@ -16,28 +16,31 @@ const videoContainer        = document.getElementById('videoContainer');        
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
 
 // Video feed state
-let rotation = 0;                                                                          // Store rotation state
-let currentZoom = 1;                                                                       // Current zoom level
-let flip = 1;                                                                              // State of image mirroring, 1 = no flip, -1 = horizontal flip
-let isFreeze = false;                                                                      // Video freeze on or off
+let rotation = 0;                                                                    // Store rotation state
+let currentZoom = 1;                                                                 // Current zoom level
+let flip = 1;                                                                        // State of image mirroring, 1 = no flip, -1 = horizontal flip
+let isFrozen = false;                                                                // Video freeze on or off
 
 // UI state
-let mouseX;                                                                                // Initial position of the mouse
+let mouseX;                                                                          // Initial position of the mouse
 let mouseY;
 
 // Other
-let selector;                                                                              // Camera feed selector
-let createdElements;                                                                       // Handles created elements
+let selector;                                                                        // Camera feed selector
+let createdElements;                                                                 // Handles created elements
 
 
 // Initialization
 
-document.addEventListener('DOMContentLoaded', start);                                 // Continue running script only after HTML has been loaded and elements are available
+document.addEventListener('DOMContentLoaded', start);                                // Continue running script only after HTML has been loaded and elements are available
 
 function start() {
 
     // Instantiate class for created elements
     createdElements = new CreatedElements();
+
+    // Pre-generate resources
+    Overlay.preRenderNoiseCanvas();
 
     // Create interface elements
     createMenus();
@@ -46,7 +49,7 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Add localization and wait for it to complete
+    // Add localization and wait for it to complete TODO: Make localization fully async and independent
     addLocalization().then(() => {
         
         // Handle notices, consent and data storage
@@ -69,14 +72,14 @@ function start() {
 function addCoreListeners() {
 
     // Fetch HTML elements for buttons and attach event listeners to them
-    listenerToElement('buttonRotate', 'click', videoRotate);                                             // Rotate button
-    listenerToElement('buttonFlip', 'click', videoFlip);                                                 // Flip button
-    listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
-    listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
-    listenerToElement('buttonAddText', 'click', addText);                                                // Text button
-    listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
-    listenerToElement('buttonZoomIn', 'click', () => adjustZoom(0.1));              // Zoom in button
-    listenerToElement('buttonZoomOut', 'click', () => adjustZoom(-0.1));            // Zoom out button
+    listenerToElement('buttonRotate'    , 'click'   , videoRotate   );                              // Rotate button
+    listenerToElement('buttonFlip'      , 'click'   , videoFlip     );                              // Flip button
+    listenerToElement('buttonSaveImage' , 'click'   , saveImage     );                              // Save image button
+    listenerToElement('buttonOverlay'   , 'click'   , addOverlay    );                              // Overlay button
+    listenerToElement('buttonAddText'   , 'click'   , addText       );                              // Text button
+    listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider                                                             //
+    listenerToElement('buttonZoomIn'    , 'click'   , () => adjustZoom(0.1));                       // Zoom in button
+    listenerToElement('buttonZoomOut'   , 'click'   , () => adjustZoom(-0.1));                      // Zoom out button
 
     // Fetch HTML element for full screen button and its icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -101,7 +104,7 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', (e) => {
-        setVideoInput(e.target.value).then( () => {} );                                                                // TODO: Add catch for error
+        setVideoInput(e.target.value).then( () => {} );                                            // TODO: Add catch for error
     })
 
     // Add event listener to trigger input list update and hint when new media device is plugged in
@@ -113,7 +116,7 @@ function addCoreListeners() {
     });
 
     // Update video input list periodically
-    setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases)
+    setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge case issues)
     
 }
 
@@ -136,7 +139,7 @@ function bindLocaleSelector(initialLocale, selector) {
     localeSelector.value = initialLocale;
     localeSelector.onchange = (e) => {
         // Set the language based on the selected value
-        setLocale(e.target.value);
+        setLocale(e.target.value).then(() => {});
     };
 }
 
@@ -232,7 +235,7 @@ function translateElement(element) {
 async function handlePrivacy() {
 
     // Fast exit: Check browser local storage for permissive privacy setting
-    const privacyKey = localStorage.getItem('privacy');                     // Get expected privacy key value from local storage
+    const privacyKey = localStorage.getItem('privacy');                          // Get expected privacy key value from local storage
     switch (privacyKey) {
         case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
             handleLocalStorage();
@@ -269,7 +272,7 @@ async function handlePrivacy() {
     ];
 
     for (const text of texts) {                         // Iterate through texts
-        const content = await fetchJSON(text.file);    // Get JSON
+        const content = await fetchJSON(text.file);     // Get JSON
         if (content) {                                  // If JSON accessible
             text.textExists = true;                     // Set boolean for conditional logics
             text.content = content;
@@ -415,7 +418,7 @@ async function handlePrivacy() {
 function updateUrlParam(paramName, paramValue) {
     let allParameters = new URLSearchParams(window.location.search);                                            // Get all parameters
     allParameters.set(paramName, paramValue);                                                                   // Change one parameter
-    window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);        // Replace url with same path and new parameters
+    window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);                        // Replace url with same path and new parameters
 }
 
 /**
@@ -511,6 +514,7 @@ function createMenus() {
         // Create separator
         menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
 
+        // Create thickness options
         const thicknessSelectionGroupReference = { behavior: "exclusive", styleClass: 'drawMenuOptionSelection' };
         const thicknessOptions = [                                  // Define necessary literals
             { thickness: 2, thicknessName: 'Thin'    },
@@ -800,10 +804,10 @@ async function videoStart() {
     }
 
     // Use input(s)
-    if (!error) {                                                                                // Only run if no errors
+    if (!error) {                                                                                         // Only run if no errors
         try {
-            let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
-            await setVideoInput(input);                                                          // Use the selected input
+            let input = await updateInputList(inputs);                                                    // Update selector list, selecting some input
+            await setVideoInput(input);                                                                   // Use the selected input
         } catch (e) {
             // TODO: Catch not reliable enough
             error = true;                                                                                 // Flag error
@@ -921,7 +925,7 @@ async function getVideoInputs() {
             if (device.kind === 'videoinput') {                                                       // Only accept video sources
                 if (device.deviceId === "") {                                                         // Detect and filter invalid values
                     // DEV: In some cases (like missing permissions) empty values may be returned.
-                    // DEV: These values will be objects of the right kind but do not have device Ids and can not be used.
+                    // DEV: These values will be objects of the right kind but do not have device Ids and cannot be used.
                     console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
                     // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
@@ -955,7 +959,7 @@ function updateInputList(inputs) {
     // Renew list
     selector.innerHTML = '';                                                                        // Clear dropdown first
     for (let i = 0; i < inputs.length; i++) {
-        let option = document.createElement('option');                                      // Create new option for dropdown
+        let option = document.createElement('option');                                              // Create new option for dropdown
         option.value    = inputs[i][0];                                                             // Assign device id (at index 0 of inner array) as value
         option.text     = inputs[i][1];                                                             // Assign device label (at index 1 of inner array) as value
         selector.appendChild(option);                                                               // Add new option to dropdown
@@ -1009,7 +1013,7 @@ async function backgroundUpdateInputList() {
 /**
  * Accesses a camera for video input.
  *
- * @param input Identifier of video input to access
+ * @param input Identifier of video input to access (defaults to current selector value)
  * @param width Width to use as ideal value (optional)
  * @param height Height to use as ideal value (optional)
  * @returns {Promise<boolean>}
@@ -1170,7 +1174,6 @@ async function getStreamFromInput(width, height, deviceId) {
  * @param stream Stream to release, default is current active video source.
  */
 function releaseVideoStream(stream = videoElement.srcObject) {
-
     print("releaseVideoStream(): Video release called");
     try {
         stream.getTracks().forEach(track => track.stop());
@@ -1245,7 +1248,7 @@ function getStreamInformation(stream, printOut = false) {
 
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
-        // TODO: Limit decimals Number(value.toFixed(2))
+        // TODO: Limit decimals Number(value.toFixed(2)), replace array with object
 
         // Print
         if (printOut) {
@@ -1595,21 +1598,21 @@ async function moveElementToView(element) {
 function saveImage() {
     matchElementDimensions(videoElement, canvasElement);                                               // Ensure canvas matches video element (redundancy)
 
-    const canvasToSave = document.createElement('canvas');                  // Create temporary canvas for flattening/combining video feed and canvas together
-    const canvasContext = canvasToSave.getContext('2d');               // Get canvas context for drawing
+    const canvasToSave = document.createElement('canvas');                                             // Create temporary canvas for flattening/combining video feed and canvas together
+    const canvasContext = canvasToSave.getContext('2d');                                               // Get canvas context for drawing
     canvasToSave.style.display = 'none';                                                               // Make sure temporary canvas is never visible (redundancy)
     matchElementDimensions(videoElement, canvasToSave);                                                // Match new canvas with video element
 
-    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
-    canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);        // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
-    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);             // TODO: Same JSDoc typecast
-    canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);       // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
+    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                       // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
+    canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);      // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
+    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);                    // TODO: Same JSDoc typecast
+    canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);     // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
 
-    const dataURL = canvasToSave.toDataURL('image/jpeg');                   // Converts canvas element to image encoding string
-    const downloadElement = document.createElement('a');      // Creates "clickable" element
-    downloadElement.href = dataURL;                                                     // Points element to data URL
-    downloadElement.download = `${getDateTime()}_SDC_Image.jpg`;                        // Names download
-    downloadElement.click();                                                            // Initiates image download without dialog
+    const dataURL = canvasToSave.toDataURL('image/jpeg');                                              // Converts canvas element to image encoding string
+    const downloadElement = document.createElement('a');                                               // Creates "clickable" element
+    downloadElement.href = dataURL;                                                                    // Points element to data URL
+    downloadElement.download = `${getDateTime()}_SDC_Image.jpg`;                                       // Names download
+    downloadElement.click();                                                                           // Initiates image download without dialog
 
     // DEV: Alternative to link.click(), may be necessary for some browsers
     // document.body.appendChild(downloadElement);                         // Appends a link to HTML body for saving as file on Firefox
@@ -1643,16 +1646,16 @@ function videoFlip() {
 function videoFreeze(freezeIcon) {
     const stream = videoElement.srcObject;                                                          // Get current video stream
 
-    if (!isFreeze) {                                                                                // If video is not frozen, freeze it
+    if (!isFrozen) {                                                                                // If video is not frozen, freeze it
         if (stream) {
-            canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
+            canvasDrawCurrentFrame();                                                               // Draw still frame to canvas overlay, avoiding black feed
             releaseVideoStream();                                                                   // Stop video TODO: Consider softer freeze with faster recovery, without relying on videoStart()
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
         freezeIcon.setAttribute("data-locale-key", "play");
         translateElement(freezeIcon);
-        isFreeze = true;                                                                            // Freeze is on
+        isFrozen = true;                                                                            // Freeze is on
     } else {
         videoStart();
         videoElement.style.display = 'block';
@@ -1661,7 +1664,7 @@ function videoFreeze(freezeIcon) {
         freezeIcon.title = "Freeze";
         freezeIcon.setAttribute("data-locale-key", "freeze");
         translateElement(freezeIcon);
-        isFreeze = false;                                                                           // Freeze is off
+        isFrozen = false;                                                                           // Freeze is off
     }
 }
 
@@ -1832,7 +1835,7 @@ function getElementCenter(element) {
  * Choice available between computed and bounding rectangle dimensions.
  *
  * @param {HTMLElement} element HTML element
- * @param bounding If true, dimensions are based on bounding rectangle
+ * @param bounding If true, dimensions are based on bounding rectangle, default false uses computed values
  * @returns {{width: number, height: number}}
  */
 function getElementDimensions(element, bounding = false) {
@@ -1847,7 +1850,7 @@ function getElementDimensions(element, bounding = false) {
         height = rect.height;
     }
 
-    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element); OR getElementDimensions(element).width
+    return { width, height };
 }
 
 /**
@@ -1870,9 +1873,9 @@ function getViewportEdges() {
                     |
                     |
        x-   - - - - | - - - - -   x+
-                    |  PAGE
-                    |
-                    |
+                    |  PAGE ...
+                    |  ........
+                    |  ........
                     y+
     */
 }
@@ -2096,7 +2099,7 @@ class MovableElement extends CreatedElement {
      * @param id Unique identifier for added element
      * @param createRemoveButton True of remove button should be created (optional, css class for button is classNameRemoveButton)
      */
-    createElement(type, className, id, createRemoveButton = false) {
+    createElement(type, className, id, createRemoveButton = false) { // TODO: Move to super
 
         // Create main element
         let newElement = document.createElement(type);
@@ -2150,15 +2153,15 @@ class Overlay extends MovableElement {
     overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
     defaultTextureBackground;                                                               // Inline style for overlay background
-    defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
+    static defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
         240, 254,               // r min, max
         230, 240,               // g min, max
         220, 230,               // b min, max
         160, 254                // a min, max
     ];
-    defaultTextureBlockSize = 1;
-    defaultTextureSmoothing = 200;
-    static noiseCanvas;         // Static variable for shared single-render noise canvas
+    static defaultTextureBlockSize = 1;
+    static defaultTextureSmoothing = 200;
+    static noiseCanvas;         // Static variable for shared single-render noise canvas source
 
 
     // Initialization
@@ -2180,8 +2183,8 @@ class Overlay extends MovableElement {
         // Create main element
         this.element = super.createElement("div", "createdOverlay", this.id, true);
 
-        if (!Overlay.noiseCanvas) {
-            this.renderNoiseCanvas();
+        if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
+            Overlay.renderNoiseCanvas(this.element);
             print("creating", "red");
         }
 
@@ -2203,6 +2206,22 @@ class Overlay extends MovableElement {
         print("handleListeners(): Adding drag listener for overlay: " +  this.id);
         let overlay = document.getElementById(this.id);                              // TODO: Remove extra gets, use reference in variable
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
+    }
+
+    static preRenderNoiseCanvas() {
+        // Create temporary container element for actual dimensions
+        let newElement = document.createElement("div");
+        newElement.id = String(Date.now());
+        newElement.className = "createdOverlay";
+        newElement.classList.add("hidden");
+        videoContainer.appendChild(newElement);
+        print("Created newElement temporary", "red");
+
+        // Prerender
+        Overlay.renderNoiseCanvas(newElement);
+
+        // Cleanup
+        removeElement(newElement);
     }
 
 
@@ -2543,15 +2562,16 @@ class Overlay extends MovableElement {
 
     /**
      *
+     * @param containerElement
      * @param colors
      * @param clustering
      * @param smoothing
      * @returns {HTMLCanvasElement}
      */
-    renderNoiseCanvas(colors = this.defaultTextureColors, clustering = this.defaultTextureBlockSize, smoothing = this.defaultTextureSmoothing) {
+    static renderNoiseCanvas(containerElement, colors = Overlay.defaultTextureColors, clustering = Overlay.defaultTextureBlockSize, smoothing = Overlay.defaultTextureSmoothing) {
         const canvas = document.createElement('canvas');
         canvas.style.pointerEvents = 'none';
-        const { width, height } = getElementDimensions(this.element, true);
+        const { width, height } = getElementDimensions(containerElement, true);
         canvas.width = width;
         canvas.height = height;
         Overlay.fillCanvasWithNoise(canvas, colors, clustering, smoothing);
