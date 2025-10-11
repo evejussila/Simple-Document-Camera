@@ -1060,6 +1060,9 @@ async function setVideoInput(input = selector.value, width = null, height = null
         // DEV: Most likely error is OverconstrainedError, but given the use of ideal values, this should only occur if device with used deviceId is not available
         throw new Error("setVideoInput(): Could not select camera");                            // DEV: A simple synchronous error is hard to catch from an async function by caller like videoStart(), try/catch or ().catch not catching
         // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate TODO: Unable to throw error that is caught within promise
+
+        // TODO: An error: case "TypeError": if ( e.message === "can't access property \"width\", resolution is undefined") This in some cases of concurrent camera use
+
     }
 
     return true;
@@ -2228,9 +2231,9 @@ class Overlay extends MovableElement {
         newElement.className = "createdOverlay";
         newElement.classList.add("hidden");
         videoContainer.appendChild(newElement);
-        print("Overlay: preRenderNoiseCanvas: Pre-rendering noise canvas (async)");
+        print("Overlay: preRenderNoiseCanvas: Pre-rendering noise canvas for overlays (async)");
 
-        // Prerender
+        // Render
         Overlay.renderNoiseCanvas(newElement);
 
         // Cleanup
@@ -2313,7 +2316,7 @@ class Overlay extends MovableElement {
      * @param clustering Size of noise blocks
      * @param smoothing Smoothing amount (0–255)
      */
-    static fillCanvasWithNoise(canvas, colors = null, clustering = 1, smoothing = 0) {
+    static fillCanvasWithNoise(canvas, colors = null, clustering = 2, smoothing = 10) {
         const ctx = canvas.getContext('2d');                 // get canvas context
         const width = canvas.width;                           // canvas width
         const height = canvas.height;                         // canvas height
@@ -2464,6 +2467,13 @@ class Overlay extends MovableElement {
      * @returns {HTMLCanvasElement}
      */
     static renderNoiseCanvas(containerElement, colors = Overlay.defaultTextureColors, clustering = Overlay.defaultTextureBlockSize, smoothing = Overlay.defaultTextureSmoothing) {
+
+        // Development
+        let startTime;
+        if (debugMode) {
+            startTime = performance.now();
+        }
+
         const canvas = document.createElement('canvas');
         canvas.style.pointerEvents = 'none';
         const { width, height } = getElementDimensions(containerElement, true);
@@ -2471,6 +2481,25 @@ class Overlay extends MovableElement {
         canvas.height = height;
         Overlay.fillCanvasWithNoise(canvas, colors, clustering, smoothing);
         Overlay.noiseCanvas = canvas;
+
+        // Development
+        if (debugMode) {
+            const endTime = performance.now();
+            const renderTime = endTime - startTime; // milliseconds
+            const secondsElapsed = renderTime / 1000;
+            let textColor = "default";
+            if (secondsElapsed >= 2) textColor = "yellow";
+            if (secondsElapsed >= 4) textColor = "orange";
+            if (secondsElapsed >= 6) textColor = "red";
+            print("renderNoiseCanvas(): Rendering time: " + secondsElapsed + " s (< 2s expected)", textColor);
+
+            const dataURL = canvas.toDataURL();
+            const byteString = atob(dataURL.split(',')[1]);
+            const byteLength = byteString.length;
+            const sizeMB = byteLength / (1024 * 1024);
+            print("renderNoiseCanvas(): Rendered canvas size: " + sizeMB + " MB");
+        }
+
         return canvas;
     }
 
@@ -3220,7 +3249,8 @@ function print(string, color = "gray", tracePrint = false) {
         case "black":   css = "color: black";   break;
         case "yellow":  css = "color: yellow";  break;
         case "orange":  css = "color: orange";  break;
-        default:        css = "color: gray";    break;
+        case "default":  css = "color: gray";  break;
+        default:        css = "color: red";    break; // This is an error case, invalid value
     }
     console.log("%c" + output, css);
 

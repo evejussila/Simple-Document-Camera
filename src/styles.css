@@ -387,7 +387,7 @@ button:not(:hover) {
     width: 105%;
     height: 105%;
     background: linear-gradient(to bottom, #ffffff, #b19e90);
-    filter: drop-shadow(0px 2px 8px rgba(237, 237, 237, 0.21));
+    box-shadow: 4px 4px 10px 2px rgba(57, 57, 57, 0.66); /* x-offset, y-offset, blur, spread, color */
     cursor: move;
     z-index: var(--zindex-overlays);
     position: absolute;
