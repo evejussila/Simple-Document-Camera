@@ -893,6 +893,15 @@ async function getMediaPermission() {
                 errorDescription = "Video input already in use (Chrome)";
 
                 break;
+            case "TypeError":
+
+                if ( e.message === "capabilityWidth is undefined") {
+                    // This error may be encountered on old browsers when .getCapabilities is not available and fallbacks fail.
+                    // This error only occurs if functions are too dependent on .getCapabilities
+                    // TODO: This is a development issue where getstreminformation cant get resolution
+                }
+
+                break;
             default:
                 errorExpected = "unexpected";
         }
@@ -1234,7 +1243,7 @@ function getStreamInformation(stream, printOut = false) {
 
     let supportsGetCapabilities = true;
     if (!(typeof tracks[0].getCapabilities === "function")) {
-        console.error("getStreamInformation(): Browser does not support function .getCapabilities");
+        console.warn("getStreamInformation(): Browser does not support function .getCapabilities");
         supportsGetCapabilities = false;
     }
 
@@ -1244,7 +1253,12 @@ function getStreamInformation(stream, printOut = false) {
         // Get information
         const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
         let capabilityWidth, capabilityHeight, capabilityFrameRate;
-        if (supportsGetCapabilities) {({ width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities());}
+        if (supportsGetCapabilities) {
+            ({ width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities());
+        } else {
+            // TODO: Create a replacement fallback here
+            return null;
+        }
 
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
