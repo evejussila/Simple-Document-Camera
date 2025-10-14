@@ -398,10 +398,10 @@ button:not(:hover) {
 
 .createdOverlayRemoveButton {
     position: absolute;
-    top: 4px;
-    left: 4px;
+    margin: 12px;
     width: 40px;
     height: 40px;
+    border-radius: 10px;
     display: none; /* Displayed programmatically */
     background-color: var(--remove-button-bg-color);
 }
@@ -504,7 +504,7 @@ button:not(:hover) {
     overflow: scroll;
 }
 
-.modalOverlay {
+.modalPromptOverlay {
     position: fixed;
     top: 0;
     left: 0;

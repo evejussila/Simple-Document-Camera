@@ -363,7 +363,7 @@ async function handlePrivacy() {
     function privacyPrompt() {
         console.log("privacyPrompt(): Displaying a notice: " + texts[0].content.title);
 
-        // noinspection JSUnresolvedReference                                   // Object is dynamic
+        // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
         customPrompt(texts[0].content.title, texts[0].content.text, [
                 { buttonText: texts[0].content.rejectStorage, action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
                 { buttonText: texts[0].content.notNow, action: () => { /* Only implicit rejection, ask again later */ }, customCSS: colorMinimum },
@@ -378,7 +378,7 @@ async function handlePrivacy() {
     function fullPrompt() {
         console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
 
-        // noinspection JSUnresolvedReference                                   // Object is dynamic
+        // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
         customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
                 { buttonText: texts[1].content.rejectTos, action: () => { haltService(); }, customCSS: colorReject },
                 { buttonText: texts[1].content.agreeToTos, action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
@@ -393,7 +393,7 @@ async function handlePrivacy() {
     function tosPrompt() {
         console.log("tosPrompt(): Displaying a notice: " + texts[1].content.title);
 
-        // noinspection JSUnresolvedReference                                   // Object is dynamic
+        // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
         customPrompt(texts[1].content.title, texts[1].content.text, [
                 { buttonText: texts[1].content.rejectTos, action: () => { haltService(); }, customCSS: colorReject },
                 { buttonText: texts[1].content.agreeToTos, action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
@@ -430,6 +430,13 @@ function handleLocalStorage() {
 
     // Write privacy switch to local storage
     localStorage.setItem("privacy", "agreeAll");
+
+    // Check if version has changed
+    // TODO: If has been updated, may need to suggest hard reload to clean cache or clean/fix/migrate stored data
+    localStorage.setItem("lastVersion", version);   // Store current version
+
+    // Check if term or notice versions have changed since last time
+    // TODO: If terms have changed, may need to notify regardless of agreement status
 
     // Update URL parameter
     updateUrlParam("privacy", "agreeAll");
@@ -772,11 +779,11 @@ function blinkVideoSelector(length = 300, repeats = 0) {
 async function videoStart() {
 
     // Get error prompt text
-    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
     let genericPromptTitle = currentTranslations.videoProblemPromptTitle;
-    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
     let genericPromptText = currentTranslations.videoProblemPromptText;
-    // noinspection JSUnresolvedReference                                   // Object is dynamic
+    // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
     let genericPromptActions = [
             { buttonText: currentTranslations.retry, action: () => { videoStart(); } },
             { buttonText: currentTranslations.dismiss, action: () => { } }
@@ -1393,28 +1400,23 @@ async function showContentBox(file, modal = false, clickOut = true, options = un
  * @param containerCSSOverrides CSS class to add to class list or object with custom CSS style declarations, will apply to prompt container
  * @param modal Should the prompt be modal
  * @param clickOut Should modal prompt exit when modal overlay is clicked
- * @param forceExecutionBlocking If true, function returns a value only after a button was pressed (synchronous, blocking)
  */
-function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = false, forceExecutionBlocking = false) {
+function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = false) {
 
     // Examples TODO: redo
     // customPrompt("Title", "Text or HTML for body",                                                               [
     //     [   "Button"                , () => { console.log("Button pressed")                                  }   ],
     //     [   "Dismiss"               , () => {                                                                }   ]
     // ]);
-
-    let returnValue = undefined;        // Value is used in execution blocking
-
-    const exampleOptions = [
-        { buttonText: "Close", action: () => { console.log("Prompt closed") }, dismissOnPress: true, returnValue: 0, customCSS: undefined }
-    ];
+    // const exampleOptions = [
+    //     { buttonText: "Close", action: () => { console.log("Prompt closed") }, dismissOnPress: true, returnValue: 0, customCSS: undefined }
+    // ];
     // If forceExecutionBlocking is true
     //    The prompt function returns the returnValue of the button that was pressed. The value is optional.
     //    Default returnValue for buttons is integer 0, but failed execution of button action returns a boolean false.
 
     // Create prompt container
-    const prompt = document.createElement('div');                      // Create element
-    // hideElement(prompt);
+    const prompt = document.createElement('div');                     // Create element
     prompt.id = String(Date.now());                                   // Assign a (pseudo) unique id
     prompt.className = 'prompt';                                      // Set basic CSS class
 
@@ -1450,19 +1452,22 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
         print("customPrompt(): Prompt text identified as plain string");
         textBody.textContent = text;                                     // Plain string text to text content of div
     }
-    // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed can be fine and won't throw errors but should be noticed
+
+    // Setup execution blocking
+    let returnValue = undefined;
 
     // Append
     prompt.appendChild(textBody);
 
     // Modal functionality
-    const modalOverlay = document.createElement("div");              // Create container element
-    if (modal) {                                                     // Create modal overlay if requested
-        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
-        document.body.appendChild(modalOverlay);                     // Append
-        showElement(modalOverlay);
+    const modalPromptOverlay = document.createElement("div");               // Create container element
+    if (modal) {                                                            // Create modal overlay if requested
+        modalPromptOverlay.classList.add("modalPromptOverlay");             // Set basic CSS class for styling
+        modalPromptOverlay.classList.add("hidden");                         // Set CSS class for initial hide
+        document.body.appendChild(modalPromptOverlay);                      // Append
+        showElement(modalPromptOverlay);
         if (clickOut) {
-            modalOverlay.addEventListener('click', dismiss);
+            modalPromptOverlay.addEventListener('click', dismiss);
         }
     }
 
@@ -1493,11 +1498,15 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
 
         // Attach action listener
         button.addEventListener('click', () => {
-            if (!optionButton.dismissOnPress) {
-                dismiss();                      // Buttons dismiss prompt by default
+            // noinspection JSUnresolvedReference                                           // Defining dismissOnPress is optional
+            if (optionButton?.dismissOnPress === undefined || optionButton?.dismissOnPress) // If undefined or true
+            {
+                dismiss();                                                                  // Buttons dismiss prompt by default
+            } else {                                                                        // If false (dismissal must be handled manually)
+
             }
             try {
-                optionButton.action();                                        // Run function or code block
+                optionButton.action();                                                      // Run function or code block
                 returnValue = (optionButton.returnValue) ? optionButton.returnValue : 0;
             } catch (e) {
                 console.error("customPrompt(): Button action failed: " + e.message);
@@ -1517,45 +1526,23 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
     document.body.appendChild(prompt);
     showElement(prompt);
 
-    // Dismiss prompt after timeout
-    // const timeout = 1000;
-    // if (timeout >= 0) {
-    //     setTimeout(() => {
-    //         dismiss();
-    //     }, 1000);}
-    // }
-
-    // TODO: Replace animations with show and hide, extend show and hide arguments or use CSS classes
-    // Animation: fade in
-    // requestAnimationFrame(() => {
-    //     prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
-    //     prompt.style.opacity = '1';
-    // });
-
     // Nested function to dismiss prompt
     function dismiss() {
         print("customPrompt(): Dismissing prompt " + prompt.id);
         if (modal) {
-            removeElement(modalOverlay);
+            removeElement(modalPromptOverlay);
         }
         removeElement(prompt)       // Animated hide, then remove
-
-        // Animation: fade out
-        // prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
-        // prompt.style.bottom = '-100px';
-        // prompt.style.opacity = '0';
-        // setTimeout(() => {
-        //     prompt.style.display = 'none';
-        //     prompt.remove();
-        // }, 300);
-
     }
 
-    if (forceExecutionBlocking) {
-        while (returnValue === undefined) {             // Block execution until return value is available
-        }
-        return returnValue;
-    }
+    // if (!forceExecutionBlocking) {
+    //     print("customPrompt(): Execution blocking " + forceExecutionBlocking + ", blocking function termination until return value given from callback (implicit async)");
+    //     while (returnValue === undefined) {             // Block execution until return value is available
+    //     }
+    //     print("customPrompt(): Function termination from blocking, return value: " + returnValue.toString());
+//
+    //     return returnValue;
+    // }
 
     return prompt;
 
@@ -2171,7 +2158,7 @@ class Overlay extends MovableElement {
     overlayY;
     defaultTextureBackground;                                                               // Inline style for overlay background
     static defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
-        240, 254,               // r min, max
+        236, 250,               // r min, max
         230, 240,               // g min, max
         220, 230,               // b min, max
         160, 254                // a min, max
@@ -2873,7 +2860,7 @@ class Menu extends CreatedElement {
             // Create basic or custom buttons
             let buttonElement;
             if (!control.customHTML) {                         // No custom HTML (falsy)
-                // noinspection JSUnresolvedReference          // Object is dynamic
+                // noinspection JSUnresolvedReference          // Object references are populated elsewhere
                 buttonElement = createButton(control.id, control.text, control.img);
                 this.element.appendChild(buttonElement);
             } else {                                               // Custom HTML
