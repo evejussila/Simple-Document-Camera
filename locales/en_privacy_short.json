@@ -1,6 +1,6 @@
 {
   "title": "Privacy Notice",
-  "text": "This is a local service. Your video and data remain only on your own device. <br><br><b>Your video or data are not sent anywhere.</b><br><br>This service remembers your consent and settings by storing them locally in your browser. Storing this information is optional. <br><br>If you agree to the storing of your consent and settings locally, you will not see this prompt on your device in the future. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('en_privacy_long', true, true)\">Privacy Policy</a><br>",
+  "text": "This is a local service. Your video and data remain only on your own device. <br><br><b>Your video or data are not sent anywhere.</b><br><br>This service remembers your consent and settings by storing them locally in your browser. Storing this information is optional. <br><br>If you agree to the storing of your consent and settings locally, you will not see this prompt on your device in the future. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentPrompt('en_privacy_long', true, true)\">Privacy Policy</a><br>",
   "agreeStorage": "Agree",
   "notNow": "Not now",
   "rejectStorage": "Reject"

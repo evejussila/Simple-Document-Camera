@@ -28,7 +28,7 @@ let mouseY;
 // Other
 let selector;                                                                        // Camera feed selector
 let createdElements;                                                                 // Handles created elements
-
+let appStatus = {};                                                                  // Stores app status information
 
 // Initialization
 
@@ -230,31 +230,36 @@ function translateElement(element) {
 
 /**
  * Handles privacy-related prompting, parameters, data storage and logical coordination
- * @returns {boolean} True if the service can be used
+ *
+ * @returns {Promise<null|string>} Return values are "full", "noStorage", "waitStorage" and "wait"
  */
 async function handlePrivacy() {
 
     // Fast exit: Check browser local storage for permissive privacy setting
-    const privacyKey = localStorage.getItem('privacy');                          // Get expected privacy key value from local storage
-    switch (privacyKey) {
-        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
-            handleLocalStorage();
-            return true;                                                         // Fast exit
-        default:
-            print("handlePrivacy(): No fast exit (local storage)");
+    {                                                                                // Code block for collapsing
+        const privacyKey = localStorage.getItem('privacy');                          // Get expected privacy key value from local storage
+        switch (privacyKey) {
+            case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+                handleLocalStorage();
+                return "full";                                                       // Fast exit
+            default:
+                print("handlePrivacy(): No fast exit (local storage)");
+        }
     }
 
     // Fast exit: Check URL privacy parameter for permissive privacy setting
-    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");  // Get expected privacy parameter value from URL
-    print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
-    switch (privacyParameter) {
-        case "agreeAll":                                                                  // User agrees to ToS and local storage -> No prompt, create local storage
-            handleLocalStorage();
-            return true;
-        case "agreeTosExclusive":                                                         // User agrees to ToS, has forbidden local storage -> No prompt, no action
-            return true;                                                                  // Fast exit
-        default:
-            print("handlePrivacy(): No fast exit (URL parameter)");
+    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");      // Get expected privacy parameter value from URL
+    {                                                                                         // Code block for collapsing
+        print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
+        switch (privacyParameter) {
+            case "agreeAll":                                                                  // User agrees to ToS and local storage -> No prompt, create local storage
+                handleLocalStorage();
+                return "full";
+            case "agreeTosExclusive":                                                         // User agrees to ToS, has forbidden local storage -> No prompt, no action
+                return "noStorage";                                                           // Fast exit
+            default:
+                print("handlePrivacy(): No fast exit (URL parameter)");
+        }
     }
 
     // Load short texts if they exist
@@ -270,7 +275,6 @@ async function handlePrivacy() {
             textExists: false,
         }
     ];
-
     for (const text of texts) {                         // Iterate through texts
         const content = await fetchJSON(text.file);     // Get JSON
         if (content) {                                  // If JSON accessible
@@ -283,131 +287,73 @@ async function handlePrivacy() {
     }
     print("handlePrivacy(): Privacy files: privacy text exists = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
-    // Fast exit: Check if no texts exist
-    if (!texts[0].textExists && !texts[1].textExists) {  // No texts exist -> assume local storage can be used
-        handleLocalStorage();                            // Create local storage
-        return true;
-    } else {
-        print("handlePrivacy(): No fast exit (texts exist)");
-    }
-
-    // Set button styles
-    const colorAccept = "optionDefault";
-    const colorMinimum = "optionNeutral";
-    const colorReject = "optionNegative";
-
     // Interpret course of action
 
-    // Table of actions
-    // Format:
-    // Text states (does text exist)   Privacy parameters
-    // Privacy text    Tos text        Parameter
-    // ---------------------------------------------------------------------------------------------------
-    // Boolean         Boolean         Action (output)
+    // Simply:
+    // User is shown either terms of service (tos), privacy notice or both. If user has agreed to one or both
+    // before (based on URL parameter or local storage) the same text is not shown again. If a text does not
+    // exist, it cannot be shown, and a positive response to related matters is assumed. Tos is related to
+    // the fundamental permission to use the software at all, and the privacy notice is related to the storage
+    // of information in local storage. Saving of settings in the URL as parameters is always attempted.
 
     // Table of actions
     // Table:
+    // Text states (does text exist)   Privacy parameters and actions
     // Privacy text    Tos text        agreeTosInclusive        null                  (agreeAll)            (malformed)
-    // ------------------------------------------------------------------------------------------------------------------------
-    // true            -               privacyPrompt                                  handleLocalStorage
-    // false           -               handleLocalStorage                             handleLocalStorage
-    // true            true                                     fullPrompt            handleLocalStorage    fullPrompt
-    // false           true                                     tosPrompt             handleLocalStorage    tosPrompt
-    // true            false                                    privacyPrompt         handleLocalStorage    privacyPrompt
-    // false           false                                    handleLocalStorage    handleLocalStorage    handleLocalStorage
-
-    // TODO: Minimize table, compact logic
+    // ---------------------------------------------------------------------------------------------------------------------------
+    // true            -               privacy prompt                                 handleLocalStorage()
+    // false           -               handleLocalStorage()                           handleLocalStorage()
+    // true            true                                     full prompt           handleLocalStorage()  full prompt
+    // false           true                                     tos prompt            handleLocalStorage()  tos prompt
+    // true            false                                    privacy prompt        handleLocalStorage()  privacy prompt
+    // false           false                                    handleLocalStorage()  handleLocalStorage()  handleLocalStorage()
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
             if (texts[0].textExists) {                                           // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
-                privacyPrompt();                                                 // Privacy prompt
+                showLegalPrompt("privacy", texts)                                // Privacy prompt
+                return "waitStorage";
             } else {                                                             // Privacy text does not exist
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
                 handleLocalStorage();                                            // Create local storage (assume local storage can be used if privacy notice text is not provided)
+                return "full";
             }
-            break;
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
             if (texts[1].textExists) {                                           // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
                 if (texts[0].textExists) {                                       // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
-                    fullPrompt();                                                // Full prompt
+                    showLegalPrompt("full", texts)                               // Full prompt
                 } else {                                                         // Privacy text does not exist
                     print("handlePrivacy(): ... privacy text does not exist");
-                    tosPrompt();                                                 // ToS prompt
+                    showLegalPrompt("tos", texts)                                // ToS prompt
                 }
+                return "wait";
             } else {                                                             // ToS text does not exist
                 print("handlePrivacy(): ... ToS text does not exist");
                 if (texts[0].textExists) {                                       // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
-                    privacyPrompt();                                             // Privacy prompt
+                    showLegalPrompt("privacy", texts)                            // Privacy prompt
+                    return "waitStorage";
+                } else {
+                    print("handlePrivacy(): ... privacy text does not exist");
+                    handleLocalStorage();                                        // Create local storage (assume local storage can be used if neither text is provided)
+                    return "full";
                 }
             }
-
-            break;
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
             if (texts[0].textExists && texts[1].textExists) {
-                fullPrompt();                                                    // Full prompt
-            } // TODO: Not handling case where param is malformed but only one text exists. This section behaves exactly the same as null, should combine.
+                showLegalPrompt("full", texts)                                  // Full prompt
+                return "full";
+            } else {
+                return null;
+                // TODO: Edge error cases not further differentiated yet
+            }
     }
 
-    // Nested functions for prompts
-
-    /**
-     * Displays a privacy notice.
-     */
-    function privacyPrompt() {
-        console.log("privacyPrompt(): Displaying a notice: " + texts[0].content.title);
-
-        // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
-        customPrompt(texts[0].content.title, texts[0].content.text, [
-                { buttonText: texts[0].content.rejectStorage, action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
-                { buttonText: texts[0].content.notNow, action: () => { /* Only implicit rejection, ask again later */ }, customCSS: colorMinimum },
-                { buttonText: texts[0].content.agreeStorage, action: () => { handleLocalStorage(); }, customCSS: colorAccept }
-            ]
-        );
-    }
-
-    /**
-     * Displays a full privacy and ToS (terms of service) notice.
-     */
-    function fullPrompt() {
-        console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
-
-        // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
-        customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
-                { buttonText: texts[1].content.rejectTos, action: () => { haltService(); }, customCSS: colorReject },
-                { buttonText: texts[1].content.agreeToTos, action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
-                { buttonText: texts[1].content.agreeToAll, action: () => { handleLocalStorage(); }, customCSS: colorAccept }
-            ]
-        );
-    }
-
-    /**
-     * Displays a ToS (terms of service) notice.
-     */
-    function tosPrompt() {
-        console.log("tosPrompt(): Displaying a notice: " + texts[1].content.title);
-
-        // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
-        customPrompt(texts[1].content.title, texts[1].content.text, [
-                { buttonText: texts[1].content.rejectTos, action: () => { haltService(); }, customCSS: colorReject },
-                { buttonText: texts[1].content.agreeToTos, action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
-            ]
-        );
-
-    }
-
-    function haltService() {
-        console.error("handlePrivacy(): Terms rejected, call to halt service");
-        // TODO: Trigger video freeze event or other halt
-    }
-
-    return true; // TODO: For return value to have a relevant effect, function would need to await prompt responses
 }
 
 /**
@@ -670,7 +616,7 @@ function createMenus() {
          * Nested function to show info prompt
          */
         function showLegalInfo() {
-            showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
+            showContentPrompt('en_tos_long', true, true); // TODO: Display proper information in correct language
         }
 
         // Create info menu
@@ -765,6 +711,16 @@ function blinkVideoSelector(length = 300, repeats = 0) {
         }, length);
     };
     blink();
+}
+
+function haltService(haltReason, solution) {
+
+    // Halt
+    console.error("haltService(): Service halted, reason: " + haltReason);
+    videoFreeze(null); // TODO: Halt method is unclean
+
+    // Display error message with solution
+    showErrorPrompt();
 }
 
 
@@ -1361,17 +1317,83 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
     }
 }
 
+function showLegalPrompt(promptType, texts) {
+
+    // Set button styles
+    const colorAccept   = "optionDefault"  ;
+    const colorMinimum  = "optionNeutral"  ;
+    const colorReject   = "optionNegative" ;
+
+    switch(promptType) {
+        case 'privacy':
+            // Displays a privacy notice.
+            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title);
+
+            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            customPrompt(texts[0].content.title, texts[0].content.text, [
+                    { buttonText: texts[0].content.rejectStorage ,  action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
+                    { buttonText: texts[0].content.notNow        ,  action: () => { /* Implicit rejection, ask later */ }, customCSS: colorMinimum },
+                    { buttonText: texts[0].content.agreeStorage  ,  action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+                ]
+            );
+
+            break;
+        case 'tos':
+            // Displays a ToS (terms of service) notice.
+            console.log("showLegalPrompt(): Displaying a notice: " + texts[1].content.title);
+
+            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            customPrompt(texts[1].content.title, texts[1].content.text, [
+                    { buttonText: texts[1].content.rejectTos  ,  action: () => { haltService(); }, customCSS: colorReject },
+                    { buttonText: texts[1].content.agreeToTos ,  action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
+                ]
+            );
+
+            break;
+        case 'full':
+            // Displays a full privacy and ToS (terms of service) notice.
+            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
+
+            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
+                    { buttonText: texts[1].content.rejectTos  ,   action: () => { haltService("User rejected terms of service.", "Please refresh the page." ); }, customCSS: colorReject },
+                    { buttonText: texts[1].content.agreeToTos ,   action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
+                    { buttonText: texts[1].content.agreeToAll ,   action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+                ]
+            );
+
+            break;
+    }
+
+}
+
+function showErrorPrompt(title, text, buttons) {
+    // let promptTitle   =    "Title";
+    // let promptText    =    "Text";
+    // let promptButtons = [
+    //     {    buttonText: "Yes"       ,   action: () => {   console.log( "Button Yes pressed" );    } },
+    //     {    buttonText: "No"        ,   action: () => {   console.log( "Button No pressed"  );    } }
+    // ];
+    // customPrompt(promptTitle, promptText, promptButtons);
+}
+
+
+function showWaitPrompt() {
+    const loader = Object.assign(document.createElement('div'), {className:'loader'});
+    document.getElementById('cameraFeed').after(loader);
+}
+
 /**
- * Creates a box with text or HTML from a file.
+ * Creates a prompt box with text or HTML from a file.
  * Can be used for showing terms, notices, tutorials and various content.
  * Assumes file path ./locales/
- * @param {string} file File to load text from
+ * @param {string} file File to load text from (string filename)
  * @param modal Should the prompt be modal (optional)
  * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
  * @param options Button option definitions (optional)
  */
-async function showContentBox(file, modal = false, clickOut = true, options = undefined) {
-    print("showContentBox(): Showing content from file: " + file);
+async function showContentPrompt(file, modal = false, clickOut = true, options = undefined) {
+    print("showContentPrompt(): Showing content from file: " + file);
 
     let title;
     let contentToShow;
@@ -1380,13 +1402,13 @@ async function showContentBox(file, modal = false, clickOut = true, options = un
         const text = await fetchJSON(file);
         title = text.title;
         contentToShow = text.text;
-        print("showContentBox(): Found text: " + file + " with title: " + text.title);
+        print("showContentPrompt(): Found text: " + file + " with title: " + text.title);
 
         return customPrompt(title, contentToShow, options, "promptContentBox", modal, clickOut);
     } catch (e) {
-        console.warn("showContentBox(): Did not find text: " + file + " : " + e);
+        console.warn("showContentPrompt(): Did not find text: " + file + " : " + e);
     }
-
+// TODO: Must be the biggest prompt type vertically, to always remain top layer with no underlap
     return false;
 }
 
@@ -1397,23 +1419,41 @@ async function showContentBox(file, modal = false, clickOut = true, options = un
  * @param title Title text for prompt
  * @param text Body text for prompt (can contain HTML)
  * @param options Array with text and code to run for buttons
- * @param containerCSSOverrides CSS class to add to class list or object with custom CSS style declarations, will apply to prompt container
+ * @param containerCSSOverrides CSS class (string) to add to class list or object with custom CSS style declarations, will apply to prompt container
  * @param modal Should the prompt be modal
  * @param clickOut Should modal prompt exit when modal overlay is clicked
  */
-function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = false) {
+async function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true) {
 
-    // Examples TODO: redo
-    // customPrompt("Title", "Text or HTML for body",                                                               [
-    //     [   "Button"                , () => { console.log("Button pressed")                                  }   ],
-    //     [   "Dismiss"               , () => {                                                                }   ]
-    // ]);
-    // const exampleOptions = [
-    //     { buttonText: "Close", action: () => { console.log("Prompt closed") }, dismissOnPress: true, returnValue: 0, customCSS: undefined }
+    // Examples
+    //
+    // ---------- ---------- ----------
+    //
+    // let promptTitle   =    "Title";
+    // let promptText    =    "Text";
+    // let promptButtons = [
+    //     {    buttonText: "Yes"       ,   action: () => {   console.log( "Button Yes pressed" );    } },
+    //     {    buttonText: "No"        ,   action: () => {   console.log( "Button No pressed"  );    } }
     // ];
-    // If forceExecutionBlocking is true
-    //    The prompt function returns the returnValue of the button that was pressed. The value is optional.
-    //    Default returnValue for buttons is integer 0, but failed execution of button action returns a boolean false.
+    // customPrompt(promptTitle, promptText, promptButtons);
+    //
+    // ---------- ---------- ----------
+    //
+    // All buttons dismiss the prompt by default.
+    // Prompt title and text can be string or HTML string. All HTML will be parsed and rendered normally.
+    //
+    // Function has more optional parameters.
+    // Most extra parameters are designed for other functions (e.g. showContentPrompt() ) for various use cases. You should use those.
+    // containerCSSOverrides                // Applies (inline) a set of custom CSS key-value pairs from an object ( example: overrides = {display: flex, gap: 20px} )
+    //
+    // Objects for buttons have more available properties that can be set if needed. These are optional.
+    // dismissOnPress: false                // True by default. If set to false (risky), dismissal of prompt must be achieved manually.
+    // customCSS: "CSSClassName"            // Sets a specific CSS class name for the button
+    // customCSS: object                    // Applies (inline) a set of custom CSS key-value pairs from an object
+    //
+    // Different ways to use button object property "action" exist. Functions, anonymous functions, callbacks and code blocks can be used. TODO: test all
+    //
+    //
 
     // Create prompt container
     const prompt = document.createElement('div');                     // Create element
@@ -1453,9 +1493,6 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
         textBody.textContent = text;                                     // Plain string text to text content of div
     }
 
-    // Setup execution blocking
-    let returnValue = undefined;
-
     // Append
     prompt.appendChild(textBody);
 
@@ -1474,6 +1511,9 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
     // Create button container
     const optionContainer = document.createElement('div');
     optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
+
+    // Setup value return
+    let returnValue = undefined;
 
     // Create buttons
     options.forEach((optionButton) => {
@@ -1502,8 +1542,10 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
             if (optionButton?.dismissOnPress === undefined || optionButton?.dismissOnPress) // If undefined or true
             {
                 dismiss();                                                                  // Buttons dismiss prompt by default
-            } else {                                                                        // If false (dismissal must be handled manually)
-
+            } else {                                                                        // If explicitly set to false
+                // Dismissal must be manually achieved by deleting prompt container element
+                // If modal, modal overlay will persist as it is appended to document
+                // If modal and clickOut false, modal overlay cannot be removed easily
             }
             try {
                 optionButton.action();                                                      // Run function or code block
@@ -1534,15 +1576,6 @@ function customPrompt(title = "Title", text = "Text", options = [ { buttonText: 
         }
         removeElement(prompt)       // Animated hide, then remove
     }
-
-    // if (!forceExecutionBlocking) {
-    //     print("customPrompt(): Execution blocking " + forceExecutionBlocking + ", blocking function termination until return value given from callback (implicit async)");
-    //     while (returnValue === undefined) {             // Block execution until return value is available
-    //     }
-    //     print("customPrompt(): Function termination from blocking, return value: " + returnValue.toString());
-//
-    //     return returnValue;
-    // }
 
     return prompt;
 

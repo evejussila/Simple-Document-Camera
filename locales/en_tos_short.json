@@ -1,6 +1,6 @@
 {
   "title": "Terms of Service",
-  "text": "This service is provided as is. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentBox('en_tos_long', true, true)\">Terms of Service</a>",
+  "text": "This service is provided as is. <br><br><a href=\"javascript:void(0);\" onclick=\"showContentPrompt('en_tos_long', true, true)\">Terms of Service</a>",
   "agreeToAll": "Agree to all",
   "agreeToTos": "Agree to terms",
   "rejectTos": "Reject terms"
