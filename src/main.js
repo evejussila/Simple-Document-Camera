@@ -42,9 +42,11 @@ function start() {
     // Pre-generate resources
     Overlay.preRenderNoiseCanvas();
 
+    // Set app status
+    appStatus.paused = true;
+
     // Create interface elements
     createMenus();
-    showElement(controlBar);
 
     // Add core listeners for interface elements
     addCoreListeners();
@@ -53,16 +55,42 @@ function start() {
     addLocalization().then(() => {
         
         // Handle notices, consent and data storage
-        handlePrivacy();
+        handlePrivacy().then( (initialResult) => {
 
+            appStatus.privacy = initialResult;
+            if (initialResult === "wait" || initialResult === "waitStorage") {
+                waitPrivacy();
+            } else {
+                startup();
+            }
+        });
+    });
+
+    function waitPrivacy() {
+        window.addEventListener('privacyChanged', (e) => {
+            print("start(): Event: Privacy property value changed to: " + e.detail.newValue);
+
+            if (e.detail.newValue !== "wait" && e.detail.newValue !== "waitStorage" && e.detail.newValue !== "reject") {
+                startup();
+                // TODO: Could run multiple times if there's an issue
+            }
+        });
+    }
+
+    function startup() {
         // Start video feed
         videoStart().then(() => {});
         showElement(videoElement);
 
+        // Set app status
+        appStatus.paused = false;
+
+        // Show interface
+        showElement(controlBar);
+
         // Onboarding
         handleOnboarding();
-        
-    });
+    }
 
 }
 
@@ -235,6 +263,21 @@ function translateElement(element) {
  */
 async function handlePrivacy() {
 
+    // Setup privacy property for event handling
+    Object.defineProperty(appStatus, "privacy", {           // Initialize property
+        configurable: true,                                 // Allows redefinition and deletion
+        enumerable: true,                                   // Allows use in for loops etc.
+
+        set: function(value) {                              // Intercept set
+            this._privacy = value;                          // Initializes backing field property
+            window.dispatchEvent(new CustomEvent('privacyChanged', { detail: { newValue: value } }));   // Fire an event on change
+        },
+
+        get: function() {                                   // Intercept get
+            return this._privacy;                           // Uses backing field
+        }
+    });
+
     // Fast exit: Check browser local storage for permissive privacy setting
     {                                                                                // Code block for collapsing
         const privacyKey = localStorage.getItem('privacy');                          // Get expected privacy key value from local storage
@@ -297,7 +340,7 @@ async function handlePrivacy() {
     // of information in local storage. Saving of settings in the URL as parameters is always attempted.
 
     // Table of actions
-    // Table:
+    //
     // Text states (does text exist)   Privacy parameters and actions
     // Privacy text    Tos text        agreeTosInclusive        null                  (agreeAll)            (malformed)
     // ---------------------------------------------------------------------------------------------------------------------------
@@ -971,13 +1014,13 @@ function updateInputList(inputs) {
  * @returns {Promise<void>}
  */
 async function backgroundUpdateInputList() {
+    if (appStatus.paused) return; // TODO: Add support for pause
     try {
         let inputs = await getVideoInputs();
         updateInputList(inputs);
     } catch (e) {
-        print("backgroundUpdateInputList(): Background update failed: " + e);
+        print("backgroundUpdateInputList(): Background update failed: " + e.name + " : " + e.message);
     }
-
 }
 
 /**
@@ -1472,9 +1515,9 @@ function showLegalPrompt(promptType, texts) {
 
             // noinspection JSUnresolvedReference // Object references are populated elsewhere
             customPrompt(texts[0].content.title, texts[0].content.text, [
-                    { buttonText: texts[0].content.rejectStorage ,  action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
-                    { buttonText: texts[0].content.notNow        ,  action: () => { /* Implicit rejection, ask later */ }, customCSS: colorMinimum },
-                    { buttonText: texts[0].content.agreeStorage  ,  action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+                    { buttonText: texts[0].content.rejectStorage ,  action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
+                    { buttonText: texts[0].content.notNow        ,  action: () => { appStatus.privacy = "noStorage"; }, customCSS: colorMinimum },
+                    { buttonText: texts[0].content.agreeStorage  ,  action: () => { appStatus.privacy = "full"; handleLocalStorage(); }, customCSS: colorAccept }
                 ]
             );
 
@@ -1485,8 +1528,8 @@ function showLegalPrompt(promptType, texts) {
 
             // noinspection JSUnresolvedReference // Object references are populated elsewhere
             customPrompt(texts[1].content.title, texts[1].content.text, [
-                    { buttonText: texts[1].content.rejectTos  ,  action: () => { haltService("errorTosReject", "showLegalPrompt()"); }, customCSS: colorReject },
-                    { buttonText: texts[1].content.agreeToTos ,  action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
+                    { buttonText: texts[1].content.rejectTos  ,  action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }, customCSS: colorReject },
+                    { buttonText: texts[1].content.agreeToTos ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }, customCSS: colorAccept }
                 ]
             );
 
@@ -1497,9 +1540,9 @@ function showLegalPrompt(promptType, texts) {
 
             // noinspection JSUnresolvedReference // Object references are populated elsewhere
             customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
-                    { buttonText: texts[1].content.rejectTos  ,   action: () => { haltService("errorTosReject", "showLegalPrompt()"); }, customCSS: colorReject },
-                    { buttonText: texts[1].content.agreeToTos ,   action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
-                    { buttonText: texts[1].content.agreeToAll ,   action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+                    { buttonText: texts[1].content.rejectTos  ,   action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }, customCSS: colorReject },
+                    { buttonText: texts[1].content.agreeToTos ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
+                    { buttonText: texts[1].content.agreeToAll ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }, customCSS: colorAccept }
                 ]
             );
 
@@ -1607,7 +1650,7 @@ async function customPrompt(title = "Title", text = "Text", options = [ { button
     // customCSS: "CSSClassName"            // Sets a specific CSS class name for the button
     // customCSS: object                    // Applies (inline) a set of custom CSS key-value pairs from an object
     //
-    // Different ways to use button object property "action" exist. Functions, anonymous functions, callbacks and code blocks can be used. TODO: test all
+    // Different ways to use button object property "action" exist. Functions, anonymous functions, function expressions, callbacks and code blocks can be used. TODO: test all
     //
     // TODO: Return values? References exist. Could add as property of html element. Could forward action return value.
 
