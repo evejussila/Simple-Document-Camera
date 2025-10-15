@@ -724,34 +724,20 @@ function blinkVideoSelector(length = 300, repeats = 0) {
  */
 async function videoStart() {
 
-    // Get error prompt text
-    // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
-    let genericPromptTitle = currentTranslations.videoProblemPromptTitle;
-    // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
-    let genericPromptText = currentTranslations.videoProblemPromptText;
-    // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
-    let genericPromptActions = [
-            { buttonText: currentTranslations.retry, action: () => { videoStart(); } },
-            { buttonText: currentTranslations.dismiss, action: () => {  } }
-        ];
-
     // Get permission and inputs
-    let error = false;
-    let errorDescription;                                                                            // Store specific error description
     let inputs;
-    let errorSource;
+    let error = false;
     let errorObject;
+    let errorSource;
     let errorType;
 
     // Get media permission
     await getMediaPermission()                                                                                   // Get permission
         .catch(e => {                                                                                            // Catch errors from getMediaPermission()
             error = true;                                                                                        // Flag error
-            errorSource = "getMediaPermission()";
             errorObject = e;
+            errorSource = "getMediaPermission()";
             errorType = "errorMediaAccess";
-            errorDescription = "No media permission or access"                                                   // Give specific readable error description
-            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);             // Log error
     });                                                                                                          // End catch for getMediaPermission()
 
     // Get inputs
@@ -759,11 +745,9 @@ async function videoStart() {
         inputs = await getVideoInputs()                                                                          // Get inputs
             .catch(e => {                                                                                        // Catch errors from getVideoInputs()
                 error = true;                                                                                    // Flag error
-                errorSource = "getVideoInputs()";
                 errorObject = e;
+                errorSource = "getVideoInputs()";
                 errorType = "errorInputEnumeration";
-                errorDescription = "No valid inputs could be found"                                              // Give specific readable error description
-                console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);         // Log error
             });                                                                                                  // End catch for getVideoInputs()
     }
 
@@ -774,11 +758,9 @@ async function videoStart() {
             input = await updateInputList(inputs);                                                        // Update selector list, selecting some input
         } catch (e) {
             error = true;                                                                                 // Flag error
-            errorSource = "updateInputList()";
             errorObject = e;
+            errorSource = "updateInputList()";
             errorType = "errorInputListUpdate";
-            errorDescription = "Error while attempting to update video input list"                        // Give specific readable error description
-            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);      // Log error
         }
     }
 
@@ -787,18 +769,15 @@ async function videoStart() {
         try {
             await setVideoInput(input);                                                                   // Use the selected input
         } catch (e) {
-            // TODO: Catch not reliable enough
+            // TODO: Catch not reliable enough? Passing fail forward at times?
             error = true;                                                                                 // Flag error
-            errorSource = "setVideoInput()";
             errorObject = e;
+            errorSource = "setVideoInput()";
             errorType = "errorInputSet";
-            errorDescription = "Error while attempting to use video input"                             // Give specific readable error description
-            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);      // Log error
         }
     }
 
-
-    if (error) { videoError(errorType, errorSource + ",videoStart()", errorObject); }                   // Prompt user
+    if (error) { videoError(errorType, errorSource + ",videoStart()", errorObject); }                     // Prompt user
     // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
@@ -917,7 +896,7 @@ async function getVideoInputs() {
                 if (device.deviceId === "") {                                                         // Detect and filter invalid values
                     // DEV: In some cases (like missing permissions or page loading in background tab) empty values may be returned.
                     // DEV: These values will be objects of the right kind but do not have device Ids and cannot be used.
-                    console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
+                    console.warn("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
                     // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
                     videoInputs.push([device.deviceId, device.label]);                                  // Assign device id to index 0 of inner array, label to index 1 of inner array, push inner array to outer array as one row
@@ -929,7 +908,7 @@ async function getVideoInputs() {
             // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
         } else {
-            console.error("getVideoInputs(): No video sources found")
+            console.warn("getVideoInputs(): No video sources found")
             blinkVideoSelector();
             throw new Error("getVideoInputs(): No valid video inputs");
         }
@@ -1780,33 +1759,44 @@ function videoError(errorType, source, errorObject) {
     switch (errorType) {
         case 'errorMediaAccess': {
             errorPackage.devDescription         = "No media permission or access";
+            errorPackage.promptSolutionText     = "This particular issue seems related to lack of permissions and camera access.";
 
             break;
         }
         case 'errorInputEnumeration': {
             errorPackage.devDescription         = "No valid inputs could be found";
+            errorPackage.promptSolutionText     = "This particular issue may be caused by your devices not being connected.";
 
             break;
         }
         case 'errorInputListUpdate': {
             errorPackage.devDescription         = "Error while attempting to update video input list";
+            errorPackage.promptSolutionText     = "This particular issue is rare. If it persists, please report it to the developers of this app.";
 
             break;
         }
         case 'errorInputSet': {
             errorPackage.devDescription         = "Error while attempting to use video input";
+            errorPackage.promptSolutionText     = "This particular issue may be caused by other programs using the camera.";
+
+            break;
+        }
+        default: {
+            errorPackage.devDescription         = "Error type unknown";
+            errorPackage.promptSolutionText     = "This particular issue is unknown. Please report it to the developers of this app.";
 
             break;
         }
     }
 
-    // if (errorType === "errorTosReject") {   // TODO: Get all text from localized file
-    //     errorPackage.promptSolutionText     = "please refresh ";
-    //
-
-
     // Show prompt
     showErrorPrompt(errorPackage);
+
+    function showMore() {
+        let output = "Error source: " + errorPackage.source + " , type designation: " + errorPackage.type + " , description: " + errorPackage.devDescription;
+        output += "<br><br> Error object: " + errorObject.name + " : " + errorObject.message
+        return output;
+    }
 }
 
 function haltService(haltType, source ) {
