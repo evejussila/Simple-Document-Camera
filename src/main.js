@@ -290,7 +290,7 @@ async function handlePrivacy() {
     // Interpret course of action
 
     // Simply:
-    // User is shown either terms of service (tos), privacy notice or both. If user has agreed to one or both
+    // User is shown either short terms of service (tos), short privacy notice or both. If user has agreed to one or both
     // before (based on URL parameter or local storage) the same text is not shown again. If a text does not
     // exist, it cannot be shown, and a positive response to related matters is assumed. Tos is related to
     // the fundamental permission to use the software at all, and the privacy notice is related to the storage
@@ -713,16 +713,6 @@ function blinkVideoSelector(length = 300, repeats = 0) {
     blink();
 }
 
-function haltService(haltReason, solution) {
-
-    // Halt
-    console.error("haltService(): Service halted, reason: " + haltReason);
-    videoFreeze(null); // TODO: Halt method is unclean
-
-    // Display error message with solution
-    showErrorPrompt();
-}
-
 
 // Camera control functions
 
@@ -742,44 +732,73 @@ async function videoStart() {
     // noinspection JSUnresolvedReference                                   // Object references are populated elsewhere
     let genericPromptActions = [
             { buttonText: currentTranslations.retry, action: () => { videoStart(); } },
-            { buttonText: currentTranslations.dismiss, action: () => { } }
+            { buttonText: currentTranslations.dismiss, action: () => {  } }
         ];
 
     // Get permission and inputs
     let error = false;
-    let errorDescription = "unknown";                                                                            // Store specific error description
+    let errorDescription;                                                                            // Store specific error description
     let inputs;
+    let errorSource;
+    let errorObject;
+    let errorType;
 
+    // Get media permission
     await getMediaPermission()                                                                                   // Get permission
         .catch(e => {                                                                                            // Catch errors from getMediaPermission()
             error = true;                                                                                        // Flag error
+            errorSource = "getMediaPermission()";
+            errorObject = e;
+            errorType = "errorMediaAccess";
             errorDescription = "No media permission or access"                                                   // Give specific readable error description
             console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);             // Log error
     });                                                                                                          // End catch for getMediaPermission()
 
+    // Get inputs
     if (!error) {                                                                                                // Only run if no errors
         inputs = await getVideoInputs()                                                                          // Get inputs
             .catch(e => {                                                                                        // Catch errors from getVideoInputs()
                 error = true;                                                                                    // Flag error
+                errorSource = "getVideoInputs()";
+                errorObject = e;
+                errorType = "errorInputEnumeration";
                 errorDescription = "No valid inputs could be found"                                              // Give specific readable error description
                 console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);         // Log error
             });                                                                                                  // End catch for getVideoInputs()
     }
 
-    // Use input(s)
+    // Update input list
+    let input;
     if (!error) {                                                                                         // Only run if no errors
         try {
-            let input = await updateInputList(inputs);                                                    // Update selector list, selecting some input
-            await setVideoInput(input);                                                                   // Use the selected input
+            input = await updateInputList(inputs);                                                        // Update selector list, selecting some input
         } catch (e) {
-            // TODO: Catch not reliable enough
             error = true;                                                                                 // Flag error
-            errorDescription = "Error while attempting to use video input(s)"                             // Give specific readable error description
+            errorSource = "updateInputList()";
+            errorObject = e;
+            errorType = "errorInputListUpdate";
+            errorDescription = "Error while attempting to update video input list"                        // Give specific readable error description
             console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);      // Log error
         }
     }
 
-    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions); }                   // Prompt user
+    // Use input(s)
+    if (!error) {                                                                                         // Only run if no errors
+        try {
+            await setVideoInput(input);                                                                   // Use the selected input
+        } catch (e) {
+            // TODO: Catch not reliable enough
+            error = true;                                                                                 // Flag error
+            errorSource = "setVideoInput()";
+            errorObject = e;
+            errorType = "errorInputSet";
+            errorDescription = "Error while attempting to use video input"                             // Give specific readable error description
+            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);      // Log error
+        }
+    }
+
+
+    if (error) { videoError(errorType, errorSource + ",videoStart()", errorObject); }                   // Prompt user
     // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
@@ -1317,270 +1336,6 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
     }
 }
 
-function showLegalPrompt(promptType, texts) {
-
-    // Set button styles
-    const colorAccept   = "optionDefault"  ;
-    const colorMinimum  = "optionNeutral"  ;
-    const colorReject   = "optionNegative" ;
-
-    switch(promptType) {
-        case 'privacy':
-            // Displays a privacy notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title);
-
-            // noinspection JSUnresolvedReference // Object references are populated elsewhere
-            customPrompt(texts[0].content.title, texts[0].content.text, [
-                    { buttonText: texts[0].content.rejectStorage ,  action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
-                    { buttonText: texts[0].content.notNow        ,  action: () => { /* Implicit rejection, ask later */ }, customCSS: colorMinimum },
-                    { buttonText: texts[0].content.agreeStorage  ,  action: () => { handleLocalStorage(); }, customCSS: colorAccept }
-                ]
-            );
-
-            break;
-        case 'tos':
-            // Displays a ToS (terms of service) notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + texts[1].content.title);
-
-            // noinspection JSUnresolvedReference // Object references are populated elsewhere
-            customPrompt(texts[1].content.title, texts[1].content.text, [
-                    { buttonText: texts[1].content.rejectTos  ,  action: () => { haltService(); }, customCSS: colorReject },
-                    { buttonText: texts[1].content.agreeToTos ,  action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
-                ]
-            );
-
-            break;
-        case 'full':
-            // Displays a full privacy and ToS (terms of service) notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
-
-            // noinspection JSUnresolvedReference // Object references are populated elsewhere
-            customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
-                    { buttonText: texts[1].content.rejectTos  ,   action: () => { haltService("User rejected terms of service.", "Please refresh the page." ); }, customCSS: colorReject },
-                    { buttonText: texts[1].content.agreeToTos ,   action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
-                    { buttonText: texts[1].content.agreeToAll ,   action: () => { handleLocalStorage(); }, customCSS: colorAccept }
-                ]
-            );
-
-            break;
-    }
-
-}
-
-function showErrorPrompt(title, text, buttons) {
-    // let promptTitle   =    "Title";
-    // let promptText    =    "Text";
-    // let promptButtons = [
-    //     {    buttonText: "Yes"       ,   action: () => {   console.log( "Button Yes pressed" );    } },
-    //     {    buttonText: "No"        ,   action: () => {   console.log( "Button No pressed"  );    } }
-    // ];
-    // customPrompt(promptTitle, promptText, promptButtons);
-}
-
-
-function showWaitPrompt() {
-    const loader = Object.assign(document.createElement('div'), {className:'loader'});
-    document.getElementById('cameraFeed').after(loader);
-}
-
-/**
- * Creates a prompt box with text or HTML from a file.
- * Can be used for showing terms, notices, tutorials and various content.
- * Assumes file path ./locales/
- * @param {string} file File to load text from (string filename)
- * @param modal Should the prompt be modal (optional)
- * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
- * @param options Button option definitions (optional)
- */
-async function showContentPrompt(file, modal = false, clickOut = true, options = undefined) {
-    print("showContentPrompt(): Showing content from file: " + file);
-
-    let title;
-    let contentToShow;
-
-    try {
-        const text = await fetchJSON(file);
-        title = text.title;
-        contentToShow = text.text;
-        print("showContentPrompt(): Found text: " + file + " with title: " + text.title);
-
-        return customPrompt(title, contentToShow, options, "promptContentBox", modal, clickOut);
-    } catch (e) {
-        console.warn("showContentPrompt(): Did not find text: " + file + " : " + e);
-    }
-// TODO: Must be the biggest prompt type vertically, to always remain top layer with no underlap
-    return false;
-}
-
-/**
- * Creates a prompt with text or HTML content and buttons.
- * Executes actions based on button press.
- *
- * @param title Title text for prompt
- * @param text Body text for prompt (can contain HTML)
- * @param options Array with text and code to run for buttons
- * @param containerCSSOverrides CSS class (string) to add to class list or object with custom CSS style declarations, will apply to prompt container
- * @param modal Should the prompt be modal
- * @param clickOut Should modal prompt exit when modal overlay is clicked
- */
-async function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true) {
-
-    // Examples
-    //
-    // ---------- ---------- ----------
-    //
-    // let promptTitle   =    "Title";
-    // let promptText    =    "Text";
-    // let promptButtons = [
-    //     {    buttonText: "Yes"       ,   action: () => {   console.log( "Button Yes pressed" );    } },
-    //     {    buttonText: "No"        ,   action: () => {   console.log( "Button No pressed"  );    } }
-    // ];
-    // customPrompt(promptTitle, promptText, promptButtons);
-    //
-    // ---------- ---------- ----------
-    //
-    // All buttons dismiss the prompt by default.
-    // Prompt title and text can be string or HTML string. All HTML will be parsed and rendered normally.
-    //
-    // Function has more optional parameters.
-    // Most extra parameters are designed for other functions (e.g. showContentPrompt() ) for various use cases. You should use those.
-    // containerCSSOverrides                // Applies (inline) a set of custom CSS key-value pairs from an object ( example: overrides = {display: flex, gap: 20px} )
-    //
-    // Objects for buttons have more available properties that can be set if needed. These are optional.
-    // dismissOnPress: false                // True by default. If set to false (risky), dismissal of prompt must be achieved manually.
-    // customCSS: "CSSClassName"            // Sets a specific CSS class name for the button
-    // customCSS: object                    // Applies (inline) a set of custom CSS key-value pairs from an object
-    //
-    // Different ways to use button object property "action" exist. Functions, anonymous functions, callbacks and code blocks can be used. TODO: test all
-    //
-    //
-
-    // Create prompt container
-    const prompt = document.createElement('div');                     // Create element
-    prompt.id = String(Date.now());                                   // Assign a (pseudo) unique id
-    prompt.className = 'prompt';                                      // Set basic CSS class
-
-    // Potential CSS overrides
-    if (containerCSSOverrides) {
-        if (typeof containerCSSOverrides === "object") {
-            print("customPrompt(): Applying CSS overrides (object) to prompt");
-            Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
-        } else if (typeof containerCSSOverrides === "string") {
-            print("customPrompt(): Applying CSS overrides (class) to prompt: " + containerCSSOverrides);
-            prompt.classList.add(containerCSSOverrides);
-        }
-    }
-
-    // Create title text
-    const textTitleElement = document.createElement('div');
-    textTitleElement.className = 'promptTitle';                           // Set basic CSS class
-    const textTitle = document.createTextNode(title);
-
-    // Append
-    textTitleElement.appendChild(textTitle);
-    prompt.appendChild(textTitleElement);
-
-    // Create body text
-    const textBody = document.createElement('div');
-    textBody.className = 'promptText';                                   // Set basic CSS class
-
-    // Handle potential custom HTML text
-    if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
-        print("customPrompt(): Prompt text identified as HTML");
-        textBody.innerHTML = text;                                       // HTML text to innerHTML of div
-    } else {
-        print("customPrompt(): Prompt text identified as plain string");
-        textBody.textContent = text;                                     // Plain string text to text content of div
-    }
-
-    // Append
-    prompt.appendChild(textBody);
-
-    // Modal functionality
-    const modalPromptOverlay = document.createElement("div");               // Create container element
-    if (modal) {                                                            // Create modal overlay if requested
-        modalPromptOverlay.classList.add("modalPromptOverlay");             // Set basic CSS class for styling
-        modalPromptOverlay.classList.add("hidden");                         // Set CSS class for initial hide
-        document.body.appendChild(modalPromptOverlay);                      // Append
-        showElement(modalPromptOverlay);
-        if (clickOut) {
-            modalPromptOverlay.addEventListener('click', dismiss);
-        }
-    }
-
-    // Create button container
-    const optionContainer = document.createElement('div');
-    optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
-
-    // Setup value return
-    let returnValue = undefined;
-
-    // Create buttons
-    options.forEach((optionButton) => {
-        // Create button
-        const button = document.createElement('button');
-        button.textContent = optionButton.buttonText;                        // Get text for button
-
-        // Styling
-        button.className = 'promptOption';                                   // Set basic CSS class
-
-        // Potential custom style for button
-        if (optionButton.customCSS) {
-            button.classList.add(optionButton.customCSS)
-            if (typeof optionButton.customCSS === "object") {
-                print("customPrompt(): Applying CSS overrides (object) to button");
-                Object.assign(button.style, optionButton.customCSS);                // Assigns CSS key-value pairs to element from argument for custom styles
-            } else if (typeof optionButton.customCSS === "string") {
-                print("customPrompt(): Applying CSS overrides (class) to button: " + optionButton.customCSS);
-                button.classList.add(optionButton.customCSS);
-            }
-        }
-
-        // Attach action listener
-        button.addEventListener('click', () => {
-            // noinspection JSUnresolvedReference                                           // Defining dismissOnPress is optional
-            if (optionButton?.dismissOnPress === undefined || optionButton?.dismissOnPress) // If undefined or true
-            {
-                dismiss();                                                                  // Buttons dismiss prompt by default
-            } else {                                                                        // If explicitly set to false
-                // Dismissal must be manually achieved by deleting prompt container element
-                // If modal, modal overlay will persist as it is appended to document
-                // If modal and clickOut false, modal overlay cannot be removed easily
-            }
-            try {
-                optionButton.action();                                                      // Run function or code block
-                returnValue = (optionButton.returnValue) ? optionButton.returnValue : 0;
-            } catch (e) {
-                console.error("customPrompt(): Button action failed: " + e.message);
-                returnValue = false;
-            }
-        });
-
-        // Append
-        optionContainer.appendChild(button);
-    });
-
-    // Append
-    prompt.appendChild(optionContainer);
-
-    // Append prompt
-    print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
-    document.body.appendChild(prompt);
-    showElement(prompt);
-
-    // Nested function to dismiss prompt
-    function dismiss() {
-        print("customPrompt(): Dismissing prompt " + prompt.id);
-        if (modal) {
-            removeElement(modalPromptOverlay);
-        }
-        removeElement(prompt)       // Animated hide, then remove
-    }
-
-    return prompt;
-
-}
-
 /**
  * Moves an element to view IF it is outside the viewport.
  *
@@ -1720,6 +1475,375 @@ function addOverlay() {
 function addText() {
     createdElements.createTextArea();
 }
+
+
+// Prompting and error handling
+
+function showLegalPrompt(promptType, texts) {
+
+    // Set button styles
+    const colorAccept   = "optionDefault"  ;
+    const colorMinimum  = "optionNeutral"  ;
+    const colorReject   = "optionNegative" ;
+
+    switch(promptType) {
+        case 'privacy':
+            // Displays a privacy notice.
+            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title);
+
+            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            customPrompt(texts[0].content.title, texts[0].content.text, [
+                    { buttonText: texts[0].content.rejectStorage ,  action: () => { updateUrlParam("privacy", "agreeTosExclusive"); }, customCSS: colorReject },
+                    { buttonText: texts[0].content.notNow        ,  action: () => { /* Implicit rejection, ask later */ }, customCSS: colorMinimum },
+                    { buttonText: texts[0].content.agreeStorage  ,  action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+                ]
+            );
+
+            break;
+        case 'tos':
+            // Displays a ToS (terms of service) notice.
+            console.log("showLegalPrompt(): Displaying a notice: " + texts[1].content.title);
+
+            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            customPrompt(texts[1].content.title, texts[1].content.text, [
+                    { buttonText: texts[1].content.rejectTos  ,  action: () => { haltService("errorTosReject", "showLegalPrompt()"); }, customCSS: colorReject },
+                    { buttonText: texts[1].content.agreeToTos ,  action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorAccept }
+                ]
+            );
+
+            break;
+        case 'full':
+            // Displays a full privacy and ToS (terms of service) notice.
+            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
+
+            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + "<br>" + texts[1].content.text, [
+                    { buttonText: texts[1].content.rejectTos  ,   action: () => { haltService("errorTosReject", "showLegalPrompt()"); }, customCSS: colorReject },
+                    { buttonText: texts[1].content.agreeToTos ,   action: () => { updateUrlParam("privacy", "agreeTosInclusive"); }, customCSS: colorMinimum },
+                    { buttonText: texts[1].content.agreeToAll ,   action: () => { handleLocalStorage(); }, customCSS: colorAccept }
+                ]
+            );
+
+            break;
+    }
+
+}
+
+function showErrorPrompt(errorPackage) {
+
+    let promptTitle   =    errorPackage.promptTitle;
+    let promptText    =    errorPackage.promptInfoText + "<br><br>" + errorPackage.promptSolutionText;
+    let modal         =    false;
+    let clickOut      =    true;
+    let promptButtons = [
+        {    buttonText: errorPackage.solutionButtonText, action: () => {   errorPackage.solutionButtonAction();   } }
+    ];
+
+    if (!errorPackage.severe) {
+        // noinspection JSUnresolvedReference            // Object references are populated elsewhere
+        promptButtons.push(
+            {    buttonText: currentTranslations.dismiss        ,   action: () => {  } }
+        )
+    } else {
+        // modal = true; // TODO: z-index issues in prompt
+        clickOut = false;
+    }
+
+    console.error("showErrorPrompt(): Displaying an error prompt: " + promptTitle );
+    customPrompt(promptTitle, promptText, promptButtons, null, modal, clickOut);
+
+}
+
+function showWaitPrompt() {
+    const loader = Object.assign(document.createElement('div'), {className:'loader'});
+    document.getElementById('cameraFeed').after(loader);
+}
+
+/**
+ * Creates a prompt box with text or HTML from a file.
+ * Can be used for showing terms, notices, tutorials and various content.
+ * Assumes file path ./locales/
+ * @param {string} file File to load text from (string filename)
+ * @param modal Should the prompt be modal (optional)
+ * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
+ * @param options Button option definitions (optional)
+ */
+async function showContentPrompt(file, modal = false, clickOut = true, options = undefined) {
+    print("showContentPrompt(): Showing content from file: " + file);
+
+    let title;
+    let contentToShow;
+
+    try {
+        const text = await fetchJSON(file);
+        title = text.title;
+        contentToShow = text.text;
+        print("showContentPrompt(): Found text: " + file + " with title: " + text.title);
+
+        return customPrompt(title, contentToShow, options, "promptContentBox", modal, clickOut);
+    } catch (e) {
+        console.warn("showContentPrompt(): Did not find text: " + file + " : " + e);
+    }
+// TODO: Must be the biggest prompt type vertically, to always remain top layer with no underlap
+    return false;
+}
+
+/**
+ * Creates a prompt with text or HTML content and buttons.
+ * Executes actions based on button press.
+ *
+ * @param title Title text for prompt
+ * @param text Body text for prompt (can contain HTML)
+ * @param options Array with text and code to run for buttons
+ * @param containerCSSOverrides CSS class (string) to add to class list or object with custom CSS style declarations, will apply to prompt container
+ * @param modal Should the prompt be modal
+ * @param clickOut Should modal prompt exit when modal overlay is clicked
+ */
+async function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true) {
+
+    // Examples
+    //
+    // ---------- ---------- ----------
+    //
+    // let promptTitle   =    "Title";
+    // let promptText    =    "Text";
+    // let promptButtons = [
+    //     {    buttonText: "Yes"       ,   action: () => {   console.log( "Button Yes pressed" );    } },
+    //     {    buttonText: "No"        ,   action: () => {   console.log( "Button No pressed"  );    } },
+    //     {    buttonText: "Dismiss"   ,   action: () => {  } }
+    // ];
+    // customPrompt(promptTitle, promptText, promptButtons);
+    //
+    // ---------- ---------- ----------
+    //
+    // All buttons dismiss the prompt by default.
+    // Prompt title and text can be string or HTML string. All HTML will be parsed and rendered normally.
+    //
+    // Function has more optional parameters.
+    // Most extra parameters are designed for other functions (e.g. showContentPrompt() ) for various use cases. You should use those.
+    // containerCSSOverrides                // Applies (inline) a set of custom CSS key-value pairs from an object ( example: overrides = {display: flex, gap: 20px} )
+    //
+    // Objects for buttons have more available properties that can be set if needed. These are optional.
+    // dismissOnPress: false                // True by default. If set to false (risky), dismissal of prompt must be achieved manually.
+    // customCSS: "CSSClassName"            // Sets a specific CSS class name for the button
+    // customCSS: object                    // Applies (inline) a set of custom CSS key-value pairs from an object
+    //
+    // Different ways to use button object property "action" exist. Functions, anonymous functions, callbacks and code blocks can be used. TODO: test all
+    //
+    // TODO: Return values? References exist. Could add as property of html element. Could forward action return value.
+
+    // Create prompt container
+    const prompt = document.createElement('div');                     // Create element
+    prompt.id = String(Date.now());                                   // Assign a (pseudo) unique id
+    prompt.className = 'prompt';                                      // Set basic CSS class
+
+    // Potential CSS overrides
+    if (containerCSSOverrides) {
+        if (typeof containerCSSOverrides === "object") {
+            print("customPrompt(): Applying CSS overrides (object) to prompt");
+            Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
+        } else if (typeof containerCSSOverrides === "string") {
+            print("customPrompt(): Applying CSS overrides (class) to prompt: " + containerCSSOverrides);
+            prompt.classList.add(containerCSSOverrides);
+        }
+    }
+
+    // Create title text
+    const textTitleElement = document.createElement('div');
+    textTitleElement.className = 'promptTitle';                           // Set basic CSS class
+    const textTitle = document.createTextNode(title);
+
+    // Append
+    textTitleElement.appendChild(textTitle);
+    prompt.appendChild(textTitleElement);
+
+    // Create body text
+    const textBody = document.createElement('div');
+    textBody.className = 'promptText';                                   // Set basic CSS class
+
+    // Handle potential custom HTML text
+    if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
+        print("customPrompt(): Prompt text identified as HTML");
+        textBody.innerHTML = text;                                       // HTML text to innerHTML of div
+    } else {
+        print("customPrompt(): Prompt text identified as plain string");
+        textBody.textContent = text;                                     // Plain string text to text content of div
+    }
+
+    // Append
+    prompt.appendChild(textBody);
+
+    // Modal functionality
+    const modalPromptOverlay = document.createElement("div");               // Create container element
+    if (modal) {                                                            // Create modal overlay if requested
+        modalPromptOverlay.classList.add("modalPromptOverlay");             // Set basic CSS class for styling
+        modalPromptOverlay.classList.add("hidden");                         // Set CSS class for initial hide
+        document.body.appendChild(modalPromptOverlay);                      // Append
+        showElement(modalPromptOverlay);
+        if (clickOut) {
+            modalPromptOverlay.addEventListener('click', dismiss);
+        }
+    }
+
+    // Create button container
+    const optionContainer = document.createElement('div');
+    optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
+
+    // Setup value return
+    let returnValue = undefined;
+
+    // Create buttons
+    options.forEach((optionButton) => {
+        // Create button
+        const button = document.createElement('button');
+        button.textContent = optionButton.buttonText;                        // Get text for button
+
+        // Styling
+        button.className = 'promptOption';                                   // Set basic CSS class
+
+        // Potential custom style for button
+        if (optionButton.customCSS) {
+            button.classList.add(optionButton.customCSS)
+            if (typeof optionButton.customCSS === "object") {
+                print("customPrompt(): Applying CSS overrides (object) to button");
+                Object.assign(button.style, optionButton.customCSS);                // Assigns CSS key-value pairs to element from argument for custom styles
+            } else if (typeof optionButton.customCSS === "string") {
+                print("customPrompt(): Applying CSS overrides (class) to button: " + optionButton.customCSS);
+                button.classList.add(optionButton.customCSS);
+            }
+        }
+
+        // Attach action listener
+        button.addEventListener('click', () => {
+            // noinspection JSUnresolvedReference                                           // Defining dismissOnPress is optional
+            if (optionButton?.dismissOnPress === undefined || optionButton?.dismissOnPress) // If undefined or true
+            {
+                dismiss();                                                                  // Buttons dismiss prompt by default
+            } else {                                                                        // If explicitly set to false
+                // Dismissal must be manually achieved by deleting prompt container element
+                // If modal, modal overlay will persist as it is appended to document
+                // If modal true and clickOut false, modal overlay cannot be removed easily
+            }
+            try {
+                optionButton.action();                                                      // Run function or code block
+                returnValue = (optionButton.returnValue) ? optionButton.returnValue : 0;
+            } catch (e) {
+                console.error("customPrompt(): Button action failed: " + e.message);
+                returnValue = false;
+            }
+        });
+
+        // Append
+        optionContainer.appendChild(button);
+    });
+
+    // Append
+    prompt.appendChild(optionContainer);
+
+    // Append prompt
+    print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
+    document.body.appendChild(prompt);
+    showElement(prompt);
+
+    // Nested function to dismiss prompt
+    function dismiss() {
+        print("customPrompt(): Dismissing prompt " + prompt.id);
+        if (modal) {
+            removeElement(modalPromptOverlay);
+        }
+        removeElement(prompt)       // Animated hide, then remove
+    }
+
+    return prompt;
+
+}
+
+function videoError(errorType, source, errorObject) {
+
+    console.error("videoError(): Video error: " + source + " : " + errorType + " : " + errorObject.name + " : " + errorObject.message);
+
+    // Create error package for prompting user
+    let errorPackage = {
+        type: errorType,
+        source: source + ",videoError()",
+        severe: false
+    }
+
+    // noinspection JSUnresolvedReference                        // Object references are populated elsewhere
+    errorPackage.promptTitle            = currentTranslations.videoProblemPromptTitle;
+    // noinspection JSUnresolvedReference                        // Object references are populated elsewhere
+    errorPackage.promptInfoText         = currentTranslations.videoProblemPromptText;
+    // noinspection JSUnresolvedReference                        // Object references are populated elsewhere
+    errorPackage.solutionButtonText     = currentTranslations.retry
+    errorPackage.solutionButtonAction   = videoStart;            // Or () => { videoStart(); }
+
+    switch (errorType) {
+        case 'errorMediaAccess': {
+            errorPackage.devDescription         = "No media permission or access";
+
+            break;
+        }
+        case 'errorInputEnumeration': {
+            errorPackage.devDescription         = "No valid inputs could be found";
+
+            break;
+        }
+        case 'errorInputListUpdate': {
+            errorPackage.devDescription         = "Error while attempting to update video input list";
+
+            break;
+        }
+        case 'errorInputSet': {
+            errorPackage.devDescription         = "Error while attempting to use video input";
+
+            break;
+        }
+    }
+
+    // if (errorType === "errorTosReject") {   // TODO: Get all text from localized file
+    //     errorPackage.promptSolutionText     = "please refresh ";
+    //
+
+
+    // Show prompt
+    showErrorPrompt(errorPackage);
+}
+
+function haltService(haltType, source ) {
+
+    // Halt
+    console.error("haltService(): Service halt called by: " + source + " : " + haltType);
+    try {
+        videoFreeze(null); // TODO: Halt method is unclean
+    } catch (e) {
+
+    }
+
+    // Create error package for prompting user
+    let errorPackage = {
+        type: haltType,
+        source: source + ",haltService()",
+        severe: true
+    }
+
+    if (haltType === "errorTosReject") {
+        errorPackage.devDescription         = "Halt due to legal reason. User manually rejected terms of service.";
+        errorPackage.promptTitle            = "Service Halted";                 // TODO: Get all text from localized file
+        errorPackage.promptInfoText         = "The use of this service has been halted because the Terms of Service were rejected.";
+        errorPackage.promptSolutionText     = "If you want to use the service, please refresh the page and accept the terms of service.";
+        errorPackage.solutionButtonText     = "Refresh";
+        errorPackage.solutionButtonAction   = window.location.reload.bind(window.location); // Fails without binding execution context: 'reload' called on an object that does not implement interface Location
+    } else {
+        console.error("haltService(): Halt called with invalid halt type: " + haltType + " from " + source);
+    }
+
+    // Show prompt
+    showErrorPrompt(errorPackage);
+
+}
+
+
+
 
 
 // Utility functions
