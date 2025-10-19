@@ -1,6 +1,6 @@
 // Development tools
 let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
-const version = ("2025-10-10-alpha");
+const version = ("2025-10-20-alpha");
 console.log("Version: " + version);
 
 // Localization
@@ -44,6 +44,7 @@ function start() {
 
     // Set app status
     appStatus.paused = true;
+    appStatus.hasVideoError = false;
 
     // Create interface elements
     createMenus();
@@ -77,17 +78,18 @@ function start() {
         });
     }
 
-    function startup() {
+    async function startup() {
         // Set app status
         appStatus.paused = false;
 
-        // Start video feed
-        videoStart().then(() => {});
-        showWaitPrompt(4);
-        showElement(videoElement);
-
         // Show interface
         showElement(controlBar);
+
+        // Start video feed
+        videoStart().then(() =>
+            showWaitPrompt(4)).then(() =>
+                showElement(videoElement)
+        );
 
         // Onboarding
         handleOnboarding();
@@ -821,7 +823,10 @@ async function videoStart() {
         }
     }
 
-    if (error) { videoError(errorType, errorSource + ",videoStart()", errorObject); }                     // Prompt user
+    if (error) {
+        appStatus.hasVideoError = true;
+        videoError(errorType, errorSource + ",videoStart()", errorObject);     // Prompt user
+    }
     // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
@@ -1577,16 +1582,38 @@ function showErrorPrompt(errorPackage) {
 
 }
 
-function showWaitPrompt(time) {
+async function showWaitPrompt(time = 4, waitWith = true) {
     if (!fileExists("./images/logo")) {
         print("showWaitPrompt(): Logo file does not exists");
-        return;
+        return false;
     }
 
-    let contentObject = null;
+    if (appStatus.hasVideoError) {
+        print("showWaitPrompt(): App in error state, skipping wait");
+        return false;
+    }
 
-    let content = "<div style=\"width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%);\"></div>\n";
-    content += "<br><br><div class='loader'></div>";
+    if (new URLSearchParams(window.location.search).has("skipWait")) {
+        print("showWaitPrompt(): URL parameter to skip wait");
+        return false;
+    }
+
+    let contentObject = document.createElement('div');
+
+    const gradientDiv = document.createElement('div');
+    gradientDiv.style.cssText = 'width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%)';
+    contentObject.appendChild(gradientDiv);
+
+    contentObject.appendChild(document.createElement('br'));
+    contentObject.appendChild(document.createElement('br'));
+
+    const loaderDiv = document.createElement('div');
+    loaderDiv.className = 'loader';
+    contentObject.appendChild(loaderDiv);
+
+    // Dev inlines for testing
+    // let content = "<div style=\"width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%);\"></div>\n";
+    // content += "<br><br><div class='loader'></div>";
 
     const containerCSSOverrides = {
         display: 'flex',
@@ -1603,8 +1630,15 @@ function showWaitPrompt(time) {
         padding: '100px'
     };
 
+    customPrompt(null, contentObject, [], containerCSSOverrides, false, true, true, textStyleOverrides, time);
 
-    customPrompt(null, contentObject, [], containerCSSOverrides, false, true, true, textStyleOverrides);
+    // Waiting with prompt
+    if (waitWith) {
+        await new Promise(resolve => setTimeout(resolve, time * 1000));
+    }
+    // TODO: Replace hard delay with callback-operated wait
+
+    return true;
 }
 
 function showInfoPrompt() {
@@ -1651,8 +1685,10 @@ async function showContentPrompt(file, modal = false, clickOut = true, options =
  * @param modal Should the prompt be modal
  * @param clickOut Should modal prompt exit when modal overlay is clicked
  * @param noTitle
+ * @param textCSSOverrides
+ * @param timedDismiss
  */
-async function customPrompt(title = "Title", content = null, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null) {
+async function customPrompt(title = "Title", content = null, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null, timedDismiss = 0) {
 
     // Examples
     //
@@ -1727,14 +1763,7 @@ async function customPrompt(title = "Title", content = null, options = [ { butto
         }
     }
 
-    // if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
-    //     print("customPrompt(): Prompt text identified as HTML");
-    //     textBody.innerHTML = text;                                       // HTML text to innerHTML of div
-    // } else {
-    //     print("customPrompt(): Prompt text identified as plain string");
-    //     textBody.textContent = text;                                     // Plain string text to text content of div
-    // }
-    // Handle potential custom contents
+    // Handle contents
     switch (true) {                                                         // Replaces stacked if-expressions
         case typeof content === 'object' && content instanceof HTMLElement:
             print("customPrompt(): Prompt content identified as HTML element object");
@@ -1829,6 +1858,11 @@ async function customPrompt(title = "Title", content = null, options = [ { butto
     print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
     document.body.appendChild(prompt);
     showElement(prompt);
+
+    // Timed dismiss
+    if (timedDismiss > 0) {
+        setTimeout(dismiss, timedDismiss * 1000);
+    }
 
     // Nested function to dismiss prompt
     function dismiss() {
