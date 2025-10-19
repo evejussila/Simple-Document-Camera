@@ -598,6 +598,7 @@ button:not(:hover) {
     border-top: 6px solid rgba(255, 255, 255, 0);
     border-radius: 80%;
     animation: spin 1s linear infinite;
+    margin: 0 auto;
 }
 
 .animateMove {

@@ -78,12 +78,13 @@ function start() {
     }
 
     function startup() {
-        // Start video feed
-        videoStart().then(() => {});
-        showElement(videoElement);
-
         // Set app status
         appStatus.paused = false;
+
+        // Start video feed
+        videoStart().then(() => {});
+        showWaitPrompt(4);
+        showElement(videoElement);
 
         // Show interface
         showElement(controlBar);
@@ -1576,9 +1577,38 @@ function showErrorPrompt(errorPackage) {
 
 }
 
-function showWaitPrompt() {
-    const loader = Object.assign(document.createElement('div'), {className:'loader'});
-    document.getElementById('cameraFeed').after(loader);
+function showWaitPrompt(time) {
+    if (!fileExists("./images/logo")) {
+        print("showWaitPrompt(): Logo file does not exists");
+        return;
+    }
+
+    let contentObject = null;
+
+    let content = "<div style=\"width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%);\"></div>\n";
+    content += "<br><br><div class='loader'></div>";
+
+    const containerCSSOverrides = {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '465px',
+        height: '338px',
+        borderRadius: '8px',
+        opacity: '1'
+    };
+
+    const textStyleOverrides = {
+        textAlign: 'center',
+        padding: '100px'
+    };
+
+
+    customPrompt(null, contentObject, [], containerCSSOverrides, false, true, true, textStyleOverrides);
+}
+
+function showInfoPrompt() {
+
 }
 
 /**
@@ -1615,13 +1645,14 @@ async function showContentPrompt(file, modal = false, clickOut = true, options =
  * Executes actions based on button press.
  *
  * @param title Title text for prompt
- * @param text Body text for prompt (can contain HTML)
+ * @param content Body text for prompt (can contain HTML as string or an object)
  * @param options Array with text and code to run for buttons
  * @param containerCSSOverrides CSS class (string) to add to class list or object with custom CSS style declarations, will apply to prompt container
  * @param modal Should the prompt be modal
  * @param clickOut Should modal prompt exit when modal overlay is clicked
+ * @param noTitle
  */
-async function customPrompt(title = "Title", text = "Text", options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true) {
+async function customPrompt(title = "Title", content = null, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null) {
 
     // Examples
     //
@@ -1662,35 +1693,67 @@ async function customPrompt(title = "Title", text = "Text", options = [ { button
     // Potential CSS overrides
     if (containerCSSOverrides) {
         if (typeof containerCSSOverrides === "object") {
-            print("customPrompt(): Applying CSS overrides (object) to prompt");
+            print("customPrompt(): Applying CSS overrides (object) to prompt container");
             Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
         } else if (typeof containerCSSOverrides === "string") {
-            print("customPrompt(): Applying CSS overrides (class) to prompt: " + containerCSSOverrides);
+            print("customPrompt(): Applying CSS overrides (class) to prompt container: " + containerCSSOverrides);
             prompt.classList.add(containerCSSOverrides);
         }
     }
 
-    // Create title text
-    const textTitleElement = document.createElement('div');
-    textTitleElement.className = 'promptTitle';                           // Set basic CSS class
-    const textTitle = document.createTextNode(title);
+    if (!noTitle) {
+        // Create title text
+        const textTitleElement = document.createElement('div');
+        textTitleElement.className = 'promptTitle';                           // Set basic CSS class
+        const textTitle = document.createTextNode(title);
 
-    // Append
-    textTitleElement.appendChild(textTitle);
-    prompt.appendChild(textTitleElement);
+        // Append
+        textTitleElement.appendChild(textTitle);
+        prompt.appendChild(textTitleElement);
+    }
 
     // Create body text
     const textBody = document.createElement('div');
     textBody.className = 'promptText';                                   // Set basic CSS class
 
-    // Handle potential custom HTML text
-    if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
-        print("customPrompt(): Prompt text identified as HTML");
-        textBody.innerHTML = text;                                       // HTML text to innerHTML of div
-    } else {
-        print("customPrompt(): Prompt text identified as plain string");
-        textBody.textContent = text;                                     // Plain string text to text content of div
+    // Potential CSS overrides textCSSOverrides
+    if (textCSSOverrides) {
+        if (typeof textCSSOverrides === "object") {
+            print("customPrompt(): Applying CSS overrides (object) to prompt text");
+            Object.assign(textBody.style, textCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
+        } else if (typeof textCSSOverrides === "string") {
+            print("customPrompt(): Applying CSS overrides (class) to prompt text: " + textCSSOverrides);
+            textBody.classList.add(textCSSOverrides);
+        }
     }
+
+    // if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
+    //     print("customPrompt(): Prompt text identified as HTML");
+    //     textBody.innerHTML = text;                                       // HTML text to innerHTML of div
+    // } else {
+    //     print("customPrompt(): Prompt text identified as plain string");
+    //     textBody.textContent = text;                                     // Plain string text to text content of div
+    // }
+    // Handle potential custom contents
+    switch (true) {                                                         // Replaces stacked if-expressions
+        case typeof content === 'object' && content instanceof HTMLElement:
+            print("customPrompt(): Prompt content identified as HTML element object");
+            textBody.appendChild(content);
+            break;
+        case /</.test(content) && />/.test(content):
+            print("customPrompt(): Prompt content identified as HTML string");
+            textBody.innerHTML = content;
+            break;
+        case (content):
+            print("customPrompt(): Prompt content is empty");
+            textBody.textContent = "";
+            break;
+        default:
+            print("customPrompt(): Prompt content identified as plain string");
+            textBody.textContent = content;
+            break;
+    }
+
 
     // Append
     prompt.appendChild(textBody);
@@ -2096,6 +2159,16 @@ function shorten(id) {
     shortenedId = shortenedId.replace(/[{}]/g, '');
     shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
     return shortenedId;
+}
+
+function getImage(name) {
+    const img = document.createElement("img");
+    img.src = "./images/" + name;
+    return img;
+}
+
+function fileExists() {
+    return true;
 }
 
 
@@ -3189,8 +3262,7 @@ class Menu extends CreatedElement {
         button.title = text;
 
         // Add icon
-        const icon = document.createElement("img");
-        icon.src = "./images/" + img;
+        const icon = getImage(img);
         icon.id = iconId;
         icon.alt = text;
         icon.classList.add("icon");
