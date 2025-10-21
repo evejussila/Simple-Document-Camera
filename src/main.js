@@ -1020,7 +1020,7 @@ function updateInputList(inputs) {
  * @returns {Promise<void>}
  */
 async function backgroundUpdateInputList() {
-    if (appStatus.paused) return; // TODO: Add support for pause
+    if (appStatus.paused) return;
     try {
         let inputs = await getVideoInputs();
         updateInputList(inputs);
@@ -1932,7 +1932,7 @@ function videoError(errorType, source, errorObject) {
     // Show prompt
     showErrorPrompt(errorPackage);
 
-    function showMore() {
+    function moreInfo() {
         let output = "Error source: " + errorPackage.source + " , type designation: " + errorPackage.type + " , description: " + errorPackage.devDescription;
         output += "<br><br> Error object: " + errorObject.name + " : " + errorObject.message
         return output;
@@ -1971,9 +1971,6 @@ function haltService(haltType, source ) {
     showErrorPrompt(errorPackage);
 
 }
-
-
-
 
 
 // Utility functions
@@ -2330,12 +2327,12 @@ class CreatedElement {
     // Styling // TODO: Use these
 
     hide() {
-        hideElement(this.element);
+        hideElement(this.container);
         this.visible = false;
     }
 
     show() {
-        showElement(this.element);
+        showElement(this.container);
         this.visible = true;
     }
 
@@ -2412,20 +2409,32 @@ class MovableElement extends CreatedElement {
         // Create remove button
         if (createRemoveButton) {
             let removeButton = document.createElement('button');
+            // let removeButton = Menu.createButton("delete.png", id + "RemoveButton", id + "RemoveButtonIcon", "Remove", newElement);
             removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
-            removeButton.id = id + "RemoveButton";                    // Forms id for remove button
+            removeButton.classList.add("hidden");                     // TODO: Can conflict with icon onload shows and hides!
+            removeButton.style.display = "block";                     // TODO: Move to CSS
+            removeButton.id = id + "RemoveButton";                  // Forms id for remove button
             removeButton.title = "Remove";
             removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
-            removeButton.textContent = "X";
-            removeButton.addEventListener('click', () => removeElement(newElement));
+            // removeButton.textContent = "X";
+            removeButton.addEventListener('click', () => removeElement(newElement)); // TODO: This vs. button.onclick ?
             print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
+
+            // Add icon
+            const icon = getImage("delete.png");
+            icon.id = id + "RemoveButtonIcon";
+            icon.alt = "Remove";
+            icon.classList.add("icon");
+            removeButton.appendChild(icon);
 
             // Remove button only visible when hovered over
             newElement.addEventListener('mouseover', () => (
-                removeButton.style.display = "block"
+                // removeButton.style.display = "block"
+                removeButton.classList.remove("hidden")
             ));
             newElement.addEventListener('mouseout', () => (
-                removeButton.style.display = "none"
+                // removeButton.style.display = "none"
+                removeButton.classList.add("hidden")
             ));
 
             // Add element to DOM
@@ -2853,6 +2862,7 @@ class TextArea extends MovableElement {
         // Create contextual buttons
         const textAreaButtonContainer = document.createElement("div");
         textAreaButtonContainer.className = "createdTextAreaButtonContainer";
+        textAreaButtonContainer.classList.add("hidden");
 
         const buttonData = [
             {
@@ -2900,6 +2910,19 @@ class TextArea extends MovableElement {
 
         // Add listeners
         this.handleListeners();
+
+        this.container.addEventListener('mouseover', () => {
+            // showElement(textAreaButtonContainer);
+            // showElement(this.resizeHandle);
+            textAreaButtonContainer.classList.remove("hidden");
+            this.resizeHandle.classList.remove("hidden");
+        });
+        this.container.addEventListener('mouseout', () => {
+            // hideElement(textAreaButtonContainer);
+            // hideElement(this.resizeHandle);
+            textAreaButtonContainer.classList.add("hidden");
+            this.resizeHandle.classList.add("hidden");
+        });
 
         // Ensure element stays within viewport
         const interval = setInterval(() => {
@@ -3282,9 +3305,9 @@ class Menu extends CreatedElement {
      * Creates, appends and returns a button.
      * This method should be used to create caller buttons for menus.
      *
-     * @param img Image for icon
+     * @param img Filename.ext for icon image
      * @param buttonId Id for button element
-     * @param iconId Id for icon element (useful for icon dynamics)
+     * @param iconId Id for icon element (useful for changing icon on press)
      * @param text Text for title and alt text
      * @param appendTo Element to append button to
      * @returns {HTMLButtonElement} HTML element for button
@@ -3316,7 +3339,7 @@ class Menu extends CreatedElement {
             };
         }
 
-        // TODO: Create icon swapping functionality here or listenerToElement method
+        // TODO: Create icon swapping functionality here, listener to call swap function, callbacks for both, bi-state
 
         return button;
     }
