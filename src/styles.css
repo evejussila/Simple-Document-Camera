@@ -13,10 +13,10 @@
     /* Other colors */
     --button-bg-color: rgba(151, 151, 151, 0);            /* Must have contrast to background, must have transparency */
     --remove-button-bg-color: rgba(151, 151, 151, 0.6);      /* Likely requires more visibility than other buttons */
-    --link-color: #ff7633;
-    --link-hover: #ffa400;
-    --link-visited: #b35729;
-    --link-active: #ffcc00;
+    --link-color: #4747D1;
+    --link-hover: #5a5acf;
+    --link-visited: #4731ae;
+    --link-active: #6767f8;
     --option-bg-color: var(--button-bg-color);
     --icon-filter: ;                                /* Allows color inversion for icons */
 
@@ -63,7 +63,10 @@
 }
 
 .darkMode {                                /* Toggleable dark mode */
-
+    --link-color: #ff7633;
+    --link-hover: #ffa400;
+    --link-visited: #b35729;
+    --link-active: #ffcc00;
 }
 
 
@@ -169,12 +172,17 @@ button:not(:hover) {
     max-width: 180px;
     height: 40px;
     padding: 0 10px 0 10px;
-    border: 1px solid #2A2A2D33;
+    border-style: solid;
+    border-width: 1px;
     border-radius: 6px;
     font-weight: 500;
 
-    background-color: var(--option-bg-color);
-    color: var(--text-color);
+    background-color: #EFEFF0;
+    border-color: #E4E4E7;
+    color: #4747D1;
+}
+.promptOption:hover{
+    background-color: #bed9ff;
 }
 
 .promptOption.optionDefault {
@@ -223,6 +231,23 @@ button:not(:hover) {
 
     color: var(--text-color);
 }
+
+.buttonZoom {
+    width: 32px;
+    height: 36px;
+    padding: 8px 12px;
+    gap: 8px;
+    opacity: 1;
+    border-radius: 6px;
+    background: #BDBDC2;
+
+    font-weight: 1000;
+}
+
+.buttonZoom:hover {
+    background: #dfdfe1;
+}
+
 
 
 /* Core UI */
@@ -293,18 +318,23 @@ button:not(:hover) {
     border: 1px solid var(--text-color);
 
     background-color: var(--bg-color-basic);
-    color: var(--text-color);
+    color: #FFFFFF;
 }
 
 #zoomControls {
     display: flex;
+    /*
     margin-left: 15px;
-    margin-right: 15px;
+     */
+    margin-right: 8px;
+
     align-items: center;
+
+    font-weight: 600;
 
     gap: 5px;   /* FF: 2px looks good, Chrome needs more */
 
-    color: var(--text-color);
+    color: #FFFFFF;
 }
 
 #zoomSlider {
@@ -566,7 +596,7 @@ button:not(:hover) {
     flex-grow: 1;
     justify-content: center;
     align-items: center;
-    padding: 24px;
+    padding: 24px 32px;
     box-sizing: border-box;
     gap: 20px;
     height: 80px;
@@ -592,11 +622,11 @@ button:not(:hover) {
 }
 
 .loader {
-    width: 38px;
-    height: 38px;
-    border: 6px solid #494950;
-    border-top: 6px solid rgba(255, 255, 255, 0);
-    border-radius: 80%;
+    width: 34px;
+    height: 34px;
+    border: 5px solid #494950;
+    border-top: 5px solid rgba(255, 255, 255, 0);
+    border-radius: 60%;
     animation: spin 1s linear infinite;
     margin: 0 auto;
 }

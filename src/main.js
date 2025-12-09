@@ -683,7 +683,7 @@ function createMenus() {
         zoomOut.dataset.localeKey = "zoomOut";
         zoomOut.id = "buttonZoomOut";
         zoomOut.title = "Zoom Out";
-        zoomOut.className = "buttonSmall";
+        zoomOut.className = "buttonZoom";
         zoomOut.textContent = "-";
         zoomContainer.appendChild(zoomOut);
 
@@ -702,7 +702,7 @@ function createMenus() {
         zoomIn.dataset.localeKey = "zoomIn";
         zoomIn.id = "buttonZoomIn";
         zoomIn.title = "Zoom In";
-        zoomIn.className = "buttonSmall";
+        zoomIn.className = "buttonZoom";
         zoomIn.textContent = "+";
         zoomContainer.appendChild(zoomIn);
 
@@ -1563,14 +1563,15 @@ function showErrorPrompt(errorPackage) {
     let promptText    =    errorPackage.promptInfoText + "<br><br>" + errorPackage.promptSolutionText;
     let modal         =    false;
     let clickOut      =    true;
+
     let promptButtons = [
-        {    buttonText: errorPackage.solutionButtonText, action: () => {   errorPackage.solutionButtonAction();   } }
+        {    buttonText: errorPackage.solutionButtonText, action: () => {   errorPackage.solutionButtonAction();   }, customCSS: "optionDefault" }
     ];
 
     if (!errorPackage.severe) {
         // noinspection JSUnresolvedReference            // Object references are populated elsewhere
         promptButtons.push(
-            {    buttonText: currentTranslations.dismiss        ,   action: () => {  } }
+            {    buttonText: currentTranslations.dismiss,   action: () => {  }, customCSS: "optionNeutral" }
         )
     } else {
         // modal = true; // TODO: z-index issues in prompt
@@ -2524,7 +2525,7 @@ class Overlay extends MovableElement {
         newElement.className = "createdOverlay";
         newElement.classList.add("hidden");
         videoContainer.appendChild(newElement);
-        print("Overlay: preRenderNoiseCanvas: Pre-rendering noise canvas for overlays (async)");
+        print("Overlay: preRenderNoiseCanvas(): Pre-rendering noise canvas for overlays (async)");
 
         // Render
         Overlay.renderNoiseCanvas(newElement);
