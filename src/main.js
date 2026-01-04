@@ -176,40 +176,51 @@ async function setLocale(newLocale) {
     currentLocale = newLocale;
     currentTranslations = newTranslations;
 
-    // Get and save translations for Terms of Service
-    const tosTextInfo = {
-        file: currentLocale + "_tos_short",
-        content: null,
-        textExists: false
-    };
-    const legalTextTos = await getLegalText(tosTextInfo);
+    // Get translations for Terms of Service
+    const legalTextTos = prefixKeys(await getLegalText(currentLocale + "_tos_short"), "tos");
 
-    // Get and save translations for Privacy Notice
-    const privacyTextInfo = {
-        file: currentLocale + "_privacy_short",
-        content: null,
-        textExists: false
-    };
-    const legalTextPrivacy = await getLegalText(privacyTextInfo);
+    // Get translations for Privacy Notice
+    const legalTextPrivacy = prefixKeys(await getLegalText(currentLocale + "_privacy_short"), "privacy");
 
     // Save legal translations
     currentTranslations.legalTextTos = legalTextTos;
     currentTranslations.legalTextPrivacy = legalTextPrivacy;
 
+    // Merge translations
+    currentTranslations = {
+        ...currentTranslations,
+        ...legalTextTos,
+        ...legalTextPrivacy
+    };
+
     // Apply translations
     applyTranslations();
 
     // Nested function to get legal text
-    async function getLegalText(textInfo) {
-        const content = await fetchJSON(textInfo.file);
+    async function getLegalText(file) {
+        let legalText = {};
+        const content = await fetchJSON(file);
         if (content) {
-            textInfo.textExists = true;
-            textInfo.content = content;
-            print("setLocale(): Found text: " + textInfo.file + " with title: " + content.title);
+            legalText = content;
+            legalText.textExists = true;
+            print("setLocale(): Found text: " + legalText.file + " with title: " + content.title);
         } else {
-            console.warn("setLocale(): Did not find text: " + textInfo.file);
+            legalText.textExists = false;
+            console.warn("setLocale(): Did not find text: " + legalText.file);
         }
-        return textInfo;
+
+        return legalText;
+    }
+
+    // Nested function for applying prefixes to object keys
+    // Used for making generic object keys unique to avoid overwrites when merging
+    function prefixKeys(object, prefix) {
+        let prefixed = {};
+        for (let key in object) {
+            prefixed[prefix + key.charAt(0).toUpperCase() + key.slice(1)] = object[key];
+            print("setLocale(): Prefixed key: " + key , "yellow");
+        }
+        return prefixed;
     }
 }
 
@@ -324,12 +335,13 @@ async function handlePrivacy() {
     }
 
     // Get short texts if they exist
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
     let texts = [
-        currentTranslations.legalTextPrivacy,
-        currentTranslations.legalTextTos
+        currentTranslations.privacyTextExists,
+        currentTranslations.tosTextExists
     ];
 
-    print("handlePrivacy(): Privacy files: privacy text exists = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
+    print("handlePrivacy(): Privacy files: privacy text exists = " + currentTranslations.privacyTextExists + " & tos text exists = " + currentTranslations.tosTextExists);
 
     // Interpret course of action
 
@@ -354,7 +366,7 @@ async function handlePrivacy() {
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            if (texts[0].textExists) {                                           // Privacy text exists
+            if (currentTranslations.privacyTextExists) {                                           // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
                 showLegalPrompt("privacy", texts)                                // Privacy prompt
                 return "waitStorage";
@@ -365,9 +377,9 @@ async function handlePrivacy() {
             }
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
-            if (texts[1].textExists) {                                           // ToS text exists
+            if (currentTranslations.tosTextExists) {                                           // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
-                if (texts[0].textExists) {                                       // Privacy text exists
+                if (currentTranslations.privacyTextExists) {                                       // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
                     showLegalPrompt("full", texts)                               // Full prompt
                 } else {                                                         // Privacy text does not exist
@@ -377,7 +389,7 @@ async function handlePrivacy() {
                 return "wait";
             } else {                                                             // ToS text does not exist
                 print("handlePrivacy(): ... ToS text does not exist");
-                if (texts[0].textExists) {                                       // Privacy text does exist
+                if (currentTranslations.privacyTextExists) {                                       // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
                     showLegalPrompt("privacy", texts)                            // Privacy prompt
                     return "waitStorage";
@@ -389,7 +401,7 @@ async function handlePrivacy() {
             }
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
-            if (texts[0].textExists && texts[1].textExists) {
+            if (currentTranslations.privacyTextExists && currentTranslations.tosTextExists) {
                 showLegalPrompt("full", texts)                                  // Full prompt
                 return "full";
             } else {
@@ -1439,44 +1451,44 @@ function showLegalPrompt(promptType, texts) {
     switch(promptType) {
         case 'privacy':
             // Displays a privacy notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title);
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle);
 
-            titleOut = texts[0].content.title;
-            textOut = texts[0].content.text;
-            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            titleOut = currentTranslations.privacyTitle;
+            textOut = currentTranslations.privacyText;
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "UNKNOWN"}, {content: textOut, localeKey: "UNKNOWN"}, [
-                    { buttonText: texts[0].content.rejectStorage ,  localeKey: "rejectStorage" , customCSS: colorReject  ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }   },
-                    { buttonText: texts[0].content.notNow        ,  localeKey: "notNow"        , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; }                                                   },
-                    { buttonText: texts[0].content.agreeStorage  ,  localeKey: "agreeStorage"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                  }
+                    { buttonText: currentTranslations.privacyRejectStorage ,  localeKey: "privacyRejectStorage" , customCSS: colorReject  ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }   },
+                    { buttonText: currentTranslations.privacyNotNow        ,  localeKey: "privacyNotNow"        , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; }                                                   },
+                    { buttonText: currentTranslations.privacyAgreeStorage  ,  localeKey: "privacyAgreeStorage"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                  }
                 ]
             );
 
             break;
         case 'tos':
             // Displays a ToS (terms of service) notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + texts[1].content.title);
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitle);
 
-            titleOut = texts[1].content.title;
-            textOut = texts[1].content.text;
-            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            titleOut = currentTranslations.tosTitle;
+            textOut = currentTranslations.tosText;
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "UNKNOWN"}, {content: textOut, localeKey: "UNKNOWN"}, [
-                    { buttonText: texts[1].content.rejectTos    ,  localeKey: "rejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
-                    { buttonText: texts[1].content.agreeToTos   ,  localeKey: "agreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
+                    { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
+                    { buttonText: currentTranslations.tosAgreeToTos   ,  localeKey: "tosAgreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
                 ]
             );
 
             break;
         case 'full':
             // Displays a full privacy and ToS (terms of service) notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle + " & " + currentTranslations.tosTitle);
 
-            titleOut = texts[0].content.title + " & " + texts[1].content.title;
-            textOut = texts[0].content.text + "<br>" + texts[1].content.text;
-            // noinspection JSUnresolvedReference // Object references are populated elsewhere
+            titleOut = currentTranslations.privacyTitle + " & " + currentTranslations.tosTitle;
+            textOut = currentTranslations.privacyText + "<br>" + currentTranslations.tosText;
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "UNKNOWN"}, {content: textOut, localeKey: "UNKNOWN"}, [
-                    { buttonText: texts[1].content.rejectTos  ,  localeKey: "rejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
-                    { buttonText: texts[1].content.agreeToTos ,  localeKey: "agreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
-                    { buttonText: texts[1].content.agreeToAll ,  localeKey: "agreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
+                    { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
+                    { buttonText: currentTranslations.tosAgreeToTos ,  localeKey: "tosAgreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
+                    { buttonText: currentTranslations.tosAgreeToAll ,  localeKey: "tosAgreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
                 ]
             );
 
@@ -1497,7 +1509,7 @@ function showErrorPrompt(errorPackage) {
     ];
 
     if (!errorPackage.severe) {
-        // noinspection JSUnresolvedReference            // Object references are populated elsewhere
+        // noinspection JSUnresolvedReference            // Object property references are populated elsewhere
         promptButtons.push(
             { buttonText: currentTranslations.dismiss, localeKey: "dismiss" , customCSS: "optionNeutral",  action: () => {  } }
         )
@@ -1614,11 +1626,11 @@ function videoError(errorType, source, errorObject) {
         severe: false
     }
 
-    // noinspection JSUnresolvedReference                        // Object references are populated elsewhere
+    // noinspection JSUnresolvedReference                        // Object property references are populated elsewhere
     errorPackage.promptTitle            = currentTranslations.videoProblemPromptTitle;
-    // noinspection JSUnresolvedReference                        // Object references are populated elsewhere
+    // noinspection JSUnresolvedReference                        // Object property references are populated elsewhere
     errorPackage.promptInfoText         = currentTranslations.videoProblemPromptText;
-    // noinspection JSUnresolvedReference                        // Object references are populated elsewhere
+    // noinspection JSUnresolvedReference                        // Object property references are populated elsewhere
     errorPackage.solutionButtonText     = currentTranslations.retry
     errorPackage.solutionButtonAction   = videoStart;            // Or () => { videoStart(); }
 
@@ -3142,7 +3154,7 @@ class Menu extends CreatedElement {
             // Create basic or custom buttons
             let buttonElement;
             if (!control.customHTML) {                         // No custom HTML (falsy)
-                // noinspection JSUnresolvedReference          // Object references are populated elsewhere
+                // noinspection JSUnresolvedReference          // Object property references are populated elsewhere
                 buttonElement = createButton(control.id, control.text, control.img);
                 this.element.appendChild(buttonElement);
             } else {                                               // Custom HTML
