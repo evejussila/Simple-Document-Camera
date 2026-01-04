@@ -5,7 +5,7 @@ console.log("Version: " + version);
 
 // Localization
 const defaultLocale = "en";                                         // Default locale is english
-const allowedLocales = ["en", "fi"];                                // Only these locales are allowed TODO: DEV: Get based on available localisation files
+const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: DEV: Get based on available localisation files
 let currentLocale;                                                  // The active locale
 let currentTranslations = {};                                       // Stores translations for the active locale
 
@@ -52,8 +52,8 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Add localization and wait for it to complete TODO: Make localization fully async and independent
-    addLocalization().then(() => {
+    // Add localization and wait for it to complete
+    setLocale(defaultLocale).then(() => {               // DEV: Localization can't be fully parallel and independent if ToS etc. are required for use
         
         // Handle notices, consent and data storage
         handlePrivacy().then( (initialResult) => {                                  // Function finishes fast, returned variable will change value later based on prompt response
@@ -152,36 +152,65 @@ function addCoreListeners() {
 }
 
 /**
- * Sets the language to default and initializes language selector.
- *
- */
-async function addLocalization() {
-    await setLocale(defaultLocale);
-}
-
-/**
  * Loads translations and applies them to the page.
  * Ensures the requested locale is allowed and translations are properly loaded.
  * @param {string} newLocale - The locale to set.
  */
 async function setLocale(newLocale) {
-    // Checks if new locale is in the list of allowed locales
-    if (!allowedLocales.includes(newLocale)) {
+    if (newLocale === currentLocale) return;
+
+    // Checks if new locale is in the list of available locales
+    if (!availableLocales.includes(newLocale)) {
         console.error(`setLocale(): Attempted to load unsupported locale: ${newLocale}`);
         return;
     }
 
-    if (newLocale === currentLocale) return;
-
+    // Get core translations
     const newTranslations = await fetchJSON(newLocale);
     if (!newTranslations) {
         console.error("setLocale(): Invalid translations received for locale:", newLocale);
         return;
     }
 
+    // Save core translations
     currentLocale = newLocale;
     currentTranslations = newTranslations;
+
+    // Get and save translations for Terms of Service
+    const tosTextInfo = {
+        file: currentLocale + "_tos_short",
+        content: null,
+        textExists: false
+    };
+    const legalTextTos = await getLegalText(tosTextInfo);
+
+    // Get and save translations for Privacy Notice
+    const privacyTextInfo = {
+        file: currentLocale + "_privacy_short",
+        content: null,
+        textExists: false
+    };
+    const legalTextPrivacy = await getLegalText(privacyTextInfo);
+
+    // Save legal translations
+    currentTranslations.legalTextTos = legalTextTos;
+    currentTranslations.legalTextPrivacy = legalTextPrivacy;
+
+    // Apply translations
     applyTranslations();
+
+    // Nested function to get legal text
+    async function getLegalText(textInfo) {
+        const content = await fetchJSON(textInfo.file);
+        if (content) {
+            textInfo.textExists = true;
+            textInfo.content = content;
+            print("setLocale(): Found text: " + textInfo.file + " with title: " + content.title);
+        } else {
+            console.warn("setLocale(): Did not find text: " + textInfo.file);
+        }
+        return textInfo;
+    }
 }
 
 /**
@@ -294,29 +323,12 @@ async function handlePrivacy() {
         }
     }
 
-    // Load short texts if they exist
-    let texts = [                                       // Define texts and property storage
-        {                                               // texts[0] is for privacy notice
-            file: currentLocale + "_privacy_short",
-            content: null,
-            textExists: false,
-        },
-        {                                               // texts[1] is for terms of service notice
-            file: currentLocale + "_tos_short",
-            content: null,
-            textExists: false,
-        }
+    // Get short texts if they exist
+    let texts = [
+        currentTranslations.legalTextPrivacy,
+        currentTranslations.legalTextTos
     ];
-    for (const text of texts) {                         // Iterate through texts
-        const content = await fetchJSON(text.file);     // Get JSON
-        if (content) {                                  // If JSON accessible
-            text.textExists = true;                     // Set boolean for conditional logics
-            text.content = content;
-            print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
-        } else {
-            console.warn("handlePrivacy(): Did not find text: " + text.file);
-        }
-    }
+
     print("handlePrivacy(): Privacy files: privacy text exists = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
 
     // Interpret course of action
@@ -1699,6 +1711,7 @@ function haltService(haltType, source ) {
  * @param noTitle
  * @param textCSSOverrides
  * @param timedDismiss
+ * @param languageSelector
  */
 async function customPrompt(title = {}, content = {}, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null, timedDismiss = 0, languageSelector = true) {
 
@@ -1770,7 +1783,7 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
             const languageSelectorElement = document.createElement('div');
             languageSelectorElement.className = 'languageSelector';                           // Set basic CSS class
 
-            allowedLocales.forEach((locale, index) => {
+            availableLocales.forEach((locale, index) => {
                 const localeElement = document.createElement('span');
                 localeElement.textContent = locale;
                 localeElement.style.cursor = 'pointer';
@@ -1779,7 +1792,7 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
                 });
                 languageSelectorElement.appendChild(localeElement);
 
-                if (index < allowedLocales.length - 1) {
+                if (index < availableLocales.length - 1) {
                     const separator = document.createElement('span');
                     separator.textContent = ' | ';
                     languageSelectorElement.appendChild(separator);
