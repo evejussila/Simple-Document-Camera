@@ -224,7 +224,7 @@ function applyTranslations() {
  * @param {HTMLElement} element - The element to translate.
  */
 function translateElement(element) {
-    const key = element.getAttribute("data-locale-key");
+    const key = element.getAttribute("data-locale-key"); // TODO: Consider element.dataset.localeKey
     const translation = currentTranslations[key];
 
     // Skip if no translation is available
@@ -242,6 +242,7 @@ function translateElement(element) {
     else if (element.textContent.trim().length > 0) {
         element.textContent = translation;
     }
+    // TODO: May have to check for and separately handle contained text nodes (which can't have dataset keys of their own)
 }
 
 /**
@@ -1699,7 +1700,7 @@ function haltService(haltType, source ) {
  * @param textCSSOverrides
  * @param timedDismiss
  */
-async function customPrompt(title = {}, content = {}, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null, timedDismiss = 0) {
+async function customPrompt(title = {}, content = {}, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null, timedDismiss = 0, languageSelector = true) {
 
     // Do not use this function directly. Instead, create a separate function for your application.
     // See previous uses of this function for examples.
@@ -1763,6 +1764,30 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
         // Append
         textTitleElement.appendChild(textTitle);
         prompt.appendChild(textTitleElement);
+
+        if (languageSelector) {
+            // Create language selector
+            const languageSelectorElement = document.createElement('div');
+            languageSelectorElement.className = 'languageSelector';                           // Set basic CSS class
+
+            allowedLocales.forEach((locale, index) => {
+                const localeElement = document.createElement('span');
+                localeElement.textContent = locale;
+                localeElement.style.cursor = 'pointer';
+                localeElement.addEventListener('click', () => {
+                    setLocale(locale).then(() => {});
+                });
+                languageSelectorElement.appendChild(localeElement);
+
+                if (index < allowedLocales.length - 1) {
+                    const separator = document.createElement('span');
+                    separator.textContent = ' | ';
+                    languageSelectorElement.appendChild(separator);
+                }
+            });
+
+            textTitleElement.appendChild(languageSelectorElement);
+            }
     }
 
     // Create body text

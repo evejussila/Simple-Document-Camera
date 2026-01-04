@@ -248,7 +248,19 @@ button:not(:hover) {
     background: #dfdfe1;
 }
 
+.languageSelector {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    font-size: 16px;
+}
 
+.languageSelector span:hover {
+    color: var(--link-hover);
+}
 
 /* Core UI */
 
