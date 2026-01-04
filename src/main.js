@@ -157,21 +157,6 @@ function addCoreListeners() {
  */
 async function addLocalization() {
     await setLocale(defaultLocale);
-    bindLocaleSelector(defaultLocale, "[data-locale-selector]");
-}
-
-/**
- * Sets up the language selector and binds event listeners to detect language changes.
- * @param {string} initialLocale - The initial locale to set.
- * @param selector Selector to bind.
- */
-function bindLocaleSelector(initialLocale, selector) {
-    const localeSelector = document.querySelector(selector);
-    localeSelector.value = initialLocale;
-    localeSelector.onchange = (e) => {
-        // Set the language based on the selected value
-        setLocale(e.target.value).then(() => {});
-    };
 }
 
 /**
@@ -456,7 +441,6 @@ function createMenus() {
     const buttonDraw = Menu.createButton("draw.png", "buttonDraw", "iconDraw", "Draw", menuContainerTop);
 
     // Create menu caller buttons (middle)
-    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
 
     // Create menu caller buttons (bottom)
     const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
@@ -569,83 +553,6 @@ function createMenus() {
 
         // Create menu
         createdElements.createMenu(menuDraw, buttonDraw, "leftToRight");
-    }
-
-    // Settings menu creation
-    {                                   // Code block for collapsing
-        let menuSettings = [];
-
-        // Create settings menu subsection: language selection
-        const selectLanguageContainer = document.createElement("div");
-        selectLanguageContainer.style.display = "flex";
-        selectLanguageContainer.style.flexDirection = "row";
-        selectLanguageContainer.style.alignItems = "center";
-        selectLanguageContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
-        selectLanguageContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
-
-        const languageImg = document.createElement("img");
-        languageImg.src = "./images/language.png";
-        languageImg.style.display = "block";
-        languageImg.style.width = "22px";
-        languageImg.style.height = "22px";
-        languageImg.classList.add("icon");
-        selectLanguageContainer.appendChild(languageImg);
-
-        const languagesDiv = document.createElement("div");
-        languagesDiv.id = "languages";
-
-        const select = document.createElement("select");
-        select.setAttribute("data-locale-selector", "");
-        select.className = "locale-switcher";
-        select.title = "Change Language";
-        select.style.width = "80px";
-        select.setAttribute("data-locale-key", "language");
-
-        // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
-
-        const optionEn = document.createElement("option");
-        optionEn.value = "en";
-        optionEn.setAttribute("data-locale-key", "english");
-        optionEn.textContent = "English";
-        select.appendChild(optionEn);
-
-        const optionFi = document.createElement("option");
-        optionFi.value = "fi";
-        optionFi.setAttribute("data-locale-key", "finnish");
-        optionFi.textContent = "Finnish";
-        select.appendChild(optionFi);
-
-        languagesDiv.appendChild(select);
-        selectLanguageContainer.appendChild(languagesDiv);
-
-        menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
-
-        // Create settings menu subsection: theme selection
-
-        const switchThemeContainer = document.createElement("div");
-        switchThemeContainer.style.display = "flex";
-        switchThemeContainer.style.flexDirection = "column";
-        switchThemeContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
-        switchThemeContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
-
-        const switchThemeLabel = document.createElement("div");
-        switchThemeLabel.textContent = "Light Theme";
-        switchThemeLabel.style.textAlign = "center";
-
-        const switchTheme = document.createElement("input");
-        switchTheme.type = "checkbox";
-
-        switchTheme.addEventListener("change", () => {
-            document.documentElement.classList.toggle("lightMode");
-        });
-
-        switchThemeContainer.appendChild(switchThemeLabel);
-        switchThemeContainer.appendChild(switchTheme);
-
-        menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
-
-        // Create settings menu
-        createdElements.createMenu(menuSettings, buttonSettings, "leftToRight");
     }
 
     // Info menu creation
@@ -3606,9 +3513,6 @@ function print(string, color = "gray", tracePrint = false) {
 
 }
 
-
-// Developer functions (safe to delete)
-
 let debugModeVisual = false;                                                                  // Enables visual debug tools
 if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
     console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
@@ -3624,13 +3528,13 @@ function debug() {
         print("Happy developing ✨");
     }
 
-    // Get container element for menu button
+    // Get container element for menu buttons
     const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
 
-    // Create menu button
+    // Create developer menu button
     const buttonDeveloper = Menu.createButton("developer.png", "buttonDeveloper", "iconDeveloper", "Developer Options", menuContainerMiddle);
 
-    // Define menu options
+    // Define developer menu options
     let menuDeveloper = [
         {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png", action: debugVisual},
         {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png", action: backgroundUpdateInputList},
@@ -3643,6 +3547,106 @@ function debug() {
         {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png", action: () => { Drawing.test(); }},
     ];
 
+    // Create developer menu
+    new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
+
+    // Create settings menu button
+    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
+
+    // Settings menu creation
+    {                                   // Code block for collapsing
+        let menuSettings = [];
+
+        // Create settings menu subsection: language selection
+        const selectLanguageContainer = document.createElement("div");
+        selectLanguageContainer.style.display = "flex";
+        selectLanguageContainer.style.flexDirection = "row";
+        selectLanguageContainer.style.alignItems = "center";
+        selectLanguageContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
+        selectLanguageContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
+
+        const languageImg = document.createElement("img");
+        languageImg.src = "./images/language.png";
+        languageImg.style.display = "block";
+        languageImg.style.width = "22px";
+        languageImg.style.height = "22px";
+        languageImg.classList.add("icon");
+        selectLanguageContainer.appendChild(languageImg);
+
+        const languagesDiv = document.createElement("div");
+        languagesDiv.id = "languages";
+
+        const select = document.createElement("select");
+        select.setAttribute("data-locale-selector", "");
+        select.className = "locale-switcher";
+        select.title = "Change Language";
+        select.style.width = "80px";
+        select.setAttribute("data-locale-key", "language");
+
+        // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
+
+        const optionEn = document.createElement("option");
+        optionEn.value = "en";
+        optionEn.setAttribute("data-locale-key", "english");
+        optionEn.textContent = "English";
+        select.appendChild(optionEn);
+
+        const optionFi = document.createElement("option");
+        optionFi.value = "fi";
+        optionFi.setAttribute("data-locale-key", "finnish");
+        optionFi.textContent = "Finnish";
+        select.appendChild(optionFi);
+
+        languagesDiv.appendChild(select);
+        selectLanguageContainer.appendChild(languagesDiv);
+
+        menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
+
+        // Create settings menu subsection: theme selection
+
+        const switchThemeContainer = document.createElement("div");
+        switchThemeContainer.style.display = "flex";
+        switchThemeContainer.style.flexDirection = "column";
+        switchThemeContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
+        switchThemeContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
+
+        const switchThemeLabel = document.createElement("div");
+        switchThemeLabel.textContent = "Light Theme";
+        switchThemeLabel.style.textAlign = "center";
+
+        const switchTheme = document.createElement("input");
+        switchTheme.type = "checkbox";
+
+        switchTheme.addEventListener("change", () => {
+            document.documentElement.classList.toggle("lightMode");
+        });
+
+        switchThemeContainer.appendChild(switchThemeLabel);
+        switchThemeContainer.appendChild(switchTheme);
+
+        menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
+
+        // Create settings menu
+        new CreatedElements().createMenu(menuSettings, buttonSettings, "leftToRight");
+
+        // bindLocaleSelector(defaultLocale, "[data-locale-selector]");
+    }
+
+    /**
+     * Sets up the language selector and binds event listeners to detect language changes.
+     * @param {string} initialLocale - The initial locale to set.
+     * @param selector Selector to bind.
+     */
+    function bindLocaleSelector(initialLocale, selector) {
+        const localeSelector = document.querySelector(selector);
+        localeSelector.value = initialLocale;
+        localeSelector.onchange = (e) => {
+            // Set the language based on the selected value
+            setLocale(e.target.value).then(() => {});
+        };
+    }
+
+    // Nested function for clearing URL parameters
     function clearURLParameters() {
         const url = new URL(window.location.href);
         const debug = url.searchParams.get("debug");
@@ -3650,10 +3654,6 @@ function debug() {
         if (debug !== null) url.searchParams.set("debug", debug);
         window.history.replaceState(null, "", url.toString());
     }
-
-    // Create menu
-    new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
-
 }
 
 /**
@@ -3773,6 +3773,8 @@ function drawElementTrackingIndicators(element) {
         extraCanvases.forEach(c => removeElement(c));
     };
 }
+
+// Developer functions (safe to delete)
 
 /**
  * Gets coordinates of element bounding rectangle corners.
