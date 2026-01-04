@@ -1,10 +1,10 @@
 // Development tools
 let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
-const version = ("2025-10-20-alpha");
+const version = ("2026-01-05-alpha");
 console.log("Version: " + version);
 
 // Localization
-const defaultLocale = "en";                                         // Default locale is english
+const defaultLocale = "fi";                                         // Default locale is english
 const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: DEV: Get based on available localisation files
 let currentLocale;                                                  // The active locale
 let currentTranslations = {};                                       // Stores translations for the active locale
@@ -218,7 +218,6 @@ async function setLocale(newLocale) {
         let prefixed = {};
         for (let key in object) {
             prefixed[prefix + key.charAt(0).toUpperCase() + key.slice(1)] = object[key];
-            print("setLocale(): Prefixed key: " + key , "yellow");
         }
         return prefixed;
     }
@@ -267,20 +266,25 @@ function translateElement(element) {
     const key = element.getAttribute("data-locale-key"); // TODO: Consider element.dataset.localeKey
     const translation = currentTranslations[key];
 
-    // Skip if no translation is available
+    // Return if no translation is available
     if (!translation) return;
 
-    // If element has title attribute, it gets translated.
+    // If element has title attribute, translate
     if (element.hasAttribute("title")) {
         element.setAttribute("title", translation);
     }
-    // Else if element has placeholder attribute, it gets translated.
+    // Else if element has placeholder attribute, translate
     else if (element.hasAttribute("placeholder")) {
         element.setAttribute("placeholder", translation);
     }
-    // Check if the element has non-empty text content. If it does, update it with the translated text.
+
+    // Else if element has non-empty text content, translate
     else if (element.textContent.trim().length > 0) {
-        element.textContent = translation;
+        if (/</.test(element.innerHTML) && />/.test(element.innerHTML)) {       // If content is HTML, allow parsing
+            element.innerHTML = translation;
+        } else {
+            element.textContent = translation;
+        }
     }
     // TODO: May have to check for and separately handle contained text nodes (which can't have dataset keys of their own)
 }
@@ -334,15 +338,6 @@ async function handlePrivacy() {
         }
     }
 
-    // Get short texts if they exist
-    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-    let texts = [
-        currentTranslations.privacyTextExists,
-        currentTranslations.tosTextExists
-    ];
-
-    print("handlePrivacy(): Privacy files: privacy text exists = " + currentTranslations.privacyTextExists + " & tos text exists = " + currentTranslations.tosTextExists);
-
     // Interpret course of action
 
     // Simply:
@@ -364,11 +359,15 @@ async function handlePrivacy() {
     // true            false                                    privacy prompt        handleLocalStorage()  privacy prompt
     // false           false                                    handleLocalStorage()  handleLocalStorage()  handleLocalStorage()
 
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+    print("handlePrivacy(): Privacy files: privacy text exists = " + currentTranslations.privacyTextExists + " & tos text exists = " + currentTranslations.tosTextExists);
+
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             if (currentTranslations.privacyTextExists) {                                           // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
-                showLegalPrompt("privacy", texts)                                // Privacy prompt
+                showLegalPrompt("privacy")                                // Privacy prompt
                 return "waitStorage";
             } else {                                                             // Privacy text does not exist
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
@@ -377,21 +376,24 @@ async function handlePrivacy() {
             }
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             if (currentTranslations.tosTextExists) {                                           // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
                 if (currentTranslations.privacyTextExists) {                                       // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
-                    showLegalPrompt("full", texts)                               // Full prompt
+                    showLegalPrompt("full")                               // Full prompt
                 } else {                                                         // Privacy text does not exist
                     print("handlePrivacy(): ... privacy text does not exist");
-                    showLegalPrompt("tos", texts)                                // ToS prompt
+                    showLegalPrompt("tos")                                // ToS prompt
                 }
                 return "wait";
             } else {                                                             // ToS text does not exist
                 print("handlePrivacy(): ... ToS text does not exist");
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
                 if (currentTranslations.privacyTextExists) {                                       // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
-                    showLegalPrompt("privacy", texts)                            // Privacy prompt
+                    showLegalPrompt("privacy")                            // Privacy prompt
                     return "waitStorage";
                 } else {
                     print("handlePrivacy(): ... privacy text does not exist");
@@ -401,8 +403,9 @@ async function handlePrivacy() {
             }
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             if (currentTranslations.privacyTextExists && currentTranslations.tosTextExists) {
-                showLegalPrompt("full", texts)                                  // Full prompt
+                showLegalPrompt("full")                                  // Full prompt
                 return "full";
             } else {
                 return null;
@@ -1439,7 +1442,7 @@ function addText() {
 
 // Prompting and error handling
 
-function showLegalPrompt(promptType, texts) {
+function showLegalPrompt(promptType) {
 
     // Set button styles
     const colorAccept   = "optionDefault"  ;
@@ -1456,7 +1459,7 @@ function showLegalPrompt(promptType, texts) {
             titleOut = currentTranslations.privacyTitle;
             textOut = currentTranslations.privacyText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            customPrompt({title: titleOut, localeKey: "UNKNOWN"}, {content: textOut, localeKey: "UNKNOWN"}, [
+            customPrompt({title: titleOut, localeKey: "privacyTitle"}, {content: textOut, localeKey: "privacyText"}, [
                     { buttonText: currentTranslations.privacyRejectStorage ,  localeKey: "privacyRejectStorage" , customCSS: colorReject  ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }   },
                     { buttonText: currentTranslations.privacyNotNow        ,  localeKey: "privacyNotNow"        , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; }                                                   },
                     { buttonText: currentTranslations.privacyAgreeStorage  ,  localeKey: "privacyAgreeStorage"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                  }
@@ -1471,7 +1474,7 @@ function showLegalPrompt(promptType, texts) {
             titleOut = currentTranslations.tosTitle;
             textOut = currentTranslations.tosText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            customPrompt({title: titleOut, localeKey: "UNKNOWN"}, {content: textOut, localeKey: "UNKNOWN"}, [
+            customPrompt({title: titleOut, localeKey: "tosTitle"}, {content: textOut, localeKey: "tosText"}, [
                     { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos   ,  localeKey: "tosAgreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
                 ]
@@ -1481,6 +1484,9 @@ function showLegalPrompt(promptType, texts) {
         case 'full':
             // Displays a full privacy and ToS (terms of service) notice.
             console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle + " & " + currentTranslations.tosTitle);
+
+            // Construct custom HTML object for combined prompt
+            // TODO
 
             titleOut = currentTranslations.privacyTitle + " & " + currentTranslations.tosTitle;
             textOut = currentTranslations.privacyText + "<br>" + currentTranslations.tosText;
