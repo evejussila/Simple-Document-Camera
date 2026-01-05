@@ -3,5 +3,6 @@
   "text": "Tämä palvelu tarjotaan sellaisena kuin se on.<br><br><a href=\"javascript:void(0);\" onclick=\"showContentPrompt('fi_tos_long', true, true)\">Palvelun käyttöehdot</a>",
   "agreeToAll": "Hyväksy kaikki",
   "agreeToTos": "Hyväksy käyttöehdot",
-  "rejectTos": "Hylkää käyttöehdot"
+  "rejectTos": "Hylkää käyttöehdot",
+  "titleCombined": "Käyttöehdot & Tietosuojailmoitus"
 }

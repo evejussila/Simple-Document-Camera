@@ -267,7 +267,10 @@ function translateElement(element) {
     const translation = currentTranslations[key];
 
     // Return if no translation is available
-    if (!translation) return;
+    if (!translation) {
+        console.error("translateElement(): Dataset locale key set but no translation found for key: " + key + " , translation: " + translation);
+        return;
+    }
 
     // If element has title attribute, translate
     if (element.hasAttribute("title")) {
@@ -286,7 +289,6 @@ function translateElement(element) {
             element.textContent = translation;
         }
     }
-    // TODO: May have to check for and separately handle contained text nodes (which can't have dataset keys of their own)
 }
 
 /**
@@ -1454,9 +1456,12 @@ function showLegalPrompt(promptType) {
     switch(promptType) {
         case 'privacy':
             // Displays a privacy notice.
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle);
 
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             titleOut = currentTranslations.privacyTitle;
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             textOut = currentTranslations.privacyText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "privacyTitle"}, {content: textOut, localeKey: "privacyText"}, [
@@ -1469,9 +1474,12 @@ function showLegalPrompt(promptType) {
             break;
         case 'tos':
             // Displays a ToS (terms of service) notice.
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitle);
 
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             titleOut = currentTranslations.tosTitle;
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             textOut = currentTranslations.tosText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "tosTitle"}, {content: textOut, localeKey: "tosText"}, [
@@ -1483,15 +1491,33 @@ function showLegalPrompt(promptType) {
             break;
         case 'full':
             // Displays a full privacy and ToS (terms of service) notice.
-            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle + " & " + currentTranslations.tosTitle);
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitleCombined);
 
             // Construct custom HTML object for combined prompt
-            // TODO
-
-            titleOut = currentTranslations.privacyTitle + " & " + currentTranslations.tosTitle;
-            textOut = currentTranslations.privacyText + "<br>" + currentTranslations.tosText;
+            textOut = document.createElement('div');
+            // Privacy element
+            const privacy = document.createElement('div');
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            customPrompt({title: titleOut, localeKey: "UNKNOWN"}, {content: textOut, localeKey: "UNKNOWN"}, [
+            privacy.innerHTML = currentTranslations.privacyText;
+            privacy.dataset.localeKey = 'privacyText';
+            // Spacer element
+            const spacer = document.createElement('div');
+            spacer.innerHTML = "<br>";
+            // TOS element
+            const tos = document.createElement('div');
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            tos.innerHTML = currentTranslations.tosText;
+            tos.dataset.localeKey = 'tosText';
+            // Append elements
+            textOut.appendChild(privacy);
+            textOut.appendChild(spacer);
+            textOut.appendChild(tos);
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            titleOut = currentTranslations.tosTitleCombined;
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            customPrompt({title: titleOut, localeKey: "tosTitleCombined"}, {content: textOut}, [
                     { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos ,  localeKey: "tosAgreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
                     { buttonText: currentTranslations.tosAgreeToAll ,  localeKey: "tosAgreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
@@ -1500,32 +1526,6 @@ function showLegalPrompt(promptType) {
 
             break;
     }
-
-}
-
-function showErrorPrompt(errorPackage) {
-
-    let promptTitle   =    errorPackage.promptTitle;
-    let promptText    =    errorPackage.promptInfoText + "<br><br>" + errorPackage.promptSolutionText;
-    let modal         =    false;
-    let clickOut      =    true;
-
-    let promptButtons = [
-        { buttonText: errorPackage.solutionButtonText, localeKey: "UNKNOWN" , customCSS: "optionDefault", action: () => {   errorPackage.solutionButtonAction();   } }
-    ];
-
-    if (!errorPackage.severe) {
-        // noinspection JSUnresolvedReference            // Object property references are populated elsewhere
-        promptButtons.push(
-            { buttonText: currentTranslations.dismiss, localeKey: "dismiss" , customCSS: "optionNeutral",  action: () => {  } }
-        )
-    } else {
-        // modal = true; // TODO: z-index issues in prompt
-        clickOut = false;
-    }
-
-    console.error("showErrorPrompt(): Displaying an error prompt: " + promptTitle );
-    customPrompt({title: promptTitle, localeKey: "UNKNOWN"}, {content: promptText, localeKey: "UNKNOWN"}, promptButtons, null, modal, clickOut);
 
 }
 
@@ -1546,6 +1546,8 @@ async function showWaitPrompt(time = 4, waitWith = true) {
     }
 
     let contentObject = document.createElement('div');
+
+    // TODO: Gradient below is a placeholder for branding image
 
     const gradientDiv = document.createElement('div');
     gradientDiv.style.cssText = 'width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%)';
@@ -1577,13 +1579,12 @@ async function showWaitPrompt(time = 4, waitWith = true) {
         padding: '100px'
     };
 
-    await customPrompt({title: null, localeKey: "UNKNOWN"}, {content: contentObject}, [], containerCSSOverrides, false, true, true, textStyleOverrides, time);      // Show prompt with no options but timed dismissal
+    await customPrompt({}, {content: contentObject}, [], containerCSSOverrides, false, true, true, textStyleOverrides, time);      // Show prompt with no options but timed dismissal
 
     // Waiting with prompt
     if (waitWith) {
         await new Promise(resolve => setTimeout(resolve, time * 1000));
     }
-    // TODO: Replace hard delay with callback-operated wait
 
     return true;
 }
@@ -1617,8 +1618,34 @@ async function showContentPrompt(file, modal = false, clickOut = true, options =
     } catch (e) {
         console.warn("showContentPrompt(): Did not find text: " + file + " : " + e);
     }
-// TODO: Must be the biggest prompt type vertically, to always remain top layer with no underlap
+// TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
     return false;
+}
+
+function showErrorPrompt(errorPackage) {
+
+    let promptTitle   =    errorPackage.promptTitle;
+    let promptText    =    errorPackage.promptInfoText;
+    let modal         =    false;
+    let clickOut      =    true;
+
+    let promptButtons = [
+        { buttonText: errorPackage.solutionButtonText, localeKey: "retry" , customCSS: "optionDefault", action: () => {   errorPackage.solutionButtonAction();   } }
+    ];
+
+    if (!errorPackage.severe) {
+        // noinspection JSUnresolvedReference            // Object property references are populated elsewhere
+        promptButtons.push(
+            { buttonText: currentTranslations.dismiss, localeKey: "dismiss" , customCSS: "optionNeutral",  action: () => {  } }
+        )
+    } else {
+        // modal = true; // TODO: z-index issues in prompt
+        clickOut = false;
+    }
+
+    console.error("showErrorPrompt(): Displaying an error prompt: " + promptTitle + " : " + promptText);
+    customPrompt({title: promptTitle, localeKey: "videoProblemPromptTitle"}, {content: promptText, localeKey: "videoProblemPromptText"}, promptButtons, null, modal, clickOut);
+
 }
 
 function videoError(errorType, source, errorObject) {
@@ -1787,14 +1814,15 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
 
     if (!noTitle) {
         // Create title text
-        const textTitleElement = document.createElement('div');
-        textTitleElement.className = 'promptTitle';                           // Set basic CSS class
-        const textTitle = document.createTextNode(title.title);
-        textTitleElement.dataset.localeKey = title.localeKey;                 // Set key value for translation, note that text nodes do not have dataset
+        const titleContainer = document.createElement('div');
+        titleContainer.className = 'promptTitle';                           // Set basic CSS class
+        const textTitle = document.createElement('span');
+        textTitle.textContent = title.title;
+        textTitle.dataset.localeKey = title.localeKey;                        // Set key value for translation
 
         // Append
-        textTitleElement.appendChild(textTitle);
-        prompt.appendChild(textTitleElement);
+        titleContainer.appendChild(textTitle);
+        prompt.appendChild(titleContainer);
 
         if (languageSelector) {
             // Create language selector
@@ -1817,15 +1845,13 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
                 }
             });
 
-            textTitleElement.appendChild(languageSelectorElement);
+            titleContainer.appendChild(languageSelectorElement);
             }
     }
 
     // Create body text
     const textBody = document.createElement('div');
     textBody.className = 'promptText';                                   // Set basic CSS class
-    textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
-
 
     // Potential CSS overrides textCSSOverrides
     if (textCSSOverrides) {
@@ -1839,7 +1865,7 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
     }
 
     // Handle contents
-    switch (true) {                                                         // Replaces stacked if-expressions
+    switch (true) {                                                         // Replaces stacked if-expressions TODO: Consider else if
         case typeof content.content === 'object' && content.content instanceof HTMLElement:
             print("customPrompt(): Prompt content identified as HTML element object");
             textBody.appendChild(content.content);
@@ -1847,10 +1873,12 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
         case /</.test(content.content) && />/.test(content.content):
             print("customPrompt(): Prompt content identified as HTML string");
             textBody.innerHTML = content.content;
+            textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
             break;
         case (!content.content):
             print("customPrompt(): Prompt content is empty", 'yellow');
             textBody.textContent = "";
+            textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
             break;
         default:
             print("customPrompt(): Prompt content identified as plain string");
