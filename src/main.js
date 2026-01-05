@@ -85,10 +85,18 @@ function start() {
         // Show interface
         showElement(controlBar);
 
+        // Setup a call for fill mode after videoElement loads fully
+        videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
+            print(JSON.stringify(getElementDimensions(videoElement, false)), "red");
+            zoomFill();
+            videoElement.removeEventListener('loadedmetadata', handler);
+        });
+
         // Start video feed
         videoStart().then(() =>
-            showWaitPrompt(4)).then(() =>
-                showElement(videoElement)
+            showWaitPrompt(4)).then(() => {
+            showElement(videoElement);
+            }
         );
 
         // Onboarding
@@ -111,6 +119,8 @@ function addCoreListeners() {
     listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider                                                             //
     listenerToElement('buttonZoomIn'    , 'click'   , () => adjustZoom(0.1));                       // Zoom in button
     listenerToElement('buttonZoomOut'   , 'click'   , () => adjustZoom(-0.1));                      // Zoom out button
+    listenerToElement('buttonZoomFill'  , 'click'   , () => zoomFill());
+    listenerToElement('buttonZoomFit'   , 'click'   , () => zoomFit());
 
     // Fetch HTML element for full screen button and its icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
@@ -589,9 +599,7 @@ function createMenus() {
     {                                   // Code block for collapsing
         let menuInfo = [
             {
-                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => {
-                    showLegalInfo();
-                }
+                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalInfo(); }
             }
         ];
 
@@ -614,7 +622,7 @@ function createMenus() {
         const zoomContainer = document.createElement('div');                // Create container
         zoomContainer.id = "zoomControls";
 
-        const zoomFit = Menu.createButton("fit.png", "buttonZoomFit", "iconZoomFit", "Fit to window", zoomContainer);
+        const zoomFitButton = Menu.createButton("fit.png", "buttonZoomFit", "iconZoomFit", "Fit to window", zoomContainer);
 
         const zoomOut = document.createElement("button");
         zoomOut.dataset.localeKey = "zoomOut";
@@ -630,7 +638,7 @@ function createMenus() {
         zoomSlider.type = "range";
         zoomSlider.id = "zoomSlider";
         zoomSlider.min = "100";
-        zoomSlider.max = "200";
+        zoomSlider.max = "500";
         zoomSlider.step = "1";
         zoomSlider.value = "100";
         zoomContainer.appendChild(zoomSlider);
@@ -643,7 +651,7 @@ function createMenus() {
         zoomIn.textContent = "+";
         zoomContainer.appendChild(zoomIn);
 
-        const zoomFill = Menu.createButton("fill.png", "buttonZoomFill", "iconZoomFill", "Fill window", zoomContainer);
+        const zoomFillButton = Menu.createButton("fill.png", "buttonZoomFill", "iconZoomFill", "Fill window", zoomContainer);
 
         const zoomLabel = document.createElement("span");
         zoomLabel.id = "zoomPercentageLabel";
@@ -1268,9 +1276,67 @@ function setZoomLevel(value) {
  */
 function adjustZoom(increment) {
     let newZoom = currentZoom * 100 + increment * 100;                                      // Change back to percentages, increase or decrease 10%
-    newZoom = Math.min(Math.max(newZoom, 100), 200);                                                // Limit zoom between 100% and 200%
+    newZoom = Math.min(Math.max(newZoom, 10), 1000);                                                // Limit zoom between n% and n%
     setZoomLevel(newZoom);                                                                          // Zoom in percent %
     document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+}
+
+/**
+ * Scales (transform) the video to fit entirely inside the container
+ * Causes letterboxing
+ */
+function zoomFit() {
+    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes
+    const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
+
+    const videoAspect = videoDims.width / videoDims.height;
+    const containerAspect = containerDims.width / containerDims.height;
+
+    let scaleFactor;
+
+    // Decide scaling axis based on aspect ratios
+    if (videoAspect > containerAspect) {
+        // Video is wider than container -> scale by width (leaving empty letterbox space on bottom)
+        print("zoomFit(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling to match width: " + videoDims.width + " -> " + containerDims.width);
+        scaleFactor = containerDims.width / videoDims.width;
+    } else {
+        // Video is taller than container -> scale by height (leaving empty letterbox space on the right side)
+        print("zoomFit(): Video is taller than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling to match height: " + videoDims.height + " -> " + containerDims.height);
+        scaleFactor = containerDims.height / videoDims.height;
+    }
+
+    const zoomPercent = scaleFactor * 100;
+    setZoomLevel(zoomPercent);
+    document.getElementById('zoomSlider').value = zoomPercent;
+}
+
+/**
+ * Scales (transform) the video to fill the container entirely
+ * Causes clipping
+ */
+function zoomFill() {
+    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes
+    const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
+
+    const videoAspect = videoDims.width / videoDims.height;
+    const containerAspect = containerDims.width / containerDims.height;
+
+    let scaleFactor;
+
+    // Decide scaling axis based on aspect ratios
+    if (videoAspect > containerAspect) {
+        // Video is wider than container -> scale by height (clipping width)
+        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
+        scaleFactor = containerDims.height / videoDims.height;
+    } else {
+        // Video is taller than container -> scale by width (clipping height)
+        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling/clipping to match width: " + videoDims.width + " -> " + containerDims.width);
+        scaleFactor = containerDims.width / videoDims.width;
+    }
+
+    const zoomPercent = scaleFactor * 100;
+    setZoomLevel(zoomPercent);
+    document.getElementById('zoomSlider').value = zoomPercent;
 }
 
 /**
@@ -1643,14 +1709,11 @@ function showErrorPrompt(errorPackage) {
         clickOut = false;
     }
 
-    console.error("showErrorPrompt(): Displaying an error prompt: " + promptTitle + " : " + promptText);
     customPrompt({title: promptTitle, localeKey: "videoProblemPromptTitle"}, {content: promptText, localeKey: "videoProblemPromptText"}, promptButtons, null, modal, clickOut);
 
 }
 
 function videoError(errorType, source, errorObject) {
-
-    console.error("videoError(): Video error: " + source + " : " + errorType + " : " + errorObject.name + " : " + errorObject.message);
 
     // Create error package for prompting user
     let errorPackage = {
@@ -1701,6 +1764,8 @@ function videoError(errorType, source, errorObject) {
     }
 
     // Show prompt
+    // console.error("videoError(): errorObject.name + " : " + errorObject.message);
+    console.error("videoError(): Error: " + source + " : " + errorType + errorPackage.devDescription + " : " + errorPackage.promptSolutionText);
     showErrorPrompt(errorPackage);
 
     function moreInfo() {

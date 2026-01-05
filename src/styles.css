@@ -357,18 +357,22 @@ button:not(:hover) {
 /* Core video elements */
 
 #videoContainer {
-    margin-left: 48px;
-    width: 100%;
-    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 48px;
+    width: calc(100vw - 48px);
+    height: 100vh;
+    overflow: hidden;
     z-index: var(--zindex-visual-core);
 }
 
 #cameraFeed {
     display: block;
-    min-width: 100%;
-    height: 100%;
-    object-fit: cover;
-    position: relative;
+    object-fit: contain;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
     z-index: var(--zindex-visual-core);
 
     transition: transform 130ms linear;      /* Slight smoothing for zoom */
