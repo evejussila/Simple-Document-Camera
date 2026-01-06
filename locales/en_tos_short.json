@@ -6,7 +6,6 @@
   "rejectTos": "Reject terms",
   "titleCombined": "Terms of Service & Privacy Notice",
   "haltPromptTitle": "Service Halted",
-  "haltPromptInfoText": "The use of this service has been halted because the Terms of Service were rejected.",
-  "haltPromptSolutionText": "If you want to use the service, please refresh the page and accept the terms of service.",
+  "haltPromptInfoText": "The use of this service has been halted, because the Terms of Service were rejected. If you want to use the service, please refresh the page and accept the terms of service.",
   "haltPromptButtonText": "Refresh"
 }

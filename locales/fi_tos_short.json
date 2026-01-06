@@ -4,5 +4,8 @@
   "agreeToAll": "Hyväksy kaikki",
   "agreeToTos": "Hyväksy käyttöehdot",
   "rejectTos": "Hylkää käyttöehdot",
-  "titleCombined": "Käyttöehdot & Tietosuojailmoitus"
+  "titleCombined": "Käyttöehdot & Tietosuojailmoitus",
+  "haltPromptTitle": "Palvelu keskeytetty",
+  "haltPromptInfoText": "Palvelun käyttö on keskeytetty, koska käyttöehdot hylättiin. Jos haluat käyttää palvelua, päivitä sivu ja hyväksy käyttöehdot.",
+  "haltPromptButtonText": "Päivitä"
 }

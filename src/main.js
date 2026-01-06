@@ -1550,7 +1550,7 @@ function showLegalPrompt(promptType) {
             textOut = currentTranslations.tosText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "tosTitle"}, {content: textOut, localeKey: "tosText"}, [
-                    { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
+                    { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos   ,  localeKey: "tosAgreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
                 ]
             );
@@ -1585,7 +1585,7 @@ function showLegalPrompt(promptType) {
             titleOut = currentTranslations.tosTitleCombined;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             customPrompt({title: titleOut, localeKey: "tosTitleCombined"}, {content: textOut}, [
-                    { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltService("errorTosReject", "showLegalPrompt()"); }   },
+                    { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos ,  localeKey: "tosAgreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
                     { buttonText: currentTranslations.tosAgreeToAll ,  localeKey: "tosAgreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
                 ]
@@ -1693,24 +1693,27 @@ function showErrorPrompt(errorPackage) {
 
     let promptTitle   =    errorPackage.promptTitle;
     let promptText    =    errorPackage.promptInfoText;
-    let modal         =    false;
+    let modal         =    false;                           // TODO: Modal prompt would be sensible to use here, but there's currently z-index issues with prompts
     let clickOut      =    true;
 
     let promptButtons = [
-        { buttonText: errorPackage.solutionButtonText, localeKey: "retry" , customCSS: "optionDefault", action: () => {   errorPackage.solutionButtonAction();   } }
+        { buttonText: errorPackage.solutionButtonText, localeKey: errorPackage.solutionButtonLocaleKey , customCSS: "optionDefault", action: () => { errorPackage.solutionButtonAction(); } }
     ];
 
-    if (!errorPackage.severe) {
-        // noinspection JSUnresolvedReference            // Object property references are populated elsewhere
-        promptButtons.push(
-            { buttonText: currentTranslations.dismiss, localeKey: "dismiss" , customCSS: "optionNeutral",  action: () => {  } }
-        )
-    } else {
-        // modal = true; // TODO: z-index issues in prompt
-        clickOut = false;
-    }
+    // Severity-based error handling
+    // if (!errorPackage.severe) {
+    //     modal         =    false;
+    // } else {
+    //     modal = true;
+    //     clickOut = false;
+    //     // noinspection JSUnresolvedReference            // Object property references are populated elsewhere
+    //     promptButtons.push(
+    //         { buttonText: currentTranslations.dismiss, localeKey: "dismiss" , customCSS: "optionNeutral",  action: () => { window.location.reload.bind(window.location); } }
+    //     )
+    // }
 
-    customPrompt({title: promptTitle, localeKey: "videoProblemPromptTitle"}, {content: promptText, localeKey: "videoProblemPromptText"}, promptButtons, null, modal, clickOut);
+    print(errorPackage.promptInfoTextLocaleKey + " : " + currentTranslations.tosHaltPromptInfoText, 'red');
+    customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut);
 
 }
 
@@ -1776,10 +1779,10 @@ function videoError(errorType, source, errorObject) {
     }
 }
 
-function haltService(haltType, source ) {
+function haltServiceLegal(source) {
 
     // Halt
-    console.error("haltService(): Service halt called by: " + source + " : " + haltType);
+    console.error("haltServiceLegal(): Service halt called by: " + source);
     try {
         videoFreeze(null); // TODO: Halt method is insufficient and unclean
     } catch (e) {
@@ -1787,25 +1790,19 @@ function haltService(haltType, source ) {
     }
 
     // Create error package for prompting user
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
     let errorPackage = {
-        type: haltType,
-        source: source + ",haltService()",
-        severe: true
-    }
-
-    if (haltType === "errorTosReject") {
-        errorPackage.devDescription         = "Halt due to legal reason. User manually rejected terms of service.";
-        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-        errorPackage.promptTitle            = currentTranslations.tosHaltPromptTitle;
-        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-        errorPackage.promptInfoText         = currentTranslations.tosHaltPromptInfoText;
-        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-        errorPackage.promptSolutionText     = currentTranslations.tosHaltPromptSolutionText;
-        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-        errorPackage.solutionButtonText     = currentTranslations.tosHaltPromptButtonText;
-        errorPackage.solutionButtonAction   = window.location.reload.bind(window.location); // Fails without binding execution context: 'reload' called on an object that does not implement interface Location
-    } else {
-        console.error("haltService(): Halt called with invalid halt type: " + haltType + " from " + source);
+        type                      : "halt",
+        source                    : source + ",haltServiceLegal()",
+        severe                    : true,
+        devDescription            : "Halt from: " + source,
+        promptTitle               : currentTranslations.tosHaltPromptTitle,
+        promptTitleLocaleKey      : "tosHaltPromptTitle",
+        promptInfoText            : currentTranslations.tosHaltPromptInfoText,
+        promptInfoTextLocaleKey   : "tosHaltPromptInfoText",
+        solutionButtonText        : currentTranslations.tosHaltPromptButtonText,
+        solutionButtonLocaleKey   : "tosHaltPromptButtonText",
+        solutionButtonAction      : window.location.reload.bind(window.location) // Fails without binding execution context: 'reload' called on an object that does not implement interface Location
     }
 
     // Show prompt
@@ -1953,6 +1950,7 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
         default:
             print("customPrompt(): Prompt content identified as plain string");
             textBody.textContent = content.content;
+            textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
             break;
     }
 
@@ -3603,6 +3601,7 @@ class Drawing extends CreatedElement {
 
 /**
  * Outputs strings to console if debug is enabled.
+ * Attention! Will not output unless debug is enabled! Use URL-parameter, set debugMode=true or call debug().
  * Used in development.
  * @param string String to output
  * @param color Text color string (optional)
@@ -3665,6 +3664,8 @@ function print(string, color = "gray", tracePrint = false) {
         }
     }
 
+    // TODO: Add stringification for objects, if string is object
+
 }
 
 let debugModeVisual = false;                                                                  // Enables visual debug tools
@@ -3677,10 +3678,8 @@ if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {de
  */
 function debug() {
     debugMode = true;
-    if (debugMode) {
-        print("Debug mode is enabled!");
-        print("Happy developing ✨");
-    }
+    print("Debug mode is enabled!");
+    print("Happy developing ✨");
 
     // Get container element for menu buttons
     const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
