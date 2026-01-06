@@ -1637,10 +1637,6 @@ function showLegalPrompt(promptType, onlyReturnFunction = false, noOptions = fal
 }
 
 async function showWaitPrompt(time = 4, waitWith = true) {
-    if (!fileExists("./images/logo")) {
-        print("showWaitPrompt(): Logo file does not exists");
-        return false;
-    }
 
     if (appStatus.hasVideoError) {
         print("showWaitPrompt(): App in error state, skipping wait");
@@ -1652,24 +1648,22 @@ async function showWaitPrompt(time = 4, waitWith = true) {
         return false;
     }
 
+    // Get and check logo
+    const brandingLogo = getBrandingLogo();
+    if (!brandingLogo) {
+        print("showWaitPrompt(): Logo file does not exist");
+        return false;
+    }
+
     let contentObject = document.createElement('div');
-
-    // TODO: Gradient below is a placeholder for branding image
-
-    const gradientDiv = document.createElement('div');
-    gradientDiv.style.cssText = 'width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%)';
-    contentObject.appendChild(gradientDiv);
-
+    contentObject.appendChild(brandingLogo);
     contentObject.appendChild(document.createElement('br'));
     contentObject.appendChild(document.createElement('br'));
 
+    // Construct loader
     const loaderDiv = document.createElement('div');
     loaderDiv.className = 'loader';
     contentObject.appendChild(loaderDiv);
-
-    // Dev inlines for testing
-    // let content = "<div style=\"width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%);\"></div>\n";
-    // content += "<br><br><div class='loader'></div>";
 
     const containerCSSOverrides = {
         display: 'flex',
@@ -1694,6 +1688,31 @@ async function showWaitPrompt(time = 4, waitWith = true) {
     }
 
     return true;
+
+    /**
+     * Nested function to get branding logo
+     */
+    function getBrandingLogo() {
+        const logoPath = "./branding/logo";
+        if (!fileExists(logoPath)) return false;
+
+        const img = document.createElement("img");
+        img.src = logoPath;
+        img.classList.add("brandingLogo");
+
+        return img;
+
+        // DEV: Placeholder gradient for testing
+        // const gradientDiv = document.createElement('div');
+        // gradientDiv.style.cssText = 'width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%)';
+        // return gradientDiv;
+        // Dev inlines for testing
+        // let content = "<div style=\"width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%);\"></div>\n";
+        // content += "<br><br><div class='loader'></div>";
+
+    }
+
+
 }
 
 // noinspection JSUnusedGlobalSymbols // Called from HTML parsed from localized .json (IDE will not register this as a usage)
@@ -1706,6 +1725,7 @@ async function showLegalTosInfo() {
     // showContentPrompt('fi_tos')
     print("showLegalTosInfo(): Showing info prompt");
     showLegalPrompt("tos", false, true, true)
+    // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
 }
 
 // noinspection JSUnusedGlobalSymbols // Called from HTML parsed from localized .json (IDE will not register this as a usage)
@@ -1718,6 +1738,7 @@ async function showLegalPrivacyInfo() {
     // showContentPrompt('en_privacy', true, true)
     print("showLegalPrivacyInfo(): Showing info prompt");
     showLegalPrompt("privacy", false, true, true)
+    // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
 }
 
 /**
@@ -1728,35 +1749,7 @@ async function showLegalPrivacyInfo() {
 async function showLegalFullInfo() {
     print("showLegalFullInfo(): Showing info prompt");
     showLegalPrompt("full", false, true)
-}
-
-/**
- * Creates a simple prompt box with text or HTML from a file.
- * Can be used for showing terms, notices, tutorials and various content.
- * Assumes file path ./locales/
- * @param {string} file File to load text from (string filename)
- * @param modal Should the prompt be modal (optional)
- * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
- * @param options Button option definitions (optional)
- */
-async function showInfoPrompt(file, modal = true, clickOut = true, options = null) {
-    print("showInfoPrompt(): Showing content from file: " + file);
-
-    let title;
-    let contentToShow;
-
-    try {
-        const text = await fetchJSON(file);
-        title = text.title;
-        contentToShow = text.text;
-        print("showInfoPrompt(): Found text: " + file + " with title: " + text.title);
-
-        return customPrompt({title: title, localeKey: "UNKNOWN"}, {content: contentToShow, localeKey: "UNKNOWN"}, options, "promptContentBox", modal, clickOut);
-    } catch (e) {
-        console.warn("showInfoPrompt(): Did not find text: " + file + " : " + e);
-    }
     // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
-
 }
 
 function showErrorPrompt(errorPackage) {
@@ -1891,7 +1884,7 @@ function haltServiceLegal(source) {
  * @param modal Should the prompt be modal
  * @param clickOut Should modal prompt exit when modal overlay is clicked
  * @param noTitle
- * @param textCSSOverrides
+ * @param textCSSOverrides Can be string or object
  * @param timedDismiss
  * @param languageSelector
  */

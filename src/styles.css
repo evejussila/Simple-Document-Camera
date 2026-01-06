@@ -632,7 +632,6 @@ button:not(:hover) {
     background-color: var(--bg-color-lightest);
 }
 
-
 #island_controlBar.animate_move {
     transition: left 1s, top 1s;
 }
@@ -656,40 +655,23 @@ button:not(:hover) {
 }
 
 
+/* Branding */
+
+.brandingLogo {
+    width: 270px;
+    height: 60px;
+}
+
+.waitPromptContainer {
+
+}
+
+.waitPromptText {
+
+}
+
 /* Development */
 
 .developer {
     z-index: var(--zindex-dev);
-}
-
-
-/* Obsolete */
-
-#island_controlBar::before {  /* Targets the element and applies the pseudo-element */
-    content: "";              /* Creates an empty pseudo-element */
-    display: block;           /* Ensures it behaves as block */
-    height: 15px;
-    width: 100%;
-} /* Spacer pseudo-element (for island drag handle) is not in DOM */
-
-#island_controlBar {
-    position: absolute;
-    left: 45px;
-    top: 190px;
-    transform: translateX(-50%) translateY(-50%);
-    cursor: move;
-    z-index: 897;  /* TODO: Use variable, usually on top of UI */
-    display: flex;
-    flex-direction: column;
-    width: 60px;
-    height: max-content;
-    border-radius: 10px;
-    padding-bottom: 10px;
-    padding-top: 10px;
-
-    gap: 7px;
-
-    background-color: var(--bg-color-lightest);
-    color: var(--text-color);
-
 }
