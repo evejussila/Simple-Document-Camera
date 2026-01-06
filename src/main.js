@@ -607,7 +607,7 @@ function createMenus() {
          * Nested function to show info prompt
          */
         function showLegalInfo() {
-            showContentPrompt('en_tos_long', true, true); // TODO: Display proper information in correct language
+            showInfoPrompt('en_tos_long', true, true); // TODO: Display proper information in correct language
         }
 
         // Create info menu
@@ -1511,15 +1511,26 @@ function addText() {
 
 // Prompting and error handling
 
-function showLegalPrompt(promptType) {
+/**
+ * Displays legal notice prompts
+ *
+ * @param promptType Type of legal prompt to show: privacy, tos or full (both combined)
+ * @param onlyReturnFunction If true, returns function for prompt, but does not execute it (defer execution)
+ */
+function showLegalPrompt(promptType, onlyReturnFunction = false) {
 
     // Set button styles
     const colorAccept   = "optionDefault"  ;
     const colorMinimum  = "optionNeutral"  ;
     const colorReject   = "optionNegative" ;
 
+    // TODO: Obsolete vars
     let titleOut;
     let textOut;
+
+    // Setup for returning function
+    let prompt;
+
     switch(promptType) {
         case 'privacy':
             // Displays a privacy notice.
@@ -1531,7 +1542,7 @@ function showLegalPrompt(promptType) {
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             textOut = currentTranslations.privacyText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            customPrompt({title: titleOut, localeKey: "privacyTitle"}, {content: textOut, localeKey: "privacyText"}, [
+            prompt = () => customPrompt({title: titleOut, localeKey: "privacyTitle"}, {content: textOut, localeKey: "privacyText"}, [
                     { buttonText: currentTranslations.privacyRejectStorage ,  localeKey: "privacyRejectStorage" , customCSS: colorReject  ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }   },
                     { buttonText: currentTranslations.privacyNotNow        ,  localeKey: "privacyNotNow"        , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; }                                                   },
                     { buttonText: currentTranslations.privacyAgreeStorage  ,  localeKey: "privacyAgreeStorage"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                  }
@@ -1549,7 +1560,7 @@ function showLegalPrompt(promptType) {
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             textOut = currentTranslations.tosText;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            customPrompt({title: titleOut, localeKey: "tosTitle"}, {content: textOut, localeKey: "tosText"}, [
+            prompt = () => customPrompt({title: titleOut, localeKey: "tosTitle"}, {content: textOut, localeKey: "tosText"}, [
                     { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos   ,  localeKey: "tosAgreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
                 ]
@@ -1584,7 +1595,7 @@ function showLegalPrompt(promptType) {
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             titleOut = currentTranslations.tosTitleCombined;
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            customPrompt({title: titleOut, localeKey: "tosTitleCombined"}, {content: textOut}, [
+            prompt = () => customPrompt({title: titleOut, localeKey: "tosTitleCombined"}, {content: textOut}, [
                     { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos ,  localeKey: "tosAgreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
                     { buttonText: currentTranslations.tosAgreeToAll ,  localeKey: "tosAgreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
@@ -1592,6 +1603,13 @@ function showLegalPrompt(promptType) {
             );
 
             break;
+    }
+
+    if (!onlyReturnFunction) {
+        prompt();
+        return true;
+    } else {
+        return prompt;
     }
 
 }
@@ -1656,10 +1674,6 @@ async function showWaitPrompt(time = 4, waitWith = true) {
     return true;
 }
 
-function showInfoPrompt() {
-
-}
-
 /**
  * Creates a prompt box with text or HTML from a file.
  * Can be used for showing terms, notices, tutorials and various content.
@@ -1669,8 +1683,8 @@ function showInfoPrompt() {
  * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
  * @param options Button option definitions (optional)
  */
-async function showContentPrompt(file, modal = false, clickOut = true, options = undefined) {
-    print("showContentPrompt(): Showing content from file: " + file);
+async function showInfoPrompt(file, modal = false, clickOut = true, options = undefined) {
+    print("showInfoPrompt(): Showing content from file: " + file);
 
     let title;
     let contentToShow;
@@ -1679,11 +1693,11 @@ async function showContentPrompt(file, modal = false, clickOut = true, options =
         const text = await fetchJSON(file);
         title = text.title;
         contentToShow = text.text;
-        print("showContentPrompt(): Found text: " + file + " with title: " + text.title);
+        print("showInfoPrompt(): Found text: " + file + " with title: " + text.title);
 
         return customPrompt({title: title, localeKey: "UNKNOWN"}, {content: contentToShow, localeKey: "UNKNOWN"}, options, "promptContentBox", modal, clickOut);
     } catch (e) {
-        console.warn("showContentPrompt(): Did not find text: " + file + " : " + e);
+        console.warn("showInfoPrompt(): Did not find text: " + file + " : " + e);
     }
 // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
     return false;
@@ -1851,7 +1865,7 @@ async function customPrompt(title = {}, content = {}, options = [ { buttonText: 
     // Prompt title and text can be string or HTML string. All HTML will be parsed and rendered normally.
     //
     // Function has more optional parameters.
-    // Most extra parameters are designed for other functions (e.g. showContentPrompt() ) for various use cases. You should use those.
+    // Most extra parameters are designed for other functions (e.g. showInfoPrompt() ) for various use cases. You should use those.
     // containerCSSOverrides                // Applies (inline) a set of custom CSS key-value pairs from an object ( example: overrides = {display: flex, gap: 20px} )
     //
     // Objects for buttons have more available properties that can be set if needed. These are optional.
