@@ -1383,6 +1383,7 @@ async function moveElementToView(element) {
 
         // TODO: Add value for clearance from edges when moving
         // TODO: Add value for threshold from edges to determine when to move
+        // TODO: Replace viewport with videoElement
 
         if (elementX < leftEdge) {
             // Element is to the left of viewport
@@ -1780,7 +1781,7 @@ function haltService(haltType, source ) {
     // Halt
     console.error("haltService(): Service halt called by: " + source + " : " + haltType);
     try {
-        videoFreeze(null); // TODO: Halt method is unclean
+        videoFreeze(null); // TODO: Halt method is insufficient and unclean
     } catch (e) {
 
     }
@@ -1794,10 +1795,14 @@ function haltService(haltType, source ) {
 
     if (haltType === "errorTosReject") {
         errorPackage.devDescription         = "Halt due to legal reason. User manually rejected terms of service.";
-        errorPackage.promptTitle            = "Service Halted";                 // TODO: Get all text from localized file
-        errorPackage.promptInfoText         = "The use of this service has been halted because the Terms of Service were rejected.";
-        errorPackage.promptSolutionText     = "If you want to use the service, please refresh the page and accept the terms of service.";
-        errorPackage.solutionButtonText     = "Refresh";
+        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+        errorPackage.promptTitle            = currentTranslations.tosHaltPromptTitle;
+        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+        errorPackage.promptInfoText         = currentTranslations.tosHaltPromptInfoText;
+        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+        errorPackage.promptSolutionText     = currentTranslations.tosHaltPromptSolutionText;
+        // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+        errorPackage.solutionButtonText     = currentTranslations.tosHaltPromptButtonText;
         errorPackage.solutionButtonAction   = window.location.reload.bind(window.location); // Fails without binding execution context: 'reload' called on an object that does not implement interface Location
     } else {
         console.error("haltService(): Halt called with invalid halt type: " + haltType + " from " + source);
@@ -2104,7 +2109,7 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
+    videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
     canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
 }
 
