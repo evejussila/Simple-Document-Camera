@@ -1,0 +1,12 @@
+{
+  "title": "Käyttöehdot",
+  "text": "Tämä palvelu tarjotaan sellaisena kuin se on.<br><br><a href=\"javascript:void(0);\" onclick=\"showLegalTosInfo()\">Palvelun käyttöehdot</a>",
+  "longText": "SDC on avoimen lähdekoodin ohjelma, jonka web-sivuston omistaja tarjoaa opetus- ja esityskäyttöön. Palvelu on vapaasti käytettävissä.<br><br>Palvelu tarjotaan sellaisena kuin se on. Käyttäjät vastaavat palvelulla käsiteltävien materiaalien tekijänoikeuksista ja palvelun käytön laillisuudesta.",
+  "agreeToAll": "Hyväksy kaikki",
+  "agreeToTos": "Hyväksy käyttöehdot",
+  "rejectTos": "Hylkää käyttöehdot",
+  "titleCombined": "Käyttöehdot & Tietosuojailmoitus",
+  "haltPromptTitle": "Palvelu keskeytetty",
+  "haltPromptInfoText": "Palvelun käyttö on keskeytetty, koska käyttöehdot hylättiin. Jos haluat käyttää palvelua, päivitä sivu ja hyväksy käyttöehdot.",
+  "haltPromptButtonText": "Päivitä"
+}

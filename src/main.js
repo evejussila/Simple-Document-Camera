@@ -187,10 +187,10 @@ async function setLocale(newLocale) {
     currentTranslations = newTranslations;
 
     // Get translations for Terms of Service
-    const legalTextTos = prefixKeys(await getLegalText(currentLocale + "_tos_short"), "tos");
+    const legalTextTos = prefixKeys(await getLegalText(currentLocale + "_tos"), "tos");
 
     // Get translations for Privacy Notice
-    const legalTextPrivacy = prefixKeys(await getLegalText(currentLocale + "_privacy_short"), "privacy");
+    const legalTextPrivacy = prefixKeys(await getLegalText(currentLocale + "_privacy"), "privacy");
 
     // Save legal translations
     currentTranslations.legalTextTos = legalTextTos;
@@ -599,16 +599,9 @@ function createMenus() {
     {                                   // Code block for collapsing
         let menuInfo = [
             {
-                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalInfo(); }
+                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalFullInfo(); }
             }
         ];
-
-        /**
-         * Nested function to show info prompt
-         */
-        function showLegalInfo() {
-            showInfoPrompt('en_tos_long', true, true); // TODO: Display proper information in correct language
-        }
 
         // Create info menu
         createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
@@ -1516,20 +1509,24 @@ function addText() {
  *
  * @param promptType Type of legal prompt to show: privacy, tos or full (both combined)
  * @param onlyReturnFunction If true, returns function for prompt, but does not execute it (defer execution)
+ * @param noOptions If true, prompt will only have a button to dismiss (use for pure info prompts)
+ * @param longText If true, will use long legal text instead of default short (does not apply to prompt type "full")
  */
-function showLegalPrompt(promptType, onlyReturnFunction = false) {
+function showLegalPrompt(promptType, onlyReturnFunction = false, noOptions = false, longText = false) {
 
     // Set button styles
     const colorAccept   = "optionDefault"  ;
     const colorMinimum  = "optionNeutral"  ;
     const colorReject   = "optionNegative" ;
 
-    // TODO: Obsolete vars
-    let titleOut;
-    let textOut;
-
     // Setup for returning function
     let prompt;
+
+    // Setup for disabling button options
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+    let buttons = [{ buttonText: currentTranslations.dismiss,  localeKey: "dismiss"  ,  action: () => { }  },];
+    let text;
+    let localeKey;
 
     switch(promptType) {
         case 'privacy':
@@ -1537,16 +1534,27 @@ function showLegalPrompt(promptType, onlyReturnFunction = false) {
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle);
 
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            titleOut = currentTranslations.privacyTitle;
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            textOut = currentTranslations.privacyText;
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            prompt = () => customPrompt({title: titleOut, localeKey: "privacyTitle"}, {content: textOut, localeKey: "privacyText"}, [
+            if (!noOptions) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                buttons = [
                     { buttonText: currentTranslations.privacyRejectStorage ,  localeKey: "privacyRejectStorage" , customCSS: colorReject  ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }   },
                     { buttonText: currentTranslations.privacyNotNow        ,  localeKey: "privacyNotNow"        , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; }                                                   },
                     { buttonText: currentTranslations.privacyAgreeStorage  ,  localeKey: "privacyAgreeStorage"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                  }
                 ]
+            }
+
+            if (!longText) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.privacyText;
+                localeKey = "privacyText";
+            } else {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.privacyLongText;
+                localeKey = "privacyLongText";
+            }
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            prompt = () => customPrompt({title: currentTranslations.privacyTitle, localeKey: "privacyTitle"}, {content: text, localeKey: localeKey}, buttons
             );
 
             break;
@@ -1555,15 +1563,26 @@ function showLegalPrompt(promptType, onlyReturnFunction = false) {
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
             console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitle);
 
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            titleOut = currentTranslations.tosTitle;
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            textOut = currentTranslations.tosText;
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            prompt = () => customPrompt({title: titleOut, localeKey: "tosTitle"}, {content: textOut, localeKey: "tosText"}, [
+            if (!noOptions) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                buttons = [
                     { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos   ,  localeKey: "tosAgreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
                 ]
+            }
+
+            if (!longText) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.tosText;
+                localeKey = "tosText";
+            } else {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.tosLongText;
+                localeKey = "tosLongText";
+            }
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            prompt = () => customPrompt({title: currentTranslations.tosTitle, localeKey: "tosTitle"}, {content: text, localeKey: localeKey}, buttons
             );
 
             break;
@@ -1573,7 +1592,7 @@ function showLegalPrompt(promptType, onlyReturnFunction = false) {
             console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitleCombined);
 
             // Construct custom HTML object for combined prompt
-            textOut = document.createElement('div');
+            let customContent = document.createElement('div');
             // Privacy element
             const privacy = document.createElement('div');
             // noinspection JSUnresolvedReference // Object property references are populated elsewhere
@@ -1588,18 +1607,21 @@ function showLegalPrompt(promptType, onlyReturnFunction = false) {
             tos.innerHTML = currentTranslations.tosText;
             tos.dataset.localeKey = 'tosText';
             // Append elements
-            textOut.appendChild(privacy);
-            textOut.appendChild(spacer);
-            textOut.appendChild(tos);
+            customContent.appendChild(privacy);
+            customContent.appendChild(spacer);
+            customContent.appendChild(tos);
 
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            titleOut = currentTranslations.tosTitleCombined;
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            prompt = () => customPrompt({title: titleOut, localeKey: "tosTitleCombined"}, {content: textOut}, [
+            if (!noOptions) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                buttons = [
                     { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
                     { buttonText: currentTranslations.tosAgreeToTos ,  localeKey: "tosAgreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
                     { buttonText: currentTranslations.tosAgreeToAll ,  localeKey: "tosAgreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
                 ]
+            }
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            prompt = () => customPrompt({title: currentTranslations.tosTitleCombined, localeKey: "tosTitleCombined"}, {content: customContent}, buttons
             );
 
             break;
@@ -1674,8 +1696,42 @@ async function showWaitPrompt(time = 4, waitWith = true) {
     return true;
 }
 
+// noinspection JSUnusedGlobalSymbols // Called from HTML parsed from localized .json (IDE will not register this as a usage)
 /**
- * Creates a prompt box with text or HTML from a file.
+ *
+ *
+ * @returns {Promise<void>}
+ */
+async function showLegalTosInfo() {
+    // showContentPrompt('fi_tos')
+    print("showLegalTosInfo(): Showing info prompt");
+    showLegalPrompt("tos", false, true, true)
+}
+
+// noinspection JSUnusedGlobalSymbols // Called from HTML parsed from localized .json (IDE will not register this as a usage)
+/**
+ *
+ *
+ * @returns {Promise<void>}
+ */
+async function showLegalPrivacyInfo() {
+    // showContentPrompt('en_privacy', true, true)
+    print("showLegalPrivacyInfo(): Showing info prompt");
+    showLegalPrompt("privacy", false, true, true)
+}
+
+/**
+ * Presents legal info through a prompt
+ *
+ * @returns {Promise<void>}
+ */
+async function showLegalFullInfo() {
+    print("showLegalFullInfo(): Showing info prompt");
+    showLegalPrompt("full", false, true)
+}
+
+/**
+ * Creates a simple prompt box with text or HTML from a file.
  * Can be used for showing terms, notices, tutorials and various content.
  * Assumes file path ./locales/
  * @param {string} file File to load text from (string filename)
@@ -1683,7 +1739,7 @@ async function showWaitPrompt(time = 4, waitWith = true) {
  * @param clickOut Should modal prompt exit when modal overlay is clicked (optional)
  * @param options Button option definitions (optional)
  */
-async function showInfoPrompt(file, modal = false, clickOut = true, options = undefined) {
+async function showInfoPrompt(file, modal = true, clickOut = true, options = null) {
     print("showInfoPrompt(): Showing content from file: " + file);
 
     let title;
@@ -1699,8 +1755,8 @@ async function showInfoPrompt(file, modal = false, clickOut = true, options = un
     } catch (e) {
         console.warn("showInfoPrompt(): Did not find text: " + file + " : " + e);
     }
-// TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
-    return false;
+    // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
+
 }
 
 function showErrorPrompt(errorPackage) {
