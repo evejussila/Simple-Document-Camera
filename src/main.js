@@ -1691,8 +1691,6 @@ async function showContentPrompt(file, modal = false, clickOut = true, options =
 
 function showErrorPrompt(errorPackage) {
 
-    let promptTitle   =    errorPackage.promptTitle;
-    let promptText    =    errorPackage.promptInfoText;
     let modal         =    false;                           // TODO: Modal prompt would be sensible to use here, but there's currently z-index issues with prompts
     let clickOut      =    true;
 
@@ -1700,7 +1698,7 @@ function showErrorPrompt(errorPackage) {
         { buttonText: errorPackage.solutionButtonText, localeKey: errorPackage.solutionButtonLocaleKey , customCSS: "optionDefault", action: () => { errorPackage.solutionButtonAction(); } }
     ];
 
-    // Severity-based error handling
+    // TODO: Severity-based error handling
     // if (!errorPackage.severe) {
     //     modal         =    false;
     // } else {
@@ -1712,7 +1710,6 @@ function showErrorPrompt(errorPackage) {
     //     )
     // }
 
-    print(errorPackage.promptInfoTextLocaleKey + " : " + currentTranslations.tosHaltPromptInfoText, 'red');
     customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut);
 
 }
@@ -1720,48 +1717,50 @@ function showErrorPrompt(errorPackage) {
 function videoError(errorType, source, errorObject) {
 
     // Create error package for prompting user
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
     let errorPackage = {
-        type: errorType,
-        source: source + ",videoError()",
-        severe: false
+        type                      : "videoError",
+        source                    : source + ",videoError()",
+        severe                    : false,
+        devDescription            : "Halt from: " + source,
+        promptTitle               : currentTranslations.videoProblemPromptTitle,
+        promptTitleLocaleKey      : "videoProblemPromptTitle",
+        promptInfoText            : currentTranslations.videoProblemPromptInfoText,
+        promptInfoTextLocaleKey   : "videoProblemPromptInfoText",
+        solutionButtonText        : currentTranslations.retry,
+        solutionButtonLocaleKey   : "retry",
+        solutionButtonAction      : videoStart
     }
 
-    // noinspection JSUnresolvedReference                        // Object property references are populated elsewhere
-    errorPackage.promptTitle            = currentTranslations.videoProblemPromptTitle;
-    // noinspection JSUnresolvedReference                        // Object property references are populated elsewhere
-    errorPackage.promptInfoText         = currentTranslations.videoProblemPromptText;
-    // noinspection JSUnresolvedReference                        // Object property references are populated elsewhere
-    errorPackage.solutionButtonText     = currentTranslations.retry
-    errorPackage.solutionButtonAction   = videoStart;            // Or () => { videoStart(); }
-
+    // Differentiate between known errors                        TODO: Can create error-specific solutions or prompts based on this framework, simply change info text, button text(s) and actions
     switch (errorType) {
         case 'errorMediaAccess': {
             errorPackage.devDescription         = "No media permission or access";
-            errorPackage.promptSolutionText     = "This particular issue seems related to lack of permissions and camera access.";
+            errorPackage.devDescriptionVerbose     = "This particular issue seems related to lack of permissions and camera access.";
 
             break;
         }
         case 'errorInputEnumeration': {
             errorPackage.devDescription         = "No valid inputs could be found";
-            errorPackage.promptSolutionText     = "This particular issue may be caused by your devices not being connected.";
+            errorPackage.devDescriptionVerbose     = "This particular issue may be caused by your devices not being connected.";
 
             break;
         }
         case 'errorInputListUpdate': {
             errorPackage.devDescription         = "Error while attempting to update video input list";
-            errorPackage.promptSolutionText     = "This particular issue is rare. If it persists, please report it to the developers of this app.";
+            errorPackage.devDescriptionVerbose     = "This particular issue is rare. If it persists, please report it to the developers of this app.";
 
             break;
         }
         case 'errorInputSet': {
             errorPackage.devDescription         = "Error while attempting to use video input";
-            errorPackage.promptSolutionText     = "This particular issue may be caused by other programs using the camera.";
+            errorPackage.devDescriptionVerbose     = "This particular issue may be caused by other programs using the camera.";
 
             break;
         }
         default: {
             errorPackage.devDescription         = "Error type unknown";
-            errorPackage.promptSolutionText     = "This particular issue is unknown. Please report it to the developers of this app.";
+            errorPackage.devDescriptionVerbose     = "This particular issue is unknown. Please report it to the developers of this app.";
 
             break;
         }
@@ -1769,14 +1768,15 @@ function videoError(errorType, source, errorObject) {
 
     // Show prompt
     // console.error("videoError(): errorObject.name + " : " + errorObject.message);
-    console.error("videoError(): Error: " + source + " : " + errorType + errorPackage.devDescription + " : " + errorPackage.promptSolutionText);
+    console.error("videoError(): Error: " + source + " : " + errorType + errorPackage.devDescription + " : " + errorPackage.devDescriptionVerbose);
     showErrorPrompt(errorPackage);
 
-    function moreInfo() {
-        let output = "Error source: " + errorPackage.source + " , type designation: " + errorPackage.type + " , description: " + errorPackage.devDescription;
-        output += "<br><br> Error object: " + errorObject.name + " : " + errorObject.message
-        return output;
-    }
+    // Nested function to source technical info when user requests it from UI
+    // function moreInfo() {
+    //     let output = "Error source: " + errorPackage.source + " , type designation: " + errorPackage.type + " , description: " + errorPackage.devDescription;
+    //     output += "<br><br> Error object: " + errorObject.name + " : " + errorObject.message
+    //     return output;
+    // }
 }
 
 function haltServiceLegal(source) {
@@ -1802,7 +1802,7 @@ function haltServiceLegal(source) {
         promptInfoTextLocaleKey   : "tosHaltPromptInfoText",
         solutionButtonText        : currentTranslations.tosHaltPromptButtonText,
         solutionButtonLocaleKey   : "tosHaltPromptButtonText",
-        solutionButtonAction      : window.location.reload.bind(window.location) // Fails without binding execution context: 'reload' called on an object that does not implement interface Location
+        solutionButtonAction      : window.location.reload.bind(window.location) // Fails without binding execution context: 'reload' called on an object that does not implement interface Location, bind returns new function, avoiding immediate refresh when line parsed
     }
 
     // Show prompt
