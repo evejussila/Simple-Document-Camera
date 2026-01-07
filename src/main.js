@@ -86,13 +86,6 @@ function start() {
         // Show interface
         showElement(controlBar);
 
-        // Setup a call for fill mode after videoElement loads fully
-        videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
-            print(JSON.stringify(getElementDimensions(videoElement, false)), "red");
-            zoomFill();
-            videoElement.removeEventListener('loadedmetadata', handler);
-        });
-
         // Start video feed
         videoStart().then(() =>
             showWaitPrompt(4)).then(() => {
@@ -752,7 +745,19 @@ async function videoStart() {
     // Use input(s)
     if (!error) {                                                                                         // Only run if no errors
         try {
+            print("0" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
+            // Setup a call for fill mode after videoElement loads fully
+            videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
+                print("1" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
+                zoomFill();
+                print("2" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
+                videoElement.removeEventListener('loadedmetadata', handler);
+            });
+            // TODO: Failed input load may leave an obsolete listener instance that either produces double effect (harmless) or just stays in memory?
             await setVideoInput(input);                                                                   // Use the selected input
+            print("3" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
+            zoomFill(); // TODO: Dirty addition, listener will work in first instance but not when changing input, and this one will only work when changing input
+            print("4" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
         } catch (e) {
             // TODO: Catch not reliable enough? Passing fail forward at times?
             error = true;                                                                                 // Flag error
