@@ -363,19 +363,23 @@ button:not(:hover) {
     width: calc(100vw - 48px);
     height: 100vh;
     overflow: hidden;
-    z-index: var(--zindex-visual-core);
+}
+
+#cameraFeedFrame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    width: max-content;
+    height: max-content;
 }
 
 #cameraFeed {
-    display: block;
-    object-fit: contain; /* TODO: Original was cover, also had height and min width of 100% */
-    position: absolute; /* TODO: Original was relative */
+    position: absolute;
     top: 0;
     left: 0;
-    /* transform-origin: 0 0; TODO: Fit and fill current implementation require 0 0, but flip and rotate work best with 50% 50% */
-    z-index: var(--zindex-visual-core);
-
-    transition: transform 130ms linear;      /* Slight smoothing for zoom */
+    transform-origin: 50% 50%;
+    display: block;
 }
 
 #canvasMain {

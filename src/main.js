@@ -1,6 +1,6 @@
 // Development tools
 let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
-const version = ("2026-01-05-alpha");
+const version = ("2026-01-07-alpha");
 console.log("Version: " + version);
 
 // Localization
@@ -11,6 +11,7 @@ let currentTranslations = {};                                       // Stores tr
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
+const videoElementFrame     = document.getElementById('cameraFeedFrame');
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
@@ -1342,7 +1343,7 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
     if(!document.fullscreenElement) {                                   // True if fullscreen not active
         document.documentElement.requestFullscreen().then(() => {
             print("switchToFullscreen(): Fullscreen mode activated");
-            fullScreenButton.setAttribute("data-locale-key", "fullscreenExit");
+            fullScreenButton.setAttribute("data-locale-key", "fullscreenExit"); // TODO: Consider element.dataset.localeKey = ...
             fullScreenIcon.src = "./images/fullscreenClose.png";
             translateElement(fullScreenButton);
         }).catch(error => {
@@ -1351,7 +1352,7 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
             print("switchToFullscreen(): Full screen mode closed");
-            fullScreenButton.setAttribute("data-locale-key", "fullscreen");
+            fullScreenButton.setAttribute("data-locale-key", "fullscreen"); // TODO: Consider element.dataset.localeKey = ...
             fullScreenIcon.src = "./images/fullscreen.png";
             translateElement(fullScreenButton);
         }).catch(error => {
@@ -1693,7 +1694,7 @@ async function showWaitPrompt(time = 4, waitWith = true) {
      * Nested function to get branding logo
      */
     function getBrandingLogo() {
-        const logoPath = "./branding/logo";
+        const logoPath = "./branding/logo.png";
         if (!fileExists(logoPath)) return false;
 
         const img = document.createElement("img");
@@ -2170,8 +2171,14 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
-    canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+    videoElementFrame.style.transform =
+        `scale(${currentZoom})`;
+
+    videoElement.style.transform =
+        `rotate(${rotation}deg) scaleX(${flip})`;
+
+    // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
+    // canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
 }
 
 /**
