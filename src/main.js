@@ -89,7 +89,7 @@ function start() {
         // Start video feed
         videoStart().then(() =>
             showWaitPrompt(4)).then(() => {
-            showElement(videoElement);
+                showElement(videoElement);
             }
         );
 
@@ -139,6 +139,7 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', (e) => {
+        autoFill();
         setVideoInput(e.target.value).then( () => {} );                                            // TODO: Add catch for error
     })
 
@@ -745,19 +746,8 @@ async function videoStart() {
     // Use input(s)
     if (!error) {                                                                                         // Only run if no errors
         try {
-            print("0" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
-            // Setup a call for fill mode after videoElement loads fully
-            videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
-                print("1" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
-                zoomFill();
-                print("2" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
-                videoElement.removeEventListener('loadedmetadata', handler);
-            });
-            // TODO: Failed input load may leave an obsolete listener instance that either produces double effect (harmless) or just stays in memory?
+            autoFill();
             await setVideoInput(input);                                                                   // Use the selected input
-            print("3" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
-            zoomFill(); // TODO: Dirty addition, listener will work in first instance but not when changing input, and this one will only work when changing input
-            print("4" + " ; Dimensions: " + JSON.stringify(getElementDimensions(videoElement, false)), "red");
         } catch (e) {
             // TODO: Catch not reliable enough? Passing fail forward at times?
             error = true;                                                                                 // Flag error
@@ -1256,6 +1246,14 @@ function getStreamInformation(stream, printOut = false) {
     return allResults;
 }
 
+function autoFill() {
+    // Setup a call for fill mode after videoElement loads fully
+    videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
+        zoomFill();
+        videoElement.removeEventListener('loadedmetadata', handler);
+        // TODO: Failed input load may leave an obsolete listener instance that either produces double effect (harmless) or just stays in memory?
+    });
+}
 
 // UI functions
 
@@ -1285,8 +1283,14 @@ function adjustZoom(increment) {
  * Causes letterboxing
  */
 function zoomFit() {
-    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes
+    print("zoomFit(): Fit called");
+
+    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
     const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
+
+    if (videoDims.width === 300 && videoDims.height === 150) {
+        console.warn("zoomFit(): Fit called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
+    }
 
     const videoAspect = videoDims.width / videoDims.height;
     const containerAspect = containerDims.width / containerDims.height;
@@ -1314,8 +1318,14 @@ function zoomFit() {
  * Causes clipping
  */
 function zoomFill() {
-    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes
+    print("zoomFill(): Fill called");
+
+    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
     const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
+
+    if (videoDims.width === 300 && videoDims.height === 150) {
+        console.warn("zoomFill(): Fill called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
+    }
 
     const videoAspect = videoDims.width / videoDims.height;
     const containerAspect = containerDims.width / containerDims.height;
@@ -3764,25 +3774,29 @@ function debug() {
 
     // Define developer menu options
     let menuDeveloper = [
-        {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png", action: debugVisual},
-        {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png", action: backgroundUpdateInputList},
-        {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png", action: () => { releaseVideoStream(); }},
-        {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png", action: videoStart},
-        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png", action: () => { getMaxResolutionFallback(); }},
-        {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png", action: dumpLocalStorage},
-        {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png", action: () => { localStorage.clear(); }},
-        {id: "buttonClearStorage",        text: "Clear URL parameters",      img: "clean.png", action: () => { clearURLParameters(); }},
-        {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png", action: () => { Drawing.test(); }},
+        {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png"       , action: () => { localStorage.clear(); }},
+        {id: "buttonClearStorage",        text: "Clear URL parameters",      img: "clean.png"       , action: () => { clearURLParameters(); }},
+        {id: "buttonRefreshPage",         text: "Refresh page",              img: "restart.png"     , action: window.location.reload.bind(window.location)},
+        {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png"        , action: dumpLocalStorage},
+        {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png"     , action: debugVisual},
+    //  {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png"     , action: backgroundUpdateInputList},
+        {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png"      , action: () => { releaseVideoStream(); }},
+        {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png"   , action: videoStart},
+        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png"        , action: () => { getMaxResolutionFallback(); }},
+    //  {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png"        , action: () => { Drawing.test(); }},
     ];
 
     // Create developer menu
     new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
 
-    // Create settings menu button
-    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
-
     // Settings menu creation
-    {                                   // Code block for collapsing
+    // noinspection PointlessBooleanExpressionJS
+    if (false) {                                   // Code block for collapsing
+
+        // Create settings menu button
+        // noinspection UnreachableCodeJS
+        const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
+
         let menuSettings = [];
 
         // Create settings menu subsection: language selection
@@ -3878,8 +3892,10 @@ function debug() {
     function clearURLParameters() {
         const url = new URL(window.location.href);
         const debug = url.searchParams.get("debug");
+        const skipWait = url.searchParams.get("skipWait");
         url.search = "";
         if (debug !== null) url.searchParams.set("debug", debug);
+        if (debug !== null) url.searchParams.set("skipWait", skipWait);
         window.history.replaceState(null, "", url.toString());
     }
 }
