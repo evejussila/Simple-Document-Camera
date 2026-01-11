@@ -3895,7 +3895,7 @@ function debug() {
         const skipWait = url.searchParams.get("skipWait");
         url.search = "";
         if (debug !== null) url.searchParams.set("debug", debug);
-        if (debug !== null) url.searchParams.set("skipWait", skipWait);
+        if (skipWait !== null) url.searchParams.set("skipWait", skipWait);
         window.history.replaceState(null, "", url.toString());
     }
 }
