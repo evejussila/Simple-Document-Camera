@@ -1,0 +1,8 @@
+{
+  "title": "Tietosuojailmoitus",
+  "text": "Tämä on paikallinen palvelu. Videosi ja tietosi säilyvät omalla laitteellasi.<br><br><b>Kuvaasi ja tietojasi ei lähetetä minnekään.</b> <br><br>Tämä palvelu muistaa hyväksyntäsi ja asetuksesi tallentamalla ne paikallisesti selaimeesi. Tämä tiedon tallentaminen on vapaaehtoista.<br><br>Jos sallit hyväksyntäsi ja asetustesi tallentamisen paikallisesti, et näe tätä ilmoitusta laitteellasi tulevaisuudessa.<br><br><a href=\"javascript:void(0);\" onclick=\"showLegalPrivacyInfo()\">Tietosuojailmoitus</a><br>",
+  "longText": "SDC ei kerää käyttäjistä tietoja eikä vaadi kirjautumista. Palvelu ei käytä evästeitä, mutta voi käyttäjän luvalla tallentaa paikallisesti ohjelmassa käytettyjä asetuksia sekä ehtojen hyväksyntään annetun vastauksen.",
+  "agreeStorage": "Salli tallentaminen",
+  "notNow": "Ei nyt",
+  "rejectStorage": "Kiellä tallentaminen"
+}

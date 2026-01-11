@@ -19,5 +19,9 @@
   "text": "Lisää tekstiä",
   "zoom": "Muuta kuvan kokoa",
   "zoomIn": "Lähennä",
-  "zoomOut": "Loitonna"
+  "zoomOut": "Loitonna",
+  "videoProblemPromptTitle": "Kameraa ei voitu käyttää",
+  "videoProblemPromptInfoText": "Varmista, ettei kamera ole käytössä muissa ohjelmissa tai toisilla välilehdillä, ja että olet sallinut kameran käytön. <br><br> Voit myös kokeilla sivuston täyttä uudelleenlatausta näppäinyhdistelmällä: <br>Ctrl + F5 <br>",
+  "retry" : "Yritä uudelleen",
+  "dismiss": "Sulje"
 }

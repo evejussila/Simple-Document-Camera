@@ -7,33 +7,12 @@
     <title>Simple Document Camera</title>
 </head>
 <body>
-    <div id="videoContainer">
 
-        <!-- Main UI -->
-        <div id="controlBar" class="hidden">
-            <select data-locale-key="selectCamera" id="selectorDevice" title="Select Camera"></select>
+    <!-- Main UI -->
+    <div id="controlBar" class="hidden">
 
-            <!-- Zoom Controls -->
-            <div id="zoomControls">
-                <button data-locale-key="zoomOut" id="buttonZoomOut" title="Zoom Out" class="buttonSmall">-</button>
-                <input data-locale-key="zoom" title="Zoom" type="range" id="zoomSlider" min="100" max="200" step="1" value="100">
-                <button data-locale-key="zoomIn" title="Zoom In" id="buttonZoomIn" class="buttonSmall">+</button>
-                <span id="zoomPercentageLabel">100%</span> <!-- Label for zoom percentage -->
-            </div>
-            <!-- Container for items on the left -->
-            <div id="menuContainerLeft">
-            </div>
-            <!-- Spacer to compact surrounding containers -->
-            <div id="controlBarMidSpacer">
-            </div>
-            <!-- Container for items on the right -->
-            <div id="menuContainerRight">
-            </div>
-            <!-- Spacer under always visible buttons -->
-            <div id="controlBarEndSpacer">
-            </div>
-        </div>
-        <div id="island_controlBar" class="hidden">
+        <!-- Container for items on the top -->
+        <div id="controlBarTopContainer">
 
             <!-- Rotate button -->
             <button data-locale-key="rotate" id="buttonRotate" title="Rotate">
@@ -65,31 +44,41 @@
                 <img id="iconText" class="icon" src="./images/text.png" alt="Add Text">
             </button>
 
-            <div id="textControls">
-                <button data-locale-key="smaller" id="buttonSmallerFont" title="Smaller text size" class="buttonSmall">-</button>
-                <!--<label id="textSizeLabel" title="Text Size">Text size</label> -->
-                <button data-locale-key="bigger" id="buttonBiggerFont" title="Bigger text size" class="buttonSmall">+</button>
-            </div>
-        </div>
-        <div id="avButtons">  <!-- Always visible buttons -->
-            <!-- Full screen button -->
-            <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
-                <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
-            </button>
-
-            <!-- Button for hiding control bar and island -->
-            <button data-locale-key="controlsHide" id="buttonCollapse" title="Hide Controls">
-                <img id="iconCollapse" class="icon" src="./images/hideControls.png" alt="Hide Controls">
-            </button>
         </div>
 
-        <video id="cameraFeed" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
-        <canvas id="canvasMain"></canvas>
+        <!-- Compactor for bar, container for items on the middle -->
+        <div id="controlBarMiddleContainer">
+        </div>
+
+        <!-- Container for items on the bottom -->
+        <div id="controlBarBottomContainer">
+        </div>
+
+        <!-- Spacer under always visible buttons -->
+        <div id="controlBarEndSpacer">
+        </div>
 
     </div>
 
-    <!-- Load camera feed -->
-    <script src="src/main.js"></script> <!-- When script not within html, https:// or file:/// may be required to run scripts -->
+    <!-- Always visible buttons -->
+    <div id="avButtons">
+        <!-- Fullscreen button -->
+        <button data-locale-key="fullscreen" id="buttonFullScreen" title="Full Screen">
+            <img id="iconFullScreen" class="icon" src="./images/fullscreen.png" alt="Full Screen">
+        </button>
+    </div>
+
+    <!-- Core video -->
+    <div id="videoContainer">
+        <div id="cameraFeedFrame">
+            <video id="cameraFeed" class="hidden" autoplay muted></video> <!-- Not muting may prevent browsers from autoplaying -->
+            <canvas id="canvasMain"></canvas>
+        </div>
+    </div>
+
+
+    <!-- Start scripts -->
+    <script src="src/main.js"></script>
 
 </body>
 </html>

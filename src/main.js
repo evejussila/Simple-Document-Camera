@@ -1,77 +1,101 @@
 // Development tools
-let debugMode = false;                                                                        // Sets default level of console output
-let debugModeVisual = false;                                                                  // Enables visual debug tools
-const version = ("2025-06-02-alpha");
+let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
+const version = ("2026-01-07-alpha");
 console.log("Version: " + version);
-if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
-    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
-}
 
 // Localization
-const defaultLocale = "en";                                         // Default locale is english
-const allowedLocales = ["en", "fi"];                                // Only these locales are allowed TODO: DEV: Get based on available localisation files
+const defaultLocale = "fi";                                         // Default locale is english
+const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: DEV: Get based on available localisation files
 let currentLocale;                                                  // The active locale
 let currentTranslations = {};                                       // Stores translations for the active locale
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
+const videoElementFrame     = document.getElementById('cameraFeedFrame');
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
-const selector              = document.getElementById('selectorDevice');             // Camera feed selector
-const island                = document.getElementById('island_controlBar');          // Floating island control bar
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
 
 // Video feed state
-let rotation = 0;                                                                          // Store rotation state
-let currentZoom = 1;                                                                       // Current zoom level
-let flip = 1;                                                                              // State of image mirroring, 1 = no flip, -1 = horizontal flip
-let isFreeze = false;                                                                      // Video freeze on or off
+let rotation = 0;                                                                    // Store rotation state
+let currentZoom = 1;                                                                 // Current zoom level
+let flip = 1;                                                                        // State of image mirroring, 1 = no flip, -1 = horizontal flip
+let isFrozen = false;                                                                // Video freeze on or off
 
 // UI state
-let isIslandDragging = false                                                               // Dragging island control bar
-let isControlCollapsed = false;                                                            // Are control bar and island in hidden mode or not
-let islandX, islandY;                                                                      // Initial position of the control island
-let mouseX;                                                                                // Initial position of the mouse
+let mouseX;                                                                          // Initial position of the mouse
 let mouseY;
 
 // Other
-let createdElements;                                                                       // Handles created elements
-
+let selector;                                                                        // Camera feed selector
+let createdElements;                                                                 // Handles created elements
+let appStatus = {};                                                                  // Stores app status information
 
 // Initialization
-document.addEventListener('DOMContentLoaded', start);                                 // Start running scripts only after HTML has been loaded and elements are available
+
+document.addEventListener('DOMContentLoaded', start);                                // Continue running script only after HTML has been loaded and elements are available
 
 function start() {
 
     // Instantiate class for created elements
     createdElements = new CreatedElements();
 
-    // Add core listeners for interface elements
-    addCoreListeners();
+    // Pre-generate resources
+    Overlay.preRenderNoiseCanvas();
+
+    // Set app status
+    appStatus.paused = true;
+    appStatus.hasVideoError = false;
 
     // Create interface elements
     createMenus();
 
+    // Add core listeners for interface elements
+    addCoreListeners();
+
     // Add localization and wait for it to complete
-    addLocalization().then(() => {
+    setLocale(defaultLocale).then(() => {               // DEV: Localization can't be fully parallel and independent if ToS etc. are required for use
+        
         // Handle notices, consent and data storage
-        handlePrivacy();
+        handlePrivacy().then( (initialResult) => {                                  // Function finishes fast, returned variable will change value later based on prompt response
+
+            appStatus.privacy = initialResult;
+            if (initialResult === "wait" || initialResult === "waitStorage") {      // Continue based on initial or future value
+                waitPrivacy();
+            } else {
+                startup();
+            }
+        });
+    });
+
+    function waitPrivacy() {
+        window.addEventListener('privacyChanged', (e) => {                          // Wait for custom event to be dispatched
+            print("start(): Event: Privacy property value changed to: " + e.detail.newValue);
+
+            if (e.detail.newValue !== "wait" && e.detail.newValue !== "waitStorage" && e.detail.newValue !== "reject") {
+                startup();
+                // TODO: Could run multiple times if there's an issue with prompt
+            }
+        });
+    }
+
+    async function startup() {
+        // Set app status
+        appStatus.paused = false;
+
+        // Show interface
+        showElement(controlBar);
 
         // Start video feed
-        videoStart().then(() => {});
+        videoStart().then(() =>
+            showWaitPrompt(4)).then(() => {
+                showElement(videoElement);
+            }
+        );
 
-        // Update video input list periodically
-        setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge cases, onchange-event should already trigger update as well)
-
-        // Keep control island visible
-        setInterval(() => { moveElementToView(island) }, 5000); // Periodically ensures control island is visible
-
-        // Render UI when ready
-        showElement(controlBar);
-        showElement(island);                                                                      // TODO: Should run when ToS agreed to
-        showElement(videoElement);                                                                // TODO: Should run when element rendered and ToS agreed to
-
-    });
+        // Onboarding
+        handleOnboarding();
+    }
 
 }
 
@@ -81,27 +105,21 @@ function start() {
 function addCoreListeners() {
 
     // Fetch HTML elements for buttons and attach event listeners to them
-    listenerToElement('buttonRotate', 'click', videoRotate);                                             // Rotate button
-    listenerToElement('buttonFlip', 'click', videoFlip);                                                 // Flip button
-    listenerToElement('buttonSaveImage', 'click', saveImage);                                            // Save image button
-    listenerToElement('buttonOverlay', 'click', addOverlay);                                             // Overlay button
-    listenerToElement('buttonAddText', 'click', addText);                                                // Text button
-    listenerToElement('island_controlBar', 'mousedown', islandDragStart);                                // Draggable island bar
-    listenerToElement('buttonSmallerFont', 'click', () => createdElements.changeFontSize(-5));     // Font size decrease button
-    listenerToElement('buttonBiggerFont', 'click', () => createdElements.changeFontSize(5));       // Font size increase button
-    listenerToElement('zoomSlider', 'input', (event) => setZoomLevel(event.target.value));   // Zoom slider                                                             //
-    listenerToElement('buttonZoomIn', 'click', () => adjustZoom(0.1));              // Zoom in button
-    listenerToElement('buttonZoomOut', 'click', () => adjustZoom(-0.1));            // Zoom out button
+    listenerToElement('buttonRotate'    , 'click'   , videoRotate   );                              // Rotate button
+    listenerToElement('buttonFlip'      , 'click'   , videoFlip     );                              // Flip button
+    listenerToElement('buttonSaveImage' , 'click'   , saveImage     );                              // Save image button
+    listenerToElement('buttonOverlay'   , 'click'   , addOverlay    );                              // Overlay button
+    listenerToElement('buttonAddText'   , 'click'   , addText       );                              // Text button
+    listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider                                                             //
+    listenerToElement('buttonZoomIn'    , 'click'   , () => adjustZoom(0.1));                       // Zoom in button
+    listenerToElement('buttonZoomOut'   , 'click'   , () => adjustZoom(-0.1));                      // Zoom out button
+    listenerToElement('buttonZoomFill'  , 'click'   , () => zoomFill());
+    listenerToElement('buttonZoomFit'   , 'click'   , () => zoomFit());
 
     // Fetch HTML element for full screen button and its icon. Attach event listener to full screen button.
     const fullScreenIcon = document.getElementById("iconFullScreen");
-    const fullScreenButton = document.getElementById('buttonFullScreen');
+    const fullScreenButton = document.getElementById("buttonFullScreen");
     fullScreenButton.addEventListener('click', () => switchToFullscreen(fullScreenIcon, fullScreenButton));
-
-    // Fetch HTML element for collapse button and its icon. Attach event listener to collapse button.
-    const collapseIcon = document.getElementById("iconCollapse");
-    const collapseButton = document.getElementById('buttonCollapse');
-    collapseButton.addEventListener('click', () => toggleControlCollapse(collapseIcon, collapseButton));
 
     // Fetch HTML element for freeze button and its icon. Attach event listener to freeze button.
     const freezeIcon = document.getElementById("iconFreeze");
@@ -121,36 +139,21 @@ function addCoreListeners() {
 
     // Add event listener to camera feed selector. Change camera feed to the selected one.
     selector.addEventListener('change', (e) => {
-        setVideoInput(e.target.value).then( () => {} );                                                                // TODO: Add catch for error
+        autoFill();
+        setVideoInput(e.target.value).then( () => {} );                                            // TODO: Add catch for error
     })
 
-    // Add event listener to trigger input list update when new media device is plugged in
+    // Add event listener to trigger input list update and hint when new media device is plugged in
     navigator.mediaDevices.addEventListener('devicechange', () => {
-        backgroundUpdateInputList().then( () => {} );
+        backgroundUpdateInputList().then( () => {
+            print("listener(): Device change registered");
+            blinkVideoSelector();
+        } );
     });
-}
 
-/**
- * Sets the language to default and initializes language selector.
- *
- */
-async function addLocalization() {
-    await setLocale(defaultLocale);
-    bindLocaleSelector(defaultLocale, "[data-locale-selector]");
-}
-
-/**
- * Sets up the language selector and binds event listeners to detect language changes.
- * @param {string} initialLocale - The initial locale to set.
- * @param selector Selector to bind.
- */
-function bindLocaleSelector(initialLocale, selector) {
-    const localeSelector = document.querySelector(selector);
-    localeSelector.value = initialLocale;
-    localeSelector.onchange = (e) => {
-        // Set the language based on the selected value
-        setLocale(e.target.value);
-    };
+    // Update video input list periodically
+    setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge case issues)
+    
 }
 
 /**
@@ -159,23 +162,70 @@ function bindLocaleSelector(initialLocale, selector) {
  * @param {string} newLocale - The locale to set.
  */
 async function setLocale(newLocale) {
-    // Checks if new locale is in the list of allowed locales
-    if (!allowedLocales.includes(newLocale)) {
+    if (newLocale === currentLocale) return;
+
+    // Checks if new locale is in the list of available locales
+    if (!availableLocales.includes(newLocale)) {
         console.error(`setLocale(): Attempted to load unsupported locale: ${newLocale}`);
         return;
     }
 
-    if (newLocale === currentLocale) return;
-
+    // Get core translations
     const newTranslations = await fetchJSON(newLocale);
     if (!newTranslations) {
         console.error("setLocale(): Invalid translations received for locale:", newLocale);
         return;
     }
 
+    // Save core translations
     currentLocale = newLocale;
     currentTranslations = newTranslations;
+
+    // Get translations for Terms of Service
+    const legalTextTos = prefixKeys(await getLegalText(currentLocale + "_tos"), "tos");
+
+    // Get translations for Privacy Notice
+    const legalTextPrivacy = prefixKeys(await getLegalText(currentLocale + "_privacy"), "privacy");
+
+    // Save legal translations
+    currentTranslations.legalTextTos = legalTextTos;
+    currentTranslations.legalTextPrivacy = legalTextPrivacy;
+
+    // Merge translations
+    currentTranslations = {
+        ...currentTranslations,
+        ...legalTextTos,
+        ...legalTextPrivacy
+    };
+
+    // Apply translations
     applyTranslations();
+
+    // Nested function to get legal text
+    async function getLegalText(file) {
+        let legalText = {};
+        const content = await fetchJSON(file);
+        if (content) {
+            legalText = content;
+            legalText.textExists = true;
+            print("setLocale(): Found text: " + legalText.file + " with title: " + content.title);
+        } else {
+            legalText.textExists = false;
+            console.warn("setLocale(): Did not find text: " + legalText.file);
+        }
+
+        return legalText;
+    }
+
+    // Nested function for applying prefixes to object keys
+    // Used for making generic object keys unique to avoid overwrites when merging
+    function prefixKeys(object, prefix) {
+        let prefixed = {};
+        for (let key in object) {
+            prefixed[prefix + key.charAt(0).toUpperCase() + key.slice(1)] = object[key];
+        }
+        return prefixed;
+    }
 }
 
 /**
@@ -218,202 +268,158 @@ function applyTranslations() {
  * @param {HTMLElement} element - The element to translate.
  */
 function translateElement(element) {
-    const key = element.getAttribute("data-locale-key");
+    const key = element.getAttribute("data-locale-key"); // TODO: Consider element.dataset.localeKey
     const translation = currentTranslations[key];
 
-    // Skip if no translation is available
-    if (!translation) return;
+    // Return if no translation is available
+    if (!translation) {
+        console.error("translateElement(): Dataset locale key set but no translation found for key: " + key + " , translation: " + translation);
+        return;
+    }
 
-    // If element has title attribute, it gets translated.
+    // If element has title attribute, translate
     if (element.hasAttribute("title")) {
         element.setAttribute("title", translation);
     }
-    // Else if element has placeholder attribute, it gets translated.
+    // Else if element has placeholder attribute, translate
     else if (element.hasAttribute("placeholder")) {
         element.setAttribute("placeholder", translation);
     }
-    // Check if the element has non-empty text content. If it does, update it with the translated text.
+
+    // Else if element has non-empty text content, translate
     else if (element.textContent.trim().length > 0) {
-        element.textContent = translation;
+        if (/</.test(element.innerHTML) && />/.test(element.innerHTML)) {       // If content is HTML, allow parsing
+            element.innerHTML = translation;
+        } else {
+            element.textContent = translation;
+        }
     }
 }
 
 /**
  * Handles privacy-related prompting, parameters, data storage and logical coordination
- * @returns {boolean} True if the service can be used
+ *
+ * @returns {Promise<null|string>} Return values are "full", "noStorage", "waitStorage" and "wait"
  */
 async function handlePrivacy() {
 
+    // Setup privacy property for event handling
+    Object.defineProperty(appStatus, "privacy", {           // Initialize property
+        configurable: true,                                 // Allows redefinition and deletion
+        enumerable: true,                                   // Allows use in for loops etc.
+
+        set: function(value) {                              // Intercept value set
+            this._privacy = value;                          // Initializes backing field property
+            window.dispatchEvent(new CustomEvent('privacyChanged', { detail: { newValue: value } }));   // Fire an event on change
+        },
+
+        get: function() {                                   // Intercept value get
+            return this._privacy;                           // Uses backing field
+        }
+    });
+
     // Fast exit: Check browser local storage for permissive privacy setting
-    const privacyKey = localStorage.getItem('privacy');                     // Get expected privacy key value from local storage
-    switch (privacyKey) {
-        case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
-            handleLocalStorage();
-            return true;                                                         // Fast exit
-        default:
-            print("handlePrivacy(): No fast exit (local storage)");
+    {                                                                                // Code block for collapsing
+        const privacyKey = localStorage.getItem('privacy');                          // Get expected privacy key value from local storage
+        switch (privacyKey) {
+            case "agreeAll":                                                         // User agrees to ToS and local storage -> No prompt, read/create local storage
+                handleLocalStorage();
+                return "full";                                                       // Fast exit
+            default:
+                print("handlePrivacy(): No fast exit (local storage)");
+        }
     }
 
     // Fast exit: Check URL privacy parameter for permissive privacy setting
-    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");  // Get expected privacy parameter value from URL
-    print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
-    switch (privacyParameter) {
-        case "agreeAll":                                                                  // User agrees to ToS and local storage -> No prompt, create local storage
-            handleLocalStorage();
-            return true;
-        case "agreeTosExclusive":                                                         // User agrees to ToS, has forbidden local storage -> No prompt, no action
-            return true;                                                                  // Fast exit
-        default:
-            print("handlePrivacy(): No fast exit (URL parameter)");
-    }
-
-    // Load short texts if they exist
-    let texts = [                                       // Define texts and property storage
-        {                                               // texts[0] is for privacy notice
-            file: currentLocale + "_privacy_short",
-            content: null,
-            textExists: false,
-        },
-        {                                               // texts[1] is for terms of service notice
-            file: currentLocale + "_tos_short",
-            content: null,
-            textExists: false,
-        }
-    ];
-
-    for (const text of texts) {                         // Iterate through texts
-        const content = await fetchJSON(text.file);    // Get JSON
-        if (content) {                                  // If JSON accessible
-            text.textExists = true;                     // Set boolean for conditional logics
-            text.content = content;
-            print("handlePrivacy(): Found text: " + text.file + " with title: " + content.title);
-        } else {
-            console.warn("handlePrivacy(): Did not find text: " + text.file);
+    const privacyParameter = new URLSearchParams(window.location.search).get("privacy");      // Get expected privacy parameter value from URL
+    {                                                                                         // Code block for collapsing
+        print("handlePrivacy(): URL privacy parameters: " + privacyParameter);
+        switch (privacyParameter) {
+            case "agreeAll":                                                                  // User agrees to ToS and local storage -> No prompt, create local storage
+                handleLocalStorage();
+                return "full";
+            case "agreeTosExclusive":                                                         // User agrees to ToS, has forbidden local storage -> No prompt, no action
+                return "noStorage";                                                           // Fast exit
+            default:
+                print("handlePrivacy(): No fast exit (URL parameter)");
         }
     }
-    print("handlePrivacy(): Privacy files: privacy text exists = " + texts[0].textExists + " & tos text exists = " + texts[1].textExists);
-
-    // Fast exit: Check if no texts exist
-    if (!texts[0].textExists && !texts[1].textExists) {  // No texts exist -> assume local storage can be used
-        handleLocalStorage();                            // Create local storage
-        return true;
-    } else {
-        print("handlePrivacy(): No fast exit (texts exist)");
-    }
-
-    // Set button styles
-    const colorAccept = "rgba(70,136,255,0.5)";
-    const colorReject = "rgba(255,139,139,0.5)";
 
     // Interpret course of action
 
-    // Table of actions
-    // Format:
-    // Text states (does text exist)   Privacy parameters
-    // Privacy text    Tos text        Parameter
-    // ---------------------------------------------------------------------------------------------------
-    // Boolean         Boolean         Action (output)
+    // Simply:
+    // User is shown either short terms of service (tos), short privacy notice or both. If user has agreed to one or both
+    // before (based on URL parameter or local storage) the same text is not shown again. If a text does not
+    // exist, it cannot be shown, and a positive response to related matters is assumed. Tos is related to
+    // the fundamental permission to use the software at all, and the privacy notice is related to the storage
+    // of information in local storage. Saving of settings in the URL as parameters is always attempted.
 
     // Table of actions
-    // Table:
+    //
+    // Text states (does text exist)   Privacy parameters and actions
     // Privacy text    Tos text        agreeTosInclusive        null                  (agreeAll)            (malformed)
-    // ------------------------------------------------------------------------------------------------------------------------
-    // true            -               privacyPrompt                                  handleLocalStorage
-    // false           -               handleLocalStorage                             handleLocalStorage
-    // true            true                                     fullPrompt            handleLocalStorage    fullPrompt
-    // false           true                                     tosPrompt             handleLocalStorage    tosPrompt
-    // true            false                                    privacyPrompt         handleLocalStorage    privacyPrompt
-    // false           false                                    handleLocalStorage    handleLocalStorage    handleLocalStorage
+    // ---------------------------------------------------------------------------------------------------------------------------
+    // true            -               privacy prompt                                 handleLocalStorage()
+    // false           -               handleLocalStorage()                           handleLocalStorage()
+    // true            true                                     full prompt           handleLocalStorage()  full prompt
+    // false           true                                     tos prompt            handleLocalStorage()  tos prompt
+    // true            false                                    privacy prompt        handleLocalStorage()  privacy prompt
+    // false           false                                    handleLocalStorage()  handleLocalStorage()  handleLocalStorage()
 
-    // TODO: Minimize table, compact logic
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+    print("handlePrivacy(): Privacy files: privacy text exists = " + currentTranslations.privacyTextExists + " & tos text exists = " + currentTranslations.tosTextExists);
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            if (texts[0].textExists) {                                           // Privacy text exists
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            if (currentTranslations.privacyTextExists) {                                           // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
-                privacyPrompt();                                                 // Privacy prompt
+                showLegalPrompt("privacy")                                // Privacy prompt
+                return "waitStorage";
             } else {                                                             // Privacy text does not exist
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
                 handleLocalStorage();                                            // Create local storage (assume local storage can be used if privacy notice text is not provided)
+                return "full";
             }
-            break;
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
-            if (texts[1].textExists) {                                           // ToS text exists
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            if (currentTranslations.tosTextExists) {                                           // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
-                if (texts[0].textExists) {                                       // Privacy text exists
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                if (currentTranslations.privacyTextExists) {                                       // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
-                    fullPrompt();                                                // Full prompt
+                    showLegalPrompt("full")                               // Full prompt
                 } else {                                                         // Privacy text does not exist
                     print("handlePrivacy(): ... privacy text does not exist");
-                    tosPrompt();                                                 // ToS prompt
+                    showLegalPrompt("tos")                                // ToS prompt
                 }
+                return "wait";
             } else {                                                             // ToS text does not exist
                 print("handlePrivacy(): ... ToS text does not exist");
-                if (texts[0].textExists) {                                       // Privacy text does exist
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                if (currentTranslations.privacyTextExists) {                                       // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
-                    privacyPrompt();                                             // Privacy prompt
+                    showLegalPrompt("privacy")                            // Privacy prompt
+                    return "waitStorage";
+                } else {
+                    print("handlePrivacy(): ... privacy text does not exist");
+                    handleLocalStorage();                                        // Create local storage (assume local storage can be used if neither text is provided)
+                    return "full";
                 }
             }
-
-            break;
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
-            if (texts[0].textExists && texts[1].textExists) {
-                fullPrompt();                                                    // Full prompt
-            } // TODO: Not handling case where param is malformed but only one text exists. This section behaves exactly the same as null, should combine.
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            if (currentTranslations.privacyTextExists && currentTranslations.tosTextExists) {
+                showLegalPrompt("full")                                  // Full prompt
+                return "full";
+            } else {
+                return null;
+                // TODO: Edge error cases not further differentiated yet
+            }
     }
 
-    // Nested functions for prompts
-
-    /**
-     * Displays a privacy notice.
-     */
-    function privacyPrompt() {
-        console.log("privacyPrompt(): Displaying a notice: " + texts[0].content.title);
-
-        // noinspection JSUnresolvedReference                                   // Object is dynamic
-        customPrompt(texts[0].content.title, texts[0].content.text, [
-            [   texts[0].content.agreeStorage  , () => { handleLocalStorage(); }                                                , colorAccept  ],
-            [   texts[0].content.notNow        , () => { /* Only implicit rejection, ask again later */ }                                      ],
-            [   texts[0].content.rejectStorage , () => { updateUrlParam("privacy", "agreeTosExclusive"); } , colorReject  ]
-        ], "50%", "350px");
-    }
-
-    /**
-     * Displays a full privacy and ToS (terms of service) notice.
-     */
-    function fullPrompt() {
-        console.log("fullPrompt(): Displaying a notice: " + texts[0].content.title + " & " + texts[1].content.title);
-
-        // noinspection JSUnresolvedReference                                   // Object is dynamic
-        customPrompt(texts[0].content.title + " & " + texts[1].content.title, texts[0].content.text + " " + texts[1].content.text, [
-            [   texts[1].content.agreeToAll   , () => { handleLocalStorage(); }                                          , colorAccept  ],
-            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); }          ],
-            [   texts[1].content.rejectTos    , () => { haltService(); }                                                 , colorReject  ]
-        ], "50%", "350px");
-    }
-
-    /**
-     * Displays a ToS (terms of service) notice.
-     */
-    function tosPrompt() {
-        console.log("tosPrompt(): Displaying a notice: " + texts[1].content.title);
-
-        // noinspection JSUnresolvedReference                                   // Object is dynamic
-        customPrompt(texts[1].content.title, texts[1].content.text, [
-            [   texts[1].content.agreeToTos   , () => { updateUrlParam("privacy", "agreeTosInclusive"); } , colorAccept  ],
-            [   texts[1].content.rejectTos    , () => { haltService(); }                                                       , colorReject  ]
-        ], "50%", "350px");
-
-    }
-
-    function haltService() {
-        console.error("handlePrivacy(): Terms rejected, call to halt service");
-        // TODO: Trigger video freeze event or other halt
-    }
-
-    return true; // TODO: For return value to have a relevant effect, function would need to await prompt responses
 }
 
 /**
@@ -424,7 +430,7 @@ async function handlePrivacy() {
 function updateUrlParam(paramName, paramValue) {
     let allParameters = new URLSearchParams(window.location.search);                                            // Get all parameters
     allParameters.set(paramName, paramValue);                                                                   // Change one parameter
-    window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);        // Replace url with same path and new parameters
+    window.history.replaceState({}, '', `${window.location.pathname}?${allParameters}`);                        // Replace url with same path and new parameters
 }
 
 /**
@@ -436,6 +442,13 @@ function handleLocalStorage() {
 
     // Write privacy switch to local storage
     localStorage.setItem("privacy", "agreeAll");
+
+    // Check if version has changed
+    // TODO: If has been updated, may need to suggest hard reload to clean cache or clean/fix/migrate stored data
+    localStorage.setItem("lastVersion", version);   // Store current version
+
+    // Check if term or notice versions have changed since last time
+    // TODO: If terms have changed, may need to notify regardless of agreement status
 
     // Update URL parameter
     updateUrlParam("privacy", "agreeAll");
@@ -455,100 +468,228 @@ function handleSettingStorage() {
 function createMenus() {
 
     // Get container elements of control bar
-    const menuContainerLeft           = document.getElementById('menuContainerLeft');
-    const menuContainerRight          = document.getElementById('menuContainerRight');
+    const menuContainerTop           = document.getElementById('controlBarTopContainer');
+    const menuContainerMiddle        = document.getElementById('controlBarMiddleContainer');
+    const menuContainerBottom        = document.getElementById('controlBarBottomContainer');
 
-    // Create menu buttons (left)
+    // Create menu caller buttons (top)
+    const buttonDraw = Menu.createButton("draw.png", "buttonDraw", "iconDraw", "Draw", menuContainerTop);
 
-    // Create menu buttons (right)
-    const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerRight);
-    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerRight);
+    // Create menu caller buttons (middle)
 
-    // Settings menu creation
-    let menuSettings = [];
+    // Create menu caller buttons (bottom)
+    const buttonInfo = Menu.createButton("info.png", "buttonInfo", "iconInfo", "About", menuContainerBottom);
+    const buttonZoom = Menu.createButton("zoom.png", "buttonZoom", "iconZoom", "Zoom", menuContainerBottom);
+    const buttonVideoSelect = Menu.createButton("switchCamera.png", "buttonVideoSelect", "iconVideoSelect", "Select video source", menuContainerBottom);
 
-    // Create settings menu subsection: language selection
-    const selectLanguageContainer = document.createElement("div");
-    selectLanguageContainer.style.display = "flex";
-    selectLanguageContainer.style.flexDirection = "column";
-    selectLanguageContainer.style.alignItems = "center";
 
-    const languageImg = document.createElement("img");
-    languageImg.src = "./images/language.png";
-    languageImg.style.display = "block";
-    languageImg.style.width = "40px";
-    languageImg.classList.add("icon");
-    selectLanguageContainer.appendChild(languageImg);
+    // Draw menu creation
+    {                                   // Code block for collapsing
+        let menuDraw = [];
 
-    const languagesDiv = document.createElement("div");
-    languagesDiv.id = "languages";
+        // Create color options
+        const colorSelectionGroupReference = { behavior: "exclusive", styleClass: 'drawMenuOptionSelection' };
+        const colorOptions = [                                  // Define necessary literals
+            { colorCode: '#000000', colorName: 'Black'  },
+            { colorCode: '#FFFFFF', colorName: 'White'  },
+            { colorCode: '#FFDE21', colorName: 'Yellow' },
+            { colorCode: '#90D5FF', colorName: 'Blue'   },
+            { colorCode: '#FC6C85', colorName: 'Red'    }
+        ];
+        colorOptions.forEach(option => {                        // Fill mandatory properties
+            option.id = `buttonDrawColor${option.colorName}`;
+            option.text = option.colorName;
+            option.selectionGroup = colorSelectionGroupReference;
+            option.action = () => { setDrawColor(option.colorCode) };
+            option.customHTML = createColorBox(option.colorCode);
+            menuDraw.push(option);
+        });
 
-    const select = document.createElement("select");
-    select.setAttribute("data-locale-selector", "");
-    select.className = "locale-switcher";
-    select.title = "Change Language";
-    select.style.width = "80px";
-    select.setAttribute("data-locale-key", "language");
+        /**
+         * Nested function to create button boxes for color selection
+         *
+         * @param color
+         * @returns {HTMLDivElement}
+         */
+        function createColorBox(color) {
+            const box = document.createElement('div');
+            box.classList.add("drawMenuColorOption");
+            box.style.background = color;
+            return box;
+        }
 
-    // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
+        /**
+         * Changes active drawing color.
+         *
+         * @param color Color to use
+         */
+        function setDrawColor(color) {
+            // Colors from parameter are strings of this type: '#000000' '#FFFFFF' '#FC6C85' etc
+            // Example call of this function: setDrawColor('#FFDE21')
+            print("setDrawColor(): Changing color to " + color, "green");
+        }
 
-    const optionEn = document.createElement("option");
-    optionEn.value = "en";
-    optionEn.setAttribute("data-locale-key", "english");
-    optionEn.textContent = "English";
-    select.appendChild(optionEn);
+        // Create separator
+        menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
 
-    const optionFi = document.createElement("option");
-    optionFi.value = "fi";
-    optionFi.setAttribute("data-locale-key", "finnish");
-    optionFi.textContent = "Finnish";
-    select.appendChild(optionFi);
+        // Create thickness options
+        const thicknessSelectionGroupReference = { behavior: "exclusive", styleClass: 'drawMenuOptionSelection' };
+        const thicknessOptions = [                                  // Define necessary literals
+            { thickness: 2, thicknessName: 'Thin'    },
+            { thickness: 4, thicknessName: 'Light'   },
+            { thickness: 8, thicknessName: 'Medium'  },
+            { thickness: 12, thicknessName: 'Thick'  },
+            { thickness: 18, thicknessName: 'Heavy'  }
+        ];
 
-    languagesDiv.appendChild(select);
-    selectLanguageContainer.appendChild(languagesDiv);
+        thicknessOptions.forEach(option => {                        // Fill mandatory properties
+            option.id = `buttonDrawThickness${option.thickness}`;
+            option.text = option.thicknessName;
+            option.selectionGroup = thicknessSelectionGroupReference;
+            option.action = () => { setDrawThickness(option.thickness) };
+            option.customHTML = createCircleBox(option.thickness);
+            menuDraw.push(option);
+        });
 
-    menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
+        /**
+         * Nested function to create button boxes for line thickness
+         *
+         * @param diameter
+         * @returns {HTMLDivElement}
+         */
+        function createCircleBox(diameter) {
+            const box = document.createElement('div');
+            box.classList.add("drawMenuThicknessOption");
 
-    // Create settings menu subsection: theme selection
+            const circle = document.createElement('div');
+            circle.style.width = `${diameter}px`;
+            circle.style.height = `${diameter}px`;
+            circle.style.borderRadius = '50%';
+            circle.style.background = '#000';
+            circle.style.position = 'absolute';
+            circle.style.top = `${(24 - diameter) / 2}px`;
+            circle.style.left = `${(24 - diameter) / 2}px`;
 
-    const switchThemeContainer = document.createElement("div");
-    switchThemeContainer.style.display = "flex";
-    switchThemeContainer.style.flexDirection = "column";
+            box.appendChild(circle);
+            return box;
+        }
 
-    const switchThemeLabel = document.createElement("div");
-    switchThemeLabel.textContent = "Light Theme";
-    switchThemeLabel.style.textAlign = "center";
+        /**
+         * Changes active drawing thickness.
+         *
+         * @param thickness Thickness to use
+         */
+        function setDrawThickness(thickness) {
+            // Thickness values from parameter are numbers of this type: 2 4 8 etc
+            // Example call of this function: setDrawThickness(12)
+            // Thickness values are diameters
+            print("setDrawThickness(): Changing thickness to " + thickness, "green");
+        }
 
-    const switchTheme = document.createElement("input");
-    switchTheme.type = "checkbox";
-
-    switchTheme.addEventListener("change", () => {
-        document.documentElement.classList.toggle("lightMode");
-    });
-
-    switchThemeContainer.appendChild(switchThemeLabel);
-    switchThemeContainer.appendChild(switchTheme);
-
-    menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
-
-    // Create settings menu
-    createdElements.createMenu(menuSettings, buttonSettings, "above");
-
-    // Info menu creation
-    let menuInfo = [
-        {id: "buttonLegalInfoPrompt",     text: "Show legal information",    img: "terms.png", action: showLegalInfo}
-    ];
-
-    /**
-     * Nested function to show info prompt
-     */
-    function showLegalInfo() {
-        showContentBox('en_tos_long', true, true); // TODO: Display proper information in correct language
+        // Create menu
+        createdElements.createMenu(menuDraw, buttonDraw, "leftToRight");
     }
 
-    // Create info menu
-    createdElements.createMenu(menuInfo, buttonInfo, "above");
+    // Info menu creation
+    {                                   // Code block for collapsing
+        let menuInfo = [
+            {
+                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalFullInfo(); }
+            }
+        ];
 
+        // Create info menu
+        createdElements.createMenu(menuInfo, buttonInfo, "leftToRight");
+    }
+
+    // Zoom menu creation
+    {                                   // Code block for collapsing
+        let menuZoom = [];
+
+        // Creating custom HTML in menu
+        const zoomContainer = document.createElement('div');                // Create container
+        zoomContainer.id = "zoomControls";
+
+        const zoomFitButton = Menu.createButton("fit.png", "buttonZoomFit", "iconZoomFit", "Fit to window", zoomContainer);
+
+        const zoomOut = document.createElement("button");
+        zoomOut.dataset.localeKey = "zoomOut";
+        zoomOut.id = "buttonZoomOut";
+        zoomOut.title = "Zoom Out";
+        zoomOut.className = "buttonZoom";
+        zoomOut.textContent = "-";
+        zoomContainer.appendChild(zoomOut);
+
+        const zoomSlider = document.createElement("input");
+        zoomSlider.dataset.localeKey = "zoom";
+        zoomSlider.title = "Zoom";
+        zoomSlider.type = "range";
+        zoomSlider.id = "zoomSlider";
+        zoomSlider.min = "100";
+        zoomSlider.max = "500";
+        zoomSlider.step = "1";
+        zoomSlider.value = "100";
+        zoomContainer.appendChild(zoomSlider);
+
+        const zoomIn = document.createElement("button");
+        zoomIn.dataset.localeKey = "zoomIn";
+        zoomIn.id = "buttonZoomIn";
+        zoomIn.title = "Zoom In";
+        zoomIn.className = "buttonZoom";
+        zoomIn.textContent = "+";
+        zoomContainer.appendChild(zoomIn);
+
+        const zoomFillButton = Menu.createButton("fill.png", "buttonZoomFill", "iconZoomFill", "Fill window", zoomContainer);
+
+        const zoomLabel = document.createElement("span");
+        zoomLabel.id = "zoomPercentageLabel";
+        zoomLabel.textContent = "100%";
+        zoomContainer.appendChild(zoomLabel);
+
+        menuZoom.push( { id: "zoomControls", text: "Zoom", customHTML: zoomContainer } ); // Can push object to array or define directly in array
+
+        // Create menu
+        createdElements.createMenu(menuZoom, buttonZoom, "leftToRight");
+    }
+
+    // Video selection menu creation
+    {                                   // Code block for collapsing
+        let menuVideoSelect = [];
+
+        // Creating custom HTML in menu
+        const videoSelectContainer = document.createElement('div');                // Create container
+        const videoSelector = document.createElement("select");
+        selector = videoSelector;
+        selector.callerElement = buttonVideoSelect;                                        // Store reference to button for future use in onboarding
+        videoSelector.id = "selectorDevice";
+        videoSelector.title = "Select Camera";
+        videoSelector.setAttribute("data-locale-key", "selectCamera");
+
+        videoSelectContainer.appendChild(videoSelector);
+        menuVideoSelect.push({id: "videoSelector", text: "Camera selector", customHTML: videoSelectContainer}); // Can push object to array or define directly in array
+
+        // Create menu
+        createdElements.createMenu(menuVideoSelect, buttonVideoSelect, "leftToRight");
+    }
+
+}
+
+function handleOnboarding() {
+    // Blink video selector button at start (hint)
+    blinkVideoSelector(300, 3);
+}
+
+function blinkVideoSelector(length = 300, repeats = 0) {
+    let count = 0;
+    const blink = () => {                           // Creates a series of async events that should fire sequentially
+        selector.callerElement.classList.add("buttonHighlight");
+        setTimeout(() => {
+            selector.callerElement.classList.remove("buttonHighlight");
+            count++;
+            if (count < repeats) setTimeout(blink, 200);
+        }, length);
+    };
+    blink();
 }
 
 
@@ -562,52 +703,64 @@ function createMenus() {
  */
 async function videoStart() {
 
-    // Get error prompt text
-    // noinspection JSUnresolvedReference                                   // Object is dynamic
-    let genericPromptTitle = currentTranslations.videoProblemPromptTitle;
-    // noinspection JSUnresolvedReference                                   // Object is dynamic
-    let genericPromptText = currentTranslations.videoProblemPromptText;
-    // noinspection JSUnresolvedReference                                   // Object is dynamic
-    let genericPromptActions = [
-        [currentTranslations.retry,        () =>       { videoStart(); } ],
-        [currentTranslations.dismiss,      () =>       {               } ]
-    ];
-
     // Get permission and inputs
-    let error = false;
-    let errorDescription = "unknown";                                                                            // Store specific error description
     let inputs;
+    let error = false;
+    let errorObject;
+    let errorSource;
+    let errorType;
 
+    // Get media permission
     await getMediaPermission()                                                                                   // Get permission
         .catch(e => {                                                                                            // Catch errors from getMediaPermission()
             error = true;                                                                                        // Flag error
-            errorDescription = "No media permission or access"                                                   // Give specific readable error description
-            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);             // Log error
+            errorObject = e;
+            errorSource = "getMediaPermission()";
+            errorType = "errorMediaAccess";
     });                                                                                                          // End catch for getMediaPermission()
 
+    // Get inputs
     if (!error) {                                                                                                // Only run if no errors
         inputs = await getVideoInputs()                                                                          // Get inputs
             .catch(e => {                                                                                        // Catch errors from getVideoInputs()
                 error = true;                                                                                    // Flag error
-                errorDescription = "No valid inputs could be found"                                              // Give specific readable error description
-                console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);         // Log error
+                errorObject = e;
+                errorSource = "getVideoInputs()";
+                errorType = "errorInputEnumeration";
             });                                                                                                  // End catch for getVideoInputs()
     }
 
-    // Use input(s)
-    if (!error) {                                                                                // Only run if no errors
+    // Update input list
+    let input;
+    if (!error) {                                                                                         // Only run if no errors
         try {
-            let input = await updateInputList(inputs);                                           // Update selector list, selecting some input
-            await setVideoInput(input);                                                          // Use the selected input
+            input = await updateInputList(inputs);                                                        // Update selector list, selecting some input
         } catch (e) {
-            // TODO: Catch not reliable enough
             error = true;                                                                                 // Flag error
-            errorDescription = "Error while attempting to use video input(s)"                             // Give specific readable error description
-            console.error("videoStart(): " + errorDescription + " : " + e.name + " : " + e.message);      // Log error
+            errorObject = e;
+            errorSource = "updateInputList()";
+            errorType = "errorInputListUpdate";
         }
     }
 
-    if (error) { customPrompt(genericPromptTitle, genericPromptText, genericPromptActions, "108px", "180px"); }                   // Prompt user
+    // Use input(s)
+    if (!error) {                                                                                         // Only run if no errors
+        try {
+            autoFill();
+            await setVideoInput(input);                                                                   // Use the selected input
+        } catch (e) {
+            // TODO: Catch not reliable enough? Passing fail forward at times?
+            error = true;                                                                                 // Flag error
+            errorObject = e;
+            errorSource = "setVideoInput()";
+            errorType = "errorInputSet";
+        }
+    }
+
+    if (error) {
+        appStatus.hasVideoError = true;
+        videoError(errorType, errorSource + ",videoStart()", errorObject);     // Prompt user
+    }
     // TODO: Provide readable error description and conditional solutions (need to forward errors properly)
 
 }
@@ -684,6 +837,15 @@ async function getMediaPermission() {
                 errorDescription = "Video input already in use (Chrome)";
 
                 break;
+            case "TypeError":
+
+                if ( e.message === "capabilityWidth is undefined") {
+                    // This error may be encountered on old browsers when .getCapabilities is not available and fallbacks fail.
+                    // This error only occurs if functions are too dependent on .getCapabilities
+                    // TODO: This is a development issue where getstreminformation cant get resolution
+                }
+
+                break;
             default:
                 errorExpected = "unexpected";
         }
@@ -715,9 +877,9 @@ async function getVideoInputs() {
         devices.forEach(device => {
             if (device.kind === 'videoinput') {                                                       // Only accept video sources
                 if (device.deviceId === "") {                                                         // Detect and filter invalid values
-                    // DEV: In some cases (like missing permissions) empty values may be returned.
-                    // DEV: These values will be objects of the right kind but do not have device Ids and can not be used.
-                    console.error("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
+                    // DEV: In some cases (like missing permissions or page loading in background tab) empty values may be returned.
+                    // DEV: These values will be objects of the right kind but do not have device Ids and cannot be used.
+                    console.warn("getVideoInputs(): Encountered invalid video input device: " + device.deviceId + " : " + device.label + device.toJSON() + " " + device.toString());
                 } else {
                     // print("getVideoInputs(): Found video input device: " + shorten(device.deviceId) + " : " + device.label);
                     videoInputs.push([device.deviceId, device.label]);                                  // Assign device id to index 0 of inner array, label to index 1 of inner array, push inner array to outer array as one row
@@ -729,7 +891,8 @@ async function getVideoInputs() {
             // print("getVideoInputs(): Found video input device(s): " + (videoInputs.length));
             return videoInputs;
         } else {
-            console.error("getVideoInputs(): No video sources found")
+            console.warn("getVideoInputs(): No video sources found")
+            blinkVideoSelector();
             throw new Error("getVideoInputs(): No valid video inputs");
         }
 
@@ -749,7 +912,7 @@ function updateInputList(inputs) {
     // Renew list
     selector.innerHTML = '';                                                                        // Clear dropdown first
     for (let i = 0; i < inputs.length; i++) {
-        let option = document.createElement('option');                                      // Create new option for dropdown
+        let option = document.createElement('option');                                              // Create new option for dropdown
         option.value    = inputs[i][0];                                                             // Assign device id (at index 0 of inner array) as value
         option.text     = inputs[i][1];                                                             // Assign device label (at index 1 of inner array) as value
         selector.appendChild(option);                                                               // Add new option to dropdown
@@ -762,7 +925,10 @@ function updateInputList(inputs) {
         // print("updateInputList(): Selected original video input: " + shorten(originalSelection) + " = " + shorten(selector.value));
     } else {                                                                                        // Original value invalid or not available
         selector.selectedIndex = 0;                                                                 // Select first option
-        if (originalSelection) {console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));} // Check for truthy value to prevent unneeded trigger at startup
+        if (originalSelection) {                                                                    // Check for truthy value to prevent unneeded trigger at startup
+            console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
+            blinkVideoSelector();
+        }
 
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
     }
@@ -788,19 +954,19 @@ function updateInputList(inputs) {
  * @returns {Promise<void>}
  */
 async function backgroundUpdateInputList() {
+    if (appStatus.paused) return;
     try {
         let inputs = await getVideoInputs();
         updateInputList(inputs);
     } catch (e) {
-        print("backgroundUpdateInputList(): Background update failed: " + e);
+        print("backgroundUpdateInputList(): Background update failed: " + e.name + " : " + e.message);
     }
-
 }
 
 /**
  * Accesses a camera for video input.
  *
- * @param input Identifier of video input to access
+ * @param input Identifier of video input to access (defaults to current selector value)
  * @param width Width to use as ideal value (optional)
  * @param height Height to use as ideal value (optional)
  * @returns {Promise<boolean>}
@@ -828,7 +994,7 @@ async function setVideoInput(input = selector.value, width = null, height = null
         if (!trackQualityMatches) {
             console.warn("setVideoInput(): Video track does not match requested (ideal) constraints: " + resolution.width + " x " + resolution.height);
         }
-        print("setVideoInput(): Track info: " + getStreamInformation(stream, true));
+        if (debugMode) { print("setVideoInput(): Track info: " + getStreamInformation(stream, true)); }
 
         // Assign stream to visible element
         videoElement.srcObject = stream;
@@ -838,6 +1004,9 @@ async function setVideoInput(input = selector.value, width = null, height = null
         // DEV: Most likely error is OverconstrainedError, but given the use of ideal values, this should only occur if device with used deviceId is not available
         throw new Error("setVideoInput(): Could not select camera");                            // DEV: A simple synchronous error is hard to catch from an async function by caller like videoStart(), try/catch or ().catch not catching
         // return Promise.reject(new Error("setVideoInput(): Could not select camera"));        // DEV: Explicit promise rejection not adequate TODO: Unable to throw error that is caught within promise
+
+        // TODO: An error: case "TypeError": if ( e.message === "can't access property \"width\", resolution is undefined") This in some cases of concurrent camera use
+
     }
 
     return true;
@@ -904,6 +1073,7 @@ async function getMaxResolutionFallback(input = selector.value) {
     ];
 
     // Loop test
+    const maxResolutions = 3;
     let availableResolutions = 0;
     for (const res of testResolutions) {
         try {
@@ -912,9 +1082,9 @@ async function getMaxResolutionFallback(input = selector.value) {
             res.available = await compareVideoQuality(res.width, res.height, stream);
             releaseVideoStream(stream);
             if (res.available === true) availableResolutions++;
-            print("getMaxResolutionFallback(): Tested resolution for " + shorten(input) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + ")");
+            print("getMaxResolutionFallback(): Tested resolution for " + shorten(input) + " : " + res.description + " = " + res.width + " x " + res.height + " available: " + res.available + " (count of available: " + availableResolutions + "/" + maxResolutions + ")");
 
-            if (availableResolutions >= 3) break; // Only get three available resolutions to save time
+            if (availableResolutions >= maxResolutions) break; // Only get three available resolutions to save time
         } catch (e) {
             console.warn("getMaxResolutionFallback(): Failure to test resolution: " + res.description + " = " + res.width + " x " + res.height + " : " + e);
         }
@@ -960,7 +1130,6 @@ async function getStreamFromInput(width, height, deviceId) {
  * @param stream Stream to release, default is current active video source.
  */
 function releaseVideoStream(stream = videoElement.srcObject) {
-
     print("releaseVideoStream(): Video release called");
     try {
         stream.getTracks().forEach(track => track.stop());
@@ -1021,7 +1190,7 @@ function getStreamInformation(stream, printOut = false) {
 
     let supportsGetCapabilities = true;
     if (!(typeof tracks[0].getCapabilities === "function")) {
-        console.error("getStreamInformation(): Browser does not support function .getCapabilities");
+        console.warn("getStreamInformation(): Browser does not support function .getCapabilities");
         supportsGetCapabilities = false;
     }
 
@@ -1031,11 +1200,16 @@ function getStreamInformation(stream, printOut = false) {
         // Get information
         const { deviceId, width: settingWidth, height: settingHeight, frameRate } = videoTrack.getSettings();
         let capabilityWidth, capabilityHeight, capabilityFrameRate;
-        if (supportsGetCapabilities) {({ width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities());}
+        if (supportsGetCapabilities) {
+            ({ width: capabilityWidth, height: capabilityHeight, frameRate: capabilityFrameRate } = videoTrack.getCapabilities());
+        } else {
+            // TODO: Create a replacement fallback here
+            return null;
+        }
 
         //             0                       1                  2             3                    4              5                     6          7
         let results = [shorten(videoTrack.id), shorten(deviceId), settingWidth, capabilityWidth.max, settingHeight, capabilityHeight.max, frameRate, capabilityFrameRate.max];
-        // TODO: Limit decimals Number(value.toFixed(2))
+        // TODO: Limit decimals Number(value.toFixed(2)), replace array with object
 
         // Print
         if (printOut) {
@@ -1072,63 +1246,16 @@ function getStreamInformation(stream, printOut = false) {
     return allResults;
 }
 
+function autoFill() {
+    // Setup a call for fill mode after videoElement loads fully
+    videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
+        zoomFill();
+        videoElement.removeEventListener('loadedmetadata', handler);
+        // TODO: Failed input load may leave an obsolete listener instance that either produces double effect (harmless) or just stays in memory?
+    });
+}
 
 // UI functions
-
-/**
- * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
- * @param event Mouse event 'mousedown'
- */
-function islandDragStart (event) {
-
-    print("islandDragStart(): Island drag initiated" );
-
-    isIslandDragging = true;
-
-    // Get current coordinates
-    mouseX = event.clientX;
-    mouseY = event.clientY;
-    islandX = parseInt(island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
-    islandY = parseInt(island.style.top, 10) || 0;
-
-    document.addEventListener('mousemove', islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
-    document.addEventListener('mouseup', islandDragStop);
-
-}
-
-/**
- * Calculate new position for island control bar. Update island style according new position.
- * @param event Mouse event 'mousemove'
- */
-function islandDragUpdater(event) {
-
-    print("islandDragUpdater(): Mass event: Island drag in progress");
-
-    if (isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
-        // Calculates new position
-        let pos1 = mouseX - event.clientX;
-        let pos2 = mouseY - event.clientY;
-        mouseX = event.clientX;
-        mouseY = event.clientY;
-
-        // Updates the dragged island's position
-        island.style.top = (island.offsetTop - pos2) + "px";
-        island.style.left = (island.offsetLeft - pos1) + "px";
-    }
-}
-
-/**
- * Stop Island dragging when mouse key is lifted. Remove event listeners.
- */
-function islandDragStop() {
-    isIslandDragging = false;
-    document.removeEventListener('mousemove', islandDragUpdater);
-    document.removeEventListener('mouseup', islandDragStop);
-
-    moveElementToView(island);
-
-    print("islandDragStop(): Island drag stopped");
-}
 
 /**
  * Updates zoom value and percentage level.
@@ -1146,9 +1273,79 @@ function setZoomLevel(value) {
  */
 function adjustZoom(increment) {
     let newZoom = currentZoom * 100 + increment * 100;                                      // Change back to percentages, increase or decrease 10%
-    newZoom = Math.min(Math.max(newZoom, 100), 200);                                                // Limit zoom between 100% and 200%
+    newZoom = Math.min(Math.max(newZoom, 10), 1000);                                                // Limit zoom between n% and n%
     setZoomLevel(newZoom);                                                                          // Zoom in percent %
     document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+}
+
+/**
+ * Scales (transform) the video to fit entirely inside the container
+ * Causes letterboxing
+ */
+function zoomFit() {
+    print("zoomFit(): Fit called");
+
+    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
+    const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
+
+    if (videoDims.width === 300 && videoDims.height === 150) {
+        console.warn("zoomFit(): Fit called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
+    }
+
+    const videoAspect = videoDims.width / videoDims.height;
+    const containerAspect = containerDims.width / containerDims.height;
+
+    let scaleFactor;
+
+    // Decide scaling axis based on aspect ratios
+    if (videoAspect > containerAspect) {
+        // Video is wider than container -> scale by width (leaving empty letterbox space on bottom)
+        print("zoomFit(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling to match width: " + videoDims.width + " -> " + containerDims.width);
+        scaleFactor = containerDims.width / videoDims.width;
+    } else {
+        // Video is taller than container -> scale by height (leaving empty letterbox space on the right side)
+        print("zoomFit(): Video is taller than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling to match height: " + videoDims.height + " -> " + containerDims.height);
+        scaleFactor = containerDims.height / videoDims.height;
+    }
+
+    const zoomPercent = scaleFactor * 100;
+    setZoomLevel(zoomPercent);
+    document.getElementById('zoomSlider').value = zoomPercent;
+}
+
+/**
+ * Scales (transform) the video to fill the container entirely
+ * Causes clipping
+ */
+function zoomFill() {
+    print("zoomFill(): Fill called");
+
+    const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
+    const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
+
+    if (videoDims.width === 300 && videoDims.height === 150) {
+        console.warn("zoomFill(): Fill called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
+    }
+
+    const videoAspect = videoDims.width / videoDims.height;
+    const containerAspect = containerDims.width / containerDims.height;
+
+    let scaleFactor;
+
+    // Decide scaling axis based on aspect ratios
+    if (videoAspect > containerAspect) {
+        // Video is wider than container -> scale by height (clipping width)
+        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
+        scaleFactor = containerDims.height / videoDims.height;
+    } else {
+        // Video is taller than container -> scale by width (clipping height)
+        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling/clipping to match width: " + videoDims.width + " -> " + containerDims.width);
+        scaleFactor = containerDims.width / videoDims.width;
+    }
+
+    const zoomPercent = scaleFactor * 100;
+    setZoomLevel(zoomPercent);
+    document.getElementById('zoomSlider').value = zoomPercent;
 }
 
 /**
@@ -1158,24 +1355,21 @@ function adjustZoom(increment) {
  */
 function switchToFullscreen(fullScreenIcon, fullScreenButton) {
 
-    if(!document.fullscreenElement) {                                   // Is fullscreen active?
-        videoContainer.requestFullscreen().then(() => {
-            print("switchToFullscreen(): Full screen mode activated");
-            fullScreenButton.setAttribute("data-locale-key", "fullscreenExit");
+    if(!document.fullscreenElement) {                                   // True if fullscreen not active
+        document.documentElement.requestFullscreen().then(() => {
+            print("switchToFullscreen(): Fullscreen mode activated");
+            fullScreenButton.setAttribute("data-locale-key", "fullscreenExit"); // TODO: Consider element.dataset.localeKey = ...
+            fullScreenIcon.src = "./images/fullscreenClose.png";
             translateElement(fullScreenButton);
-            fullScreenIcon.src = "./images/closeFullScreen.png";
         }).catch(error => {
             alert(`Error attempting to switch to fullscreen mode: ${error.message}`);
         });
     } else {
         document.exitFullscreen().then(() => {                      // Exit full screen mode, if it's already active
             print("switchToFullscreen(): Full screen mode closed");
-            fullScreenButton.setAttribute("data-locale-key", "fullscreen");
-            translateElement(fullScreenButton);
+            fullScreenButton.setAttribute("data-locale-key", "fullscreen"); // TODO: Consider element.dataset.localeKey = ...
             fullScreenIcon.src = "./images/fullscreen.png";
-            // island.style.top = '';                                       // UI island to starting position
-            // island.style.left = '';
-            moveElementToView(island);
+            translateElement(fullScreenButton);
         }).catch(error => {
             console.error(`switchToFullscreen(): Error attempting to exit full screen mode: ${error.message}`);
         });
@@ -1183,316 +1377,43 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
 }
 
 /**
- * Hides or shows control bar and island when collapseButton is clicked.
- * @param collapseIcon Icon for collapseButton
- * @param collapseButton Button for control visibility toggle
- */
-function toggleControlCollapse(collapseIcon, collapseButton) {
-    isControlCollapsed = !isControlCollapsed;
-
-    collapseIcon.style.transform += "scaleY(-1)";
-
-    if (isControlCollapsed) {
-        collapseButton.setAttribute("data-locale-key", "controlsShow");
-        translateElement(collapseButton);
-
-        hideElement(controlBar);
-        hideElement(island);
-    }
-    else {
-        collapseButton.setAttribute("data-locale-key", "controlsHide");
-        translateElement(collapseButton);
-
-        // collapseIcon.title = 'Hide controls';
-        // collapseIcon.src = "./images/hideControls.png";
-        showElement(controlBar, 'inline-flex'); // TODO: Set display states in CSS
-        showElement(island, 'flex');
-    }
-}
-
-/**
- * Creates a box with text or HTML from a file.
- * Can be used for showing terms, notices, tutorials and various content.
- * Assumes file path ./locales/
- * @param {string} file File to load text from
- * @param modal Should the prompt be modal
- * @param clickOut Should modal prompt exit when overlay is clicked
- */
-async function showContentBox(file, modal = false, clickOut = true) {
-    print("showContentBox(): Showing content from file: " + file);
-
-    // Load text from file
-
-    let title;
-    let contentToShow;
-
-    try {
-        const text = await fetchJSON(file);
-        title = text.title;
-        contentToShow = text.text;
-        print("showContentBox(): Found text: " + file + " with title: " + text.title);
-    } catch (e) {
-        console.warn("showContentBox(): Did not find text: " + file + " : " + e);
-    }
-
-    const modalOverlay = document.createElement("div");      // Create container element
-
-    if (modal) {                                                     // Create modal overlay if requested
-        modalOverlay.classList.add("modalOverlay");                  // Set basic CSS class for styling
-        document.body.appendChild(modalOverlay);                     // Append
-        showElement(modalOverlay);
-        if (clickOut) {
-            modalOverlay.addEventListener('click', removeModalPrompt);
-        }
-    }
-
-    const customPromptStyle = {                         // Style overrides for prompt
-        position: "fixed",
-        top: "50%",                                     // Centering
-        left: "50%",                                    // Centering
-        transform: "translate(-50%, -50%)",             // Centering
-        aspectRatio: "16 / 9",                          // Sizing
-        bottom: "unset",                                // Remove default value that conflicts with purpose
-        display: "flex",
-        flexDirection: "column",
-        zIndex: "1050",
-    };
-
-    const prompt = customPrompt(title, contentToShow, [
-        ["Close", () => { removeModalPrompt() }]
-    ], "50%", "500px", customPromptStyle);        // Apply custom definitions
-
-    // Nested functions for options
-
-    function removeModalPrompt() {
-        removeElement(modalOverlay);
-        removeElement(prompt);                                  // Remove prompt when not dismissed
-    }
-
-}
-
-/**
- * Creates a prompt with text and buttons.
- * Executes actions based on button press.
- * Every button will dismiss prompt.
+ * Moves an element to view IF it is outside the viewport.
  *
- * @param title Title text for prompt
- * @param text Body text for prompt (can contain HTML)
- * @param options Array with text and code to run for buttons
- * @param positionX Position of prompt (string value for property style.left)
- * @param width Size of prompt
- * @param containerCSSOverrides Object with custom CSS style declarations, will override existing ones
- */
-function customPrompt(title= "Title", text = "Text", options = [["Dismiss", () => {  }]], positionX = "50%", width = "200px", containerCSSOverrides = null) {
-
-    // Examples of use:
-
-    // customPrompt("Title", "Text or HTML for body",                                                               [
-    //     [   "Button"                , () => { console.log("Button pressed")                                  }   ],
-    //     [   "Dismiss"               , () => {                                                                }   ]
-    // ], "50%");
-
-    // customPrompt("Title of test prompt", "String or a variable containing string, string can contain HTML code", [
-    //     [   "Option 1"              , () => { function_name1()                                               }   ],
-    //     [   "Option 2"              , () => { function_name2();                                              }   ],
-    //     [   "Option 3 "             , () => { function_name2(); function_name3();                            }   ],
-    //     [   "Text for button"       , () => { console.log("functions and code blocks supported")             }   ],
-    //     [   "Text for button"       , () => { console.log("any command can be run here")                     }   ],
-    //     [   "Text for button"       , () => { console.log("for complex actions, use nested functions")       }   ],
-    //     [   "Dismiss"               , () => { let info = "all buttons will always dismiss prompt"            }   ]
-    // ], "50%");
-
-    // Buttons also support optional custom colors (note that only rgba colors with reduced transparency get hover effects)
-    // Custom width (in px) and x-axis positioning (distance from left edge in % or px) are supported
-    // For special uses, CSS style overrides can be passed as an object argument.
-    // customPrompt("Title", "Text or HTML",                                                                          [
-    //     [   "Green button"        , () => { console.log("Green button pressed")         }  , "Green"               ],
-    //     [   "Blue button"         , () => { console.log("Blue button pressed")          }  , "#0067FFBC"           ],
-    //     [   "Red button"          , () => { console.log("Red button pressed")           }  , "rgba(255,0,0,0.74)"  ]
-    // ], "70%", "100px");
-
-    // Create prompt container
-    const prompt = document.createElement('div');                 // Create element
-    prompt.id = String(Date.now());                                       // Assign a (pseudo) unique id
-
-    // CSS block for prompt container
-    {
-        // Styling
-        prompt.className = 'prompt';                                      // Set basic CSS class
-
-        // Positioning
-        prompt.style.position = 'fixed';                                  // Mobility
-        prompt.style.left = positionX;                                    // Position
-        // TODO: Automate prevention of overlap of concurrent prompts (turn into class to determine overlap through instance management?)
-
-        // Sizing
-        prompt.style.width = width;                                        // Sizing
-
-        // Initial state for animation
-        prompt.style.opacity = '0';
-        prompt.style.bottom = `0px`;
-        prompt.style.transition = 'bottom 0.3s ease-out, opacity 0.3s ease-out';
-    }
-
-    // Potential CSS overrides
-    if (containerCSSOverrides != null) {
-        print("customPrompt(): Applying CSS overrides to prompt");
-        Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
-    }
-
-    // Create title text
-    const textTitleElement = document.createElement('div');
-    const textTitle = document.createTextNode(title);
-
-    // Styling
-    textTitleElement.className = 'promptTitle';                           // Set basic CSS class
-
-    // Append
-    textTitleElement.appendChild(textTitle);
-    prompt.appendChild(textTitleElement);
-
-    // Create body text
-    const textBody = document.createElement('div');
-
-    // Handle HTML text
-    if (/</.test(text) && />/.test(text)) {                              // Test for signs of HTML tags
-        print("customPrompt(): Prompt text identified as HTML");
-        textBody.innerHTML = text;                                       // HTML text to innerHTML of div
-    } else {
-        print("customPrompt(): Prompt text identified as plain string");
-        textBody.textContent = text;                                     // Plain string text to text content of div
-    }
-    // TODO: Check input is valid (opened tags are closed or at least <> counts match), malformed can be fine and won't throw errors but should be noticed
-
-    // Styling
-    textBody.className = 'promptText';                                   // Set basic CSS class
-
-    // Append
-    prompt.appendChild(textBody);
-
-    // Create button container
-    const optionContainer = document.createElement('div');
-
-    // Styling
-    optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
-
-    // Create buttons
-    options.forEach((optionButton) => {
-        // Create button
-        const button = document.createElement('button');
-        button.textContent = `${optionButton[0]}`;                        // Get text for button
-
-        // Styling
-        button.className = 'promptOption';                                // Set basic CSS class
-
-        // Potential custom color
-        if (optionButton[2] != null) {                                    // Get potential color for button
-            // print("customPrompt(): Custom color " + optionButton[2] + " requested for button: " + optionButton[0]);
-
-            // Set base color
-            button.style.backgroundColor = optionButton[2];               // Overrides CSS background color (including hover)
-
-            // Custom hover
-            let customHoverColor = optionButton[2];
-            if (customHoverColor.startsWith('rgba')) {
-                // print("customPrompt(): Color is rgba, hover enabled");
-
-                // Change color alpha for hover color
-                customHoverColor = customHoverColor.replace(/,\s*(\d\.\d*)\)$/, ", 0.8)");
-                // Regex ,\s*(\d\.\d*)\)$ matches for example ,0.50) ,0.5) ,0.), decimal number is grouped (but group not used by replace)
-
-                // print("customPrompt(): Hover color: " + customHoverColor);
-            }
-
-            button.addEventListener("mouseenter", () => button.style.backgroundColor = customHoverColor);
-            button.addEventListener("mouseleave", () => button.style.backgroundColor = optionButton[2]);
-        }
-
-        // Attach action listener
-        button.addEventListener('click', () => {
-            dismiss();                                                    // Buttons always dismiss prompt
-            optionButton[1]();                                            // Run function or code block
-        });
-
-        // Append
-        optionContainer.appendChild(button);
-    });
-
-    // Append
-    prompt.appendChild(optionContainer);
-
-    print("customPrompt(): Creating prompt " + prompt.id + " : " + title);
-    document.body.appendChild(prompt);
-
-    // Dismiss prompt after timeout
-    // const timeout = 1000;
-    // if (timeout >= 0) {
-    //     setTimeout(() => {
-    //         dismiss();
-    //     }, 1000);}
-    // }
-
-    // TODO: Replace animations with show and hide, extend show and hide arguments or use CSS classes
-
-    // Animation: fade in
-    requestAnimationFrame(() => {
-        prompt.style.bottom = `${document.getElementById('controlBar').offsetHeight + 10}px`;               // Position after animation, above control bar
-        prompt.style.opacity = '1';
-    });
-
-    // Nested function to dismiss prompt
-    function dismiss() {
-        print("customPrompt(): Dismissing prompt " + prompt.id);
-
-        // Animation: fade out
-        prompt.style.transition = 'bottom 0.3s ease-in, opacity 0.3s ease-in';
-        prompt.style.bottom = '-100px';
-        prompt.style.opacity = '0';
-        setTimeout(() => {
-            prompt.style.display = 'none';
-            prompt.remove();
-        }, 300);
-
-    }
-
-    return prompt;
-
-}
-
-/**
- * Moves an element to view if it is outside the viewport
- *
+ * @param element
+ * @returns {Promise<boolean>}
  */
 async function moveElementToView(element) {
-    const {x: islandX, y: islandY} = getElementCenter(element);                                             // Get center of element
-    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();      // Get viewport edges
+    const { x: elementX, y: elementY } = getElementCenter(element);                                             // Get center of element
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();        // Get viewport edges
 
-    if (islandX < leftEdge || islandX > rightEdge || islandY > bottomEdge || islandY < topEdge) {           // Check if element is outside viewport (crude)
-        console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + islandX + " y = " + islandY + ", moving to view");
-        element.classList.toggle("animate_move");
+    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {         // Check if element is outside viewport (crude)
+        console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + elementX + " y = " + elementY + ", moving to view");
+        element.classList.add("animateMove");
 
-        // TODO: Add value for clearance from edges
+        // TODO: Add value for clearance from edges when moving
+        // TODO: Add value for threshold from edges to determine when to move
+        // TODO: Replace viewport with videoElement
 
-        if (islandX < leftEdge) {
+        if (elementX < leftEdge) {
             // Element is to the left of viewport
             element.style.left = "0";
         }
-        if (islandX > rightEdge) {
+        if (elementX > rightEdge) {
             // Element is to the right of viewport
-            element.style.left = "100vw";
+            element.style.left = `${80}vw`;
         }
-        if (islandY > bottomEdge) {
+        if (elementY > bottomEdge) {
             // Element is below viewport edge
-            element.style.top = `${80}vh`;                     // TODO: Ideally would calculate a position on the top edge of bottom bar
+            element.style.top = `${80}vh`;
         }
-        if (islandY < topEdge) {
+        if (elementY < topEdge) {
             // Element is above viewport edge
             element.style.top = "0";
         }
 
         setTimeout(() => {                              // Animate movement
-            element.classList.toggle('animate_move');
-        }, 1000);
+            element.classList.remove("animateMove");
+        }, 500);
 
         return true;
     }
@@ -1510,21 +1431,21 @@ async function moveElementToView(element) {
 function saveImage() {
     matchElementDimensions(videoElement, canvasElement);                                               // Ensure canvas matches video element (redundancy)
 
-    const canvasToSave = document.createElement('canvas');                  // Create temporary canvas for flattening/combining video feed and canvas together
-    const canvasContext = canvasToSave.getContext('2d');               // Get canvas context for drawing
+    const canvasToSave = document.createElement('canvas');                                             // Create temporary canvas for flattening/combining video feed and canvas together
+    const canvasContext = canvasToSave.getContext('2d');                                               // Get canvas context for drawing
     canvasToSave.style.display = 'none';                                                               // Make sure temporary canvas is never visible (redundancy)
     matchElementDimensions(videoElement, canvasToSave);                                                // Match new canvas with video element
 
-    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
-    canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);        // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
-    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);             // TODO: Same JSDoc typecast
-    canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);       // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
+    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                       // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
+    canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);      // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
+    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);                    // TODO: Same JSDoc typecast
+    canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);     // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
 
-    const dataURL = canvasToSave.toDataURL('image/jpeg');                   // Converts canvas element to image encoding string
-    const downloadElement = document.createElement('a');      // Creates "clickable" element
-    downloadElement.href = dataURL;                                                     // Points element to data URL
-    downloadElement.download = `${getDateTime()}_SDC_Image.jpg`;                        // Names download
-    downloadElement.click();                                                            // Initiates image download without dialog
+    const dataURL = canvasToSave.toDataURL('image/jpeg');                                              // Converts canvas element to image encoding string
+    const downloadElement = document.createElement('a');                                               // Creates "clickable" element
+    downloadElement.href = dataURL;                                                                    // Points element to data URL
+    downloadElement.download = `${getDateTime()}_SDC_Image.jpg`;                                       // Names download
+    downloadElement.click();                                                                           // Initiates image download without dialog
 
     // DEV: Alternative to link.click(), may be necessary for some browsers
     // document.body.appendChild(downloadElement);                         // Appends a link to HTML body for saving as file on Firefox
@@ -1558,16 +1479,16 @@ function videoFlip() {
 function videoFreeze(freezeIcon) {
     const stream = videoElement.srcObject;                                                          // Get current video stream
 
-    if (!isFreeze) {                                                                                // If video is not frozen, freeze it
+    if (!isFrozen) {                                                                                // If video is not frozen, freeze it
         if (stream) {
-            canvasDrawCurrentFrame();                                                               // Draw frame to canvas overlay, avoiding black feed
+            canvasDrawCurrentFrame();                                                               // Draw still frame to canvas overlay, avoiding black feed
             releaseVideoStream();                                                                   // Stop video TODO: Consider softer freeze with faster recovery, without relying on videoStart()
         }
         freezeIcon.src = "./images/showVideo.png";                                                  // Change icon image
         freezeIcon.title = "Show video";                                                            // Change tool tip text
         freezeIcon.setAttribute("data-locale-key", "play");
         translateElement(freezeIcon);
-        isFreeze = true;                                                                            // Freeze is on
+        isFrozen = true;                                                                            // Freeze is on
     } else {
         videoStart();
         videoElement.style.display = 'block';
@@ -1576,8 +1497,634 @@ function videoFreeze(freezeIcon) {
         freezeIcon.title = "Freeze";
         freezeIcon.setAttribute("data-locale-key", "freeze");
         translateElement(freezeIcon);
-        isFreeze = false;                                                                           // Freeze is off
+        isFrozen = false;                                                                           // Freeze is off
     }
+}
+
+/**
+ * Adds new overlay.
+ * Simple caller.
+ */
+function addOverlay() {
+    createdElements.createOverlay();
+}
+
+/**
+ * Adds new text area.
+ * Simple caller.
+ */
+function addText() {
+    createdElements.createTextArea();
+}
+
+
+// Prompting and error handling
+
+/**
+ * Displays legal notice prompts
+ *
+ * @param promptType Type of legal prompt to show: privacy, tos or full (both combined)
+ * @param onlyReturnFunction If true, returns function for prompt, but does not execute it (defer execution)
+ * @param noOptions If true, prompt will only have a button to dismiss (use for pure info prompts)
+ * @param longText If true, will use long legal text instead of default short (does not apply to prompt type "full")
+ */
+function showLegalPrompt(promptType, onlyReturnFunction = false, noOptions = false, longText = false) {
+
+    // Set button styles
+    const colorAccept   = "optionDefault"  ;
+    const colorMinimum  = "optionNeutral"  ;
+    const colorReject   = "optionNegative" ;
+
+    // Setup for returning function
+    let prompt;
+
+    // Setup for disabling button options
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+    let buttons = [{ buttonText: currentTranslations.dismiss,  localeKey: "dismiss"  ,  action: () => { }  },];
+    let text;
+    let localeKey;
+
+    switch(promptType) {
+        case 'privacy':
+            // Displays a privacy notice.
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.privacyTitle);
+
+            if (!noOptions) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                buttons = [
+                    { buttonText: currentTranslations.privacyRejectStorage ,  localeKey: "privacyRejectStorage" , customCSS: colorReject  ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosExclusive"); }   },
+                    { buttonText: currentTranslations.privacyNotNow        ,  localeKey: "privacyNotNow"        , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; }                                                   },
+                    { buttonText: currentTranslations.privacyAgreeStorage  ,  localeKey: "privacyAgreeStorage"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                  }
+                ]
+            }
+
+            if (!longText) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.privacyText;
+                localeKey = "privacyText";
+            } else {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.privacyLongText;
+                localeKey = "privacyLongText";
+            }
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            prompt = () => customPrompt({title: currentTranslations.privacyTitle, localeKey: "privacyTitle"}, {content: text, localeKey: localeKey}, buttons
+            );
+
+            break;
+        case 'tos':
+            // Displays a ToS (terms of service) notice.
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitle);
+
+            if (!noOptions) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                buttons = [
+                    { buttonText: currentTranslations.tosRejectTos    ,  localeKey: "tosRejectTos"  , customCSS: colorReject  ,  action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
+                    { buttonText: currentTranslations.tosAgreeToTos   ,  localeKey: "tosAgreeToTos" , customCSS: colorAccept  ,  action: () => { appStatus.privacy = "noStorage"; handleLocalStorage(); }                              }
+                ]
+            }
+
+            if (!longText) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.tosText;
+                localeKey = "tosText";
+            } else {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                text = currentTranslations.tosLongText;
+                localeKey = "tosLongText";
+            }
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            prompt = () => customPrompt({title: currentTranslations.tosTitle, localeKey: "tosTitle"}, {content: text, localeKey: localeKey}, buttons
+            );
+
+            break;
+        case 'full':
+            // Displays a full privacy and ToS (terms of service) notice.
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            console.log("showLegalPrompt(): Displaying a notice: " + currentTranslations.tosTitleCombined);
+
+            // Construct custom HTML object for combined prompt
+            let customContent = document.createElement('div');
+            // Privacy element
+            const privacy = document.createElement('div');
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            privacy.innerHTML = currentTranslations.privacyText;
+            privacy.dataset.localeKey = 'privacyText';
+            // Spacer element
+            const spacer = document.createElement('div');
+            spacer.innerHTML = "<br>";
+            // TOS element
+            const tos = document.createElement('div');
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            tos.innerHTML = currentTranslations.tosText;
+            tos.dataset.localeKey = 'tosText';
+            // Append elements
+            customContent.appendChild(privacy);
+            customContent.appendChild(spacer);
+            customContent.appendChild(tos);
+
+            if (!noOptions) {
+                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+                buttons = [
+                    { buttonText: currentTranslations.tosRejectTos  ,  localeKey: "tosRejectTos"   , customCSS: colorReject  ,   action: () => { appStatus.privacy = "reject"; haltServiceLegal("showLegalPrompt()"); }   },
+                    { buttonText: currentTranslations.tosAgreeToTos ,  localeKey: "tosAgreeToTos"  , customCSS: colorMinimum ,   action: () => { appStatus.privacy = "noStorage"; updateUrlParam("privacy", "agreeTosInclusive"); }    },
+                    { buttonText: currentTranslations.tosAgreeToAll ,  localeKey: "tosAgreeToAll"  , customCSS: colorAccept  ,   action: () => { appStatus.privacy = "full"; handleLocalStorage(); }                                   }
+                ]
+            }
+
+            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            prompt = () => customPrompt({title: currentTranslations.tosTitleCombined, localeKey: "tosTitleCombined"}, {content: customContent}, buttons
+            );
+
+            break;
+    }
+
+    if (!onlyReturnFunction) {
+        prompt();
+        return true;
+    } else {
+        return prompt;
+    }
+
+}
+
+async function showWaitPrompt(time = 4, waitWith = true) {
+
+    if (appStatus.hasVideoError) {
+        print("showWaitPrompt(): App in error state, skipping wait");
+        return false;
+    }
+
+    if (new URLSearchParams(window.location.search).has("skipWait")) {
+        print("showWaitPrompt(): URL parameter to skip wait");
+        return false;
+    }
+
+    // Get and check logo
+    const brandingLogo = getBrandingLogo();
+    if (!brandingLogo) {
+        print("showWaitPrompt(): Logo file does not exist");
+        return false;
+    }
+
+    let contentObject = document.createElement('div');
+    contentObject.appendChild(brandingLogo);
+    contentObject.appendChild(document.createElement('br'));
+    contentObject.appendChild(document.createElement('br'));
+
+    // Construct loader
+    const loaderDiv = document.createElement('div');
+    loaderDiv.className = 'loader';
+    contentObject.appendChild(loaderDiv);
+
+    const containerCSSOverrides = {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '465px',
+        height: '338px',
+        borderRadius: '8px',
+        opacity: '1'
+    };
+
+    const textStyleOverrides = {
+        textAlign: 'center',
+        padding: '100px'
+    };
+
+    await customPrompt({}, {content: contentObject}, [], containerCSSOverrides, false, true, true, textStyleOverrides, time);      // Show prompt with no options but timed dismissal
+
+    // Waiting with prompt
+    if (waitWith) {
+        await new Promise(resolve => setTimeout(resolve, time * 1000));
+    }
+
+    return true;
+
+    /**
+     * Nested function to get branding logo
+     */
+    function getBrandingLogo() {
+        const logoPath = "./branding/logo.png";
+        if (!fileExists(logoPath)) return false;
+
+        const img = document.createElement("img");
+        img.src = logoPath;
+        img.classList.add("brandingLogo");
+
+        return img;
+
+        // DEV: Placeholder gradient for testing
+        // const gradientDiv = document.createElement('div');
+        // gradientDiv.style.cssText = 'width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%)';
+        // return gradientDiv;
+        // Dev inlines for testing
+        // let content = "<div style=\"width:270px;height:60px;background:linear-gradient(90deg,rgba(217,173,41,1)0%,rgba(87,199,133,1)18%,rgba(235,144,7,1)100%);\"></div>\n";
+        // content += "<br><br><div class='loader'></div>";
+
+    }
+
+
+}
+
+// noinspection JSUnusedGlobalSymbols // Called from HTML parsed from localized .json (IDE will not register this as a usage)
+/**
+ *
+ *
+ * @returns {Promise<void>}
+ */
+async function showLegalTosInfo() {
+    // showContentPrompt('fi_tos')
+    print("showLegalTosInfo(): Showing info prompt");
+    showLegalPrompt("tos", false, true, true)
+    // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
+}
+
+// noinspection JSUnusedGlobalSymbols // Called from HTML parsed from localized .json (IDE will not register this as a usage)
+/**
+ *
+ *
+ * @returns {Promise<void>}
+ */
+async function showLegalPrivacyInfo() {
+    // showContentPrompt('en_privacy', true, true)
+    print("showLegalPrivacyInfo(): Showing info prompt");
+    showLegalPrompt("privacy", false, true, true)
+    // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
+}
+
+/**
+ * Presents legal info through a prompt
+ *
+ * @returns {Promise<void>}
+ */
+async function showLegalFullInfo() {
+    print("showLegalFullInfo(): Showing info prompt");
+    showLegalPrompt("full", false, true)
+    // TODO: Must be the biggest prompt type vertically, to always remain the top layer with no underlap
+}
+
+function showErrorPrompt(errorPackage) {
+
+    let modal         =    false;                           // TODO: Modal prompt would be sensible to use here, but there's currently z-index issues with prompts
+    let clickOut      =    true;
+
+    let promptButtons = [
+        { buttonText: errorPackage.solutionButtonText, localeKey: errorPackage.solutionButtonLocaleKey , customCSS: "optionDefault", action: () => { errorPackage.solutionButtonAction(); } }
+    ];
+
+    // TODO: Severity-based error handling
+    // if (!errorPackage.severe) {
+    //     modal         =    false;
+    // } else {
+    //     modal = true;
+    //     clickOut = false;
+    //     // noinspection JSUnresolvedReference            // Object property references are populated elsewhere
+    //     promptButtons.push(
+    //         { buttonText: currentTranslations.dismiss, localeKey: "dismiss" , customCSS: "optionNeutral",  action: () => { window.location.reload.bind(window.location); } }
+    //     )
+    // }
+
+    customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut);
+
+}
+
+function videoError(errorType, source, errorObject) {
+
+    // Create error package for prompting user
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+    let errorPackage = {
+        type                      : "videoError",
+        source                    : source + ",videoError()",
+        severe                    : false,
+        devDescription            : "Halt from: " + source,
+        promptTitle               : currentTranslations.videoProblemPromptTitle,
+        promptTitleLocaleKey      : "videoProblemPromptTitle",
+        promptInfoText            : currentTranslations.videoProblemPromptInfoText,
+        promptInfoTextLocaleKey   : "videoProblemPromptInfoText",
+        solutionButtonText        : currentTranslations.retry,
+        solutionButtonLocaleKey   : "retry",
+        solutionButtonAction      : videoStart
+    }
+
+    // Differentiate between known errors                        TODO: Can create error-specific solutions or prompts based on this framework, simply change info text, button text(s) and actions
+    switch (errorType) {
+        case 'errorMediaAccess': {
+            errorPackage.devDescription         = "No media permission or access";
+            errorPackage.devDescriptionVerbose     = "This particular issue seems related to lack of permissions and camera access.";
+
+            break;
+        }
+        case 'errorInputEnumeration': {
+            errorPackage.devDescription         = "No valid inputs could be found";
+            errorPackage.devDescriptionVerbose     = "This particular issue may be caused by your devices not being connected.";
+
+            break;
+        }
+        case 'errorInputListUpdate': {
+            errorPackage.devDescription         = "Error while attempting to update video input list";
+            errorPackage.devDescriptionVerbose     = "This particular issue is rare. If it persists, please report it to the developers of this app.";
+
+            break;
+        }
+        case 'errorInputSet': {
+            errorPackage.devDescription         = "Error while attempting to use video input";
+            errorPackage.devDescriptionVerbose     = "This particular issue may be caused by other programs using the camera.";
+
+            break;
+        }
+        default: {
+            errorPackage.devDescription         = "Error type unknown";
+            errorPackage.devDescriptionVerbose     = "This particular issue is unknown. Please report it to the developers of this app.";
+
+            break;
+        }
+    }
+
+    // Show prompt
+    // console.error("videoError(): errorObject.name + " : " + errorObject.message);
+    console.error("videoError(): Error: " + source + " : " + errorType + errorPackage.devDescription + " : " + errorPackage.devDescriptionVerbose);
+    showErrorPrompt(errorPackage);
+
+    // Nested function to source technical info when user requests it from UI
+    // function moreInfo() {
+    //     let output = "Error source: " + errorPackage.source + " , type designation: " + errorPackage.type + " , description: " + errorPackage.devDescription;
+    //     output += "<br><br> Error object: " + errorObject.name + " : " + errorObject.message
+    //     return output;
+    // }
+}
+
+function haltServiceLegal(source) {
+
+    // Halt
+    console.error("haltServiceLegal(): Service halt called by: " + source);
+    try {
+        videoFreeze(null); // TODO: Halt method is insufficient and unclean
+    } catch (e) {
+
+    }
+
+    // Create error package for prompting user
+    // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+    let errorPackage = {
+        type                      : "halt",
+        source                    : source + ",haltServiceLegal()",
+        severe                    : true,
+        devDescription            : "Halt from: " + source,
+        promptTitle               : currentTranslations.tosHaltPromptTitle,
+        promptTitleLocaleKey      : "tosHaltPromptTitle",
+        promptInfoText            : currentTranslations.tosHaltPromptInfoText,
+        promptInfoTextLocaleKey   : "tosHaltPromptInfoText",
+        solutionButtonText        : currentTranslations.tosHaltPromptButtonText,
+        solutionButtonLocaleKey   : "tosHaltPromptButtonText",
+        solutionButtonAction      : window.location.reload.bind(window.location) // Fails without binding execution context: 'reload' called on an object that does not implement interface Location, bind returns new function, avoiding immediate refresh when line parsed
+    }
+
+    // Show prompt
+    showErrorPrompt(errorPackage);
+
+}
+
+/**
+ * Creates a prompt with text or HTML content and buttons.
+ * Executes actions based on button press.
+ *
+ * @param title Title text for prompt
+ * @param content Body text for prompt (can contain HTML as string or an object)
+ * @param options Array with text and code to run for buttons
+ * @param containerCSSOverrides CSS class (string) to add to class list or object with custom CSS style declarations, will apply to prompt container
+ * @param modal Should the prompt be modal
+ * @param clickOut Should modal prompt exit when modal overlay is clicked
+ * @param noTitle
+ * @param textCSSOverrides Can be string or object
+ * @param timedDismiss
+ * @param languageSelector
+ */
+async function customPrompt(title = {}, content = {}, options = [ { buttonText: "Close", action: () => {  } } ], containerCSSOverrides = null, modal = false, clickOut = true, noTitle = false, textCSSOverrides = null, timedDismiss = 0, languageSelector = true) {
+
+    // Do not use this function directly. Instead, create a separate function for your application.
+    // See previous uses of this function for examples.
+    // 
+    // Examples (update!, title and content turned into objects)
+    // {title: null, localeKey: null}, content = {content: null, localeKey: null}
+    // Note that if a custom object is used for content.content, element.dataset.localeKey needs to be set manually for that object if translations are required.
+    //
+    // ---------- ---------- ----------
+    //
+    // let promptTitle   =    "Title";
+    // let promptText    =    "Text";
+    // let promptButtons = [
+    //     {    buttonText: "Yes"       ,   action: () => {   console.log( "Button Yes pressed" );    } },
+    //     {    buttonText: "No"        ,   action: () => {   console.log( "Button No pressed"  );    } },
+    //     {    buttonText: "Dismiss"   ,   action: () => {  } }
+    // ];
+    // customPrompt(promptTitle, promptText, promptButtons);
+    //
+    // ---------- ---------- ----------
+    //
+    // All buttons dismiss the prompt by default.
+    // Prompt title and text can be string or HTML string. All HTML will be parsed and rendered normally.
+    //
+    // Function has more optional parameters.
+    // Most extra parameters are designed for other functions (e.g. showInfoPrompt() ) for various use cases. You should use those.
+    // containerCSSOverrides                // Applies (inline) a set of custom CSS key-value pairs from an object ( example: overrides = {display: flex, gap: 20px} )
+    //
+    // Objects for buttons have more available properties that can be set if needed. These are optional.
+    // dismissOnPress: false                // True by default. If set to false (risky), dismissal of prompt must be achieved manually.
+    // customCSS: "CSSClassName"            // Sets a specific CSS class name for the button
+    // customCSS: object                    // Applies (inline) a set of custom CSS key-value pairs from an object
+    //
+    // Different ways to use button object property "action" exist. Functions, anonymous functions, function expressions, callbacks and code blocks can be used. TODO: test all
+    //
+    // TODO: Return values? References exist. Could add as property of html element. Could forward action return value.
+
+    // Create prompt container
+    const prompt = document.createElement('div');                     // Create element
+    prompt.id = String(Date.now());                                   // Assign a (pseudo) unique id
+    prompt.className = 'prompt';                                      // Set basic CSS class
+
+    // Potential CSS overrides
+    if (containerCSSOverrides) {
+        if (typeof containerCSSOverrides === "object") {
+            print("customPrompt(): Applying CSS overrides (object) to prompt container");
+            Object.assign(prompt.style, containerCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
+        } else if (typeof containerCSSOverrides === "string") {
+            print("customPrompt(): Applying CSS overrides (class) to prompt container: " + containerCSSOverrides);
+            prompt.classList.add(containerCSSOverrides);
+        }
+    }
+
+    if (!noTitle) {
+        // Create title text
+        const titleContainer = document.createElement('div');
+        titleContainer.className = 'promptTitle';                           // Set basic CSS class
+        const textTitle = document.createElement('span');
+        textTitle.textContent = title.title;
+        textTitle.dataset.localeKey = title.localeKey;                        // Set key value for translation
+
+        // Append
+        titleContainer.appendChild(textTitle);
+        prompt.appendChild(titleContainer);
+
+        if (languageSelector) {
+            // Create language selector
+            const languageSelectorElement = document.createElement('div');
+            languageSelectorElement.className = 'languageSelector';                           // Set basic CSS class
+
+            availableLocales.forEach((locale, index) => {
+                const localeElement = document.createElement('span');
+                localeElement.textContent = locale;
+                localeElement.style.cursor = 'pointer';
+                localeElement.addEventListener('click', () => {
+                    setLocale(locale).then(() => {});
+                });
+                languageSelectorElement.appendChild(localeElement);
+
+                if (index < availableLocales.length - 1) {
+                    const separator = document.createElement('span');
+                    separator.textContent = ' | ';
+                    languageSelectorElement.appendChild(separator);
+                }
+            });
+
+            titleContainer.appendChild(languageSelectorElement);
+            }
+    }
+
+    // Create body text
+    const textBody = document.createElement('div');
+    textBody.className = 'promptText';                                   // Set basic CSS class
+
+    // Potential CSS overrides textCSSOverrides
+    if (textCSSOverrides) {
+        if (typeof textCSSOverrides === "object") {
+            print("customPrompt(): Applying CSS overrides (object) to prompt text");
+            Object.assign(textBody.style, textCSSOverrides);                // Assigns CSS key-value pairs to element from argument for custom styles
+        } else if (typeof textCSSOverrides === "string") {
+            print("customPrompt(): Applying CSS overrides (class) to prompt text: " + textCSSOverrides);
+            textBody.classList.add(textCSSOverrides);
+        }
+    }
+
+    // Handle contents
+    switch (true) {                                                         // Replaces stacked if-expressions TODO: Consider else if
+        case typeof content.content === 'object' && content.content instanceof HTMLElement:
+            print("customPrompt(): Prompt content identified as HTML element object");
+            textBody.appendChild(content.content);
+            break;
+        case /</.test(content.content) && />/.test(content.content):
+            print("customPrompt(): Prompt content identified as HTML string");
+            textBody.innerHTML = content.content;
+            textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
+            break;
+        case (!content.content):
+            print("customPrompt(): Prompt content is empty", 'yellow');
+            textBody.textContent = "";
+            textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
+            break;
+        default:
+            print("customPrompt(): Prompt content identified as plain string");
+            textBody.textContent = content.content;
+            textBody.dataset.localeKey = content.localeKey;                      // Set key value for translation
+            break;
+    }
+
+    // Append
+    prompt.appendChild(textBody);
+
+    // Modal functionality
+    const modalPromptOverlay = document.createElement("div");               // Create container element
+    if (modal) {                                                            // Create modal overlay if requested
+        modalPromptOverlay.classList.add("modalPromptOverlay");             // Set basic CSS class for styling
+        modalPromptOverlay.classList.add("hidden");                         // Set CSS class for initial hide
+        document.body.appendChild(modalPromptOverlay);                      // Append
+        showElement(modalPromptOverlay);
+        if (clickOut) {
+            modalPromptOverlay.addEventListener('click', dismiss);
+        }
+    }
+
+    // Create button container
+    const optionContainer = document.createElement('div');
+    optionContainer.className = 'promptOptionContainer';                  // Set basic CSS class
+
+    // Setup value return
+    let returnValue = undefined;
+
+    // Create buttons
+    options.forEach((optionButton) => {
+        // Create button
+        const button = document.createElement('button');
+        button.textContent = optionButton.buttonText;                        // Get text for button
+        button.dataset.localeKey = optionButton.localeKey;                   // Set key value for translation
+
+        // Styling
+        button.className = 'promptOption';                                   // Set basic CSS class
+
+        // Potential custom style for button
+        if (optionButton.customCSS) {
+            button.classList.add(optionButton.customCSS)
+            if (typeof optionButton.customCSS === "object") {
+                print("customPrompt(): Applying CSS overrides (object) to button");
+                Object.assign(button.style, optionButton.customCSS);                // Assigns CSS key-value pairs to element from argument for custom styles
+            } else if (typeof optionButton.customCSS === "string") {
+                print("customPrompt(): Applying CSS overrides (class) to button: " + optionButton.customCSS);
+                button.classList.add(optionButton.customCSS);
+            }
+        }
+
+        // Attach action listener
+        button.addEventListener('click', () => {
+            // noinspection JSUnresolvedReference                                           // Defining dismissOnPress is optional
+            if (optionButton?.dismissOnPress === undefined || optionButton?.dismissOnPress) // If undefined or true
+            {
+                dismiss();                                                                  // Buttons dismiss prompt by default
+            } else {                                                                        // If explicitly set to false
+                // Dismissal must be manually achieved by deleting prompt container element
+                // If modal, modal overlay will persist as it is appended to document
+                // If modal true and clickOut false, modal overlay cannot be removed easily
+            }
+            try {
+                optionButton.action();                                                      // Run function or code block
+                returnValue = (optionButton.returnValue) ? optionButton.returnValue : 0;    // False is currently reserved for errors, attempt to return false returns 0
+            } catch (e) {
+                console.error("customPrompt(): Button action failed: " + e.message);
+                returnValue = false;
+            }
+        });
+
+        // Append
+        optionContainer.appendChild(button);
+    });
+
+    // Append
+    prompt.appendChild(optionContainer);
+
+    // Append prompt
+    print("customPrompt(): Creating prompt " + prompt.id + " : " + title.title);
+    document.body.appendChild(prompt);
+    showElement(prompt);
+
+    // Timed dismiss
+    if (timedDismiss > 0) {
+        setTimeout(dismiss, timedDismiss * 1000);
+    }
+
+    // Nested function to dismiss prompt
+    function dismiss() {
+        print("customPrompt(): Dismissing prompt " + prompt.id);
+        if (modal) {
+            removeElement(modalPromptOverlay);
+        }
+        removeElement(prompt)       // Animated hide, then remove
+    }
+
+    return prompt;
+
 }
 
 
@@ -1639,8 +2186,14 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElement.style.transform = `scaleX(${flip}) rotate(${rotation}deg) scale(${currentZoom})`;    // Updates video rotation, flipping and current zoom
-    canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+    videoElementFrame.style.transform =
+        `scale(${currentZoom})`;
+
+    videoElement.style.transform =
+        `rotate(${rotation}deg) scaleX(${flip})`;
+
+    // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
+    // canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
 }
 
 /**
@@ -1663,7 +2216,7 @@ function hideElement(element, removeAfter = false) {
     element.classList.add("hidden");                                                                         // Apply CSS class to hide element
 
     element.addEventListener("transitionend", function hideAfterTransition() {                               // Change display state after animation
-        element.style.display = "none";                                                                      // Required as hidden class only applies 0 opacity (display to none cannot be animated)
+        element.style.display = "none";                                                                      // Required as hidden class only applies 0 opacity (display to none cannot be animated) TODO: FIX: GLITCHES BUTTONS, GETS STUCK
         element.removeEventListener("transitionend", hideAfterTransition);
     });
 
@@ -1682,13 +2235,13 @@ function hideElement(element, removeAfter = false) {
  * @param display Display state to set (use for newly created elements)
  */
 function showElement(element, display = null) {
-    let displayState;
+    let displayState; // TODO: No more needed?
     if (display != null) {                      // If element has been given a specific display state to use
         displayState = display
     } else {                                    // If element was hidden using hideElement()
         displayState = element.getAttribute("data-return-display-state");
         element.removeAttribute("data-return-display-state");
-    }
+    } // TODO: If neither applies, just remove the hidden class without fail
     element.style.display = displayState;       // Set display state
     // TODO: Dev: replace block with ternary
 
@@ -1713,15 +2266,40 @@ function showElement(element, display = null) {
 
 /**
  * Gets the center coordinates of an HTML element.
+ * Relative to viewport, based on bounding rectangle.
+ *
  * @param {HTMLElement} element HTML element
  * @returns {{x: number, y: number}} Object with x, y coordinates
  */
 function getElementCenter(element) {
     const rect = element.getBoundingClientRect();
-    const x = rect.left + window.scrollX + rect.width / 2;  // Rounding with Math.round() should not be necessary
-    const y = rect.top + window.scrollY + rect.height / 2;  // TODO: Reconsider scroll values
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
 
-    return { x, y };                                        // Example use to create two variables: let {x: centerX, y: centerY} = getElementCenter(element);
+    return { x, y };
+}
+
+/**
+ * Gets the dimensions of an HTML element.
+ * Choice available between computed and bounding rectangle dimensions.
+ *
+ * @param {HTMLElement} element HTML element
+ * @param bounding If true, dimensions are based on bounding rectangle, default false uses computed values
+ * @returns {{width: number, height: number}}
+ */
+function getElementDimensions(element, bounding = false) {
+    let width, height;
+
+    if (!bounding) {
+        width = parseFloat(getComputedStyle(element).width);
+        height = parseFloat(getComputedStyle(element).height);
+    } else {
+        const rect = element.getBoundingClientRect();                   // Element must be in DOM, otherwise consider element.width, element.height
+        width = rect.width;
+        height = rect.height;
+    }
+
+    return { width, height };
 }
 
 /**
@@ -1744,28 +2322,45 @@ function getViewportEdges() {
                     |
                     |
        x-   - - - - | - - - - -   x+
-                    |  PAGE
-                    |
-                    |
+                    |  PAGE ...
+                    |  ........
+                    |  ........
                     y+
     */
 }
 
-
-// Simple caller methods
-
 /**
- * Adds new overlay.
+ * Checks if an array contains a specified value (strict).
+ *
+ * @param {Array} array - Array to parse
+ * @param {*} value - Value to check for
+ * @returns {boolean} True if value found in array
  */
-function addOverlay() {
-    createdElements.createOverlay();
+function arrayContains(array, value) {
+    return array.some(v => Object.is(v, value));
 }
 
 /**
- * Adds new text area.
+ * Shortens a long string.
+ * Used for long hex device ids.
+ * @param id
+ * @returns {string}
  */
-function addText() {
-    createdElements.createTextArea();
+function shorten(id) {
+    let shortenedId = id.trim();
+    shortenedId = shortenedId.replace(/[{}]/g, '');
+    shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
+    return shortenedId;
+}
+
+function getImage(name) {
+    const img = document.createElement("img");
+    img.src = "./images/" + name;
+    return img;
+}
+
+function fileExists() {
+    return true;
 }
 
 
@@ -1844,13 +2439,19 @@ class CreatedElements {
         this.activeTextAreaObject.changeFontSize(size);
     }
 
+    // Other
+
+    deleteCreatedElement() {
+
+    }
+
 }
 
 /**
- * Parent class for dynamically created movable elements.
+ * Parent class for dynamically created elements.
  * This class should not be directly instantiated (use inheritors instead).
  */
-class MovableElement {
+class CreatedElement {
 
     // Generic
     type;                                           // For fast identification of inheritor instance type
@@ -1861,28 +2462,15 @@ class MovableElement {
     container;                                      // Container reference
     resizeHandle;                                   // Reference for resize handle
 
-    // Potential listener references that are not deleted along with element via garbage collection
-    // dragListeners = [];                          // Listeners for drag operation
-    // removeListener;                              // Listener for the remove button
-    // removeHoverListeners = [];                   // Listeners for the hover visibility of remove button
-    // resizeHandleListeners = [];                  // Listeners for resize operation through handle
-    // resizeHandleHoverListeners = [];             // Listeners for hover visibility of resize handle
-
     // Switches
-    allowMove;                                      // Is drag ability enabled
     visible;                                        // Is element visible
 
 
     // Initialization
 
-    /**
-     * Instantiates class.
-     * Relies on parent class.
-     */
-    constructor(type, allowMove = true) {
+    constructor(type) {
         this.type = type;
         this.id = String(Date.now());
-        this.allowMove = allowMove;
     }
 
 
@@ -1897,15 +2485,15 @@ class MovableElement {
     }
 
 
-    // Styling
+    // Styling // TODO: Use these
 
     hide() {
-        hideElement(this.element);
+        hideElement(this.container);
         this.visible = false;
     }
 
     show() {
-        showElement(this.element);
+        showElement(this.container);
         this.visible = true;
     }
 
@@ -1920,56 +2508,104 @@ class MovableElement {
 
     // Functionality
 
-    // TODO: Generalized drag handlers here
-
     // TODO: Resize handle implementation here
+
+
+}
+
+/**
+ * Parent class for movable elements.
+ * This class should not be directly instantiated (use inheritors instead).
+ */
+class MovableElement extends CreatedElement {
+
+    // Switches
+    allowMove;                                      // Is drag ability enabled
+
+    // Initialization
+
+    /**
+     * Instantiates class.
+     * Relies on parent class.
+     */
+    constructor(type, allowMove = true) {
+        super(type);
+        this.allowMove = allowMove;
+    }
+
+
+    // Functionality
+
+
+    // Drag handling (TODO: Write and implement generic)
+
+    dragStart() {
+    }
+
+    dragUpdater() {
+    }
+
+    dragStop() {
+    }
 
 
     // Other
 
     /**
-     * Creates new element and a remove button for it.
+     * Creates new element.
      * @param type Element type to add (HTML tagName)
      * @param className Class name for element (should correspond with a CSS class)
      * @param id Unique identifier for added element
-     * @param elementStyle CSS style object for added element
-     * @param removeButtonStyle CSS style object for remove button
+     * @param createRemoveButton True of remove button should be created (optional, css class for button is classNameRemoveButton)
      */
-    createElement(type, className, id, elementStyle = {}, removeButtonStyle = {}) {
+    createElement(type, className, id, createRemoveButton = false) { // TODO: Move to super
 
         // Create main element
         let newElement = document.createElement(type);
         newElement.id = this.id;
         newElement.className = className;                          // Assign basic class name to apply CSS styles
-        Object.assign(newElement.style, elementStyle);
-        newElement.style.opacity = "0";
+        newElement.classList.add("hidden");
         print("createElement(): Added " + newElement.className + " element: " + newElement.id);
 
         // Create remove button
-        let removeButton = document.createElement('button');
-        removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
-        removeButton.id = id + "RemoveButton";                    // Forms id for remove button
-        removeButton.title = "Remove";
-        removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
-        removeButton.textContent = "X";
-        Object.assign(removeButton.style, removeButtonStyle);     // TODO: Only assign if anything defined (set default to null and add conditional for != null)
-        removeButton.addEventListener('click', () => removeElement(newElement));
-        print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
+        if (createRemoveButton) {
+            let removeButton = document.createElement('button');
+            // let removeButton = Menu.createButton("delete.png", id + "RemoveButton", id + "RemoveButtonIcon", "Remove", newElement);
+            removeButton.className = className + "RemoveButton";      // Assign basic class name to apply CSS styles
+            removeButton.classList.add("hidden");                     // TODO: Can conflict with icon onload shows and hides!
+            removeButton.style.display = "block";                     // TODO: Move to CSS
+            removeButton.id = id + "RemoveButton";                  // Forms id for remove button
+            removeButton.title = "Remove";
+            removeButton.setAttribute("data-locale-key", "remove");   // Assign translation key
+            // removeButton.textContent = "X";
+            removeButton.addEventListener('click', () => removeElement(newElement)); // TODO: This vs. button.onclick ?
+            print("createElement(): Added " + removeButton.className + " for: " + newElement.id);
 
-        // Remove button only visible when hovered over
-        newElement.addEventListener('mouseover', () => (          // TODO: Make sure fastest CSS animations apply
-            removeButton.style.display = "block"
-        ));
-        newElement.addEventListener('mouseout', () => (
-            removeButton.style.display = "none"
-        ));
+            // Add icon
+            const icon = getImage("delete.png");
+            icon.id = id + "RemoveButtonIcon";
+            icon.alt = "Remove";
+            icon.classList.add("icon");
+            removeButton.appendChild(icon);
 
-        // Add element to DOM
-        newElement.appendChild(removeButton);
-        translateElement(removeButton);
-        // island.after(newElement);                              // DEV: Causes incorrect stacking for elements with equal z-index, due to inverted order in DOM
+            // Remove button only visible when hovered over
+            newElement.addEventListener('mouseover', () => (
+                // removeButton.style.display = "block"
+                removeButton.classList.remove("hidden")
+            ));
+            newElement.addEventListener('mouseout', () => (
+                // removeButton.style.display = "none"
+                removeButton.classList.add("hidden")
+            ));
+
+            // Add element to DOM
+            newElement.appendChild(removeButton);
+            translateElement(removeButton);
+
+        }
+
         videoContainer.appendChild(newElement);
-        newElement.style.opacity = "1";                           // TODO: Apply fade to creation
+        showElement(newElement);
 
         return newElement;
     }
@@ -1987,6 +2623,17 @@ class Overlay extends MovableElement {
     // Other
     overlayX;                                                                               // Initial position of the overlay when starting drag
     overlayY;
+    defaultTextureBackground;                                                               // Inline style for overlay background
+    static defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
+        236, 250,               // r min, max
+        230, 240,               // g min, max
+        220, 230,               // b min, max
+        160, 254                // a min, max
+    ];
+    static defaultTextureBlockSize = 1;
+    static defaultTextureSmoothing = 200;
+    static noiseCanvas;         // Static variable for shared single-render noise canvas source
+
 
     // Initialization
 
@@ -2005,7 +2652,17 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "createdOverlay", this.id);
+        this.element = super.createElement("div", "createdOverlay", this.id, true);
+
+        if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
+            Overlay.renderNoiseCanvas(this.element);
+        }
+
+        // TODO: Make into async block, enable fade-in
+        this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas));
+
+        // Regenerate texture on element resize
+        // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
 
         // Add listeners
         this.handleListeners();
@@ -2019,6 +2676,22 @@ class Overlay extends MovableElement {
         print("handleListeners(): Adding drag listener for overlay: " +  this.id);
         let overlay = document.getElementById(this.id);                              // TODO: Remove extra gets, use reference in variable
         overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
+    }
+
+    static async preRenderNoiseCanvas() {
+        // Create temporary container element for actual dimensions
+        let newElement = document.createElement("div");
+        newElement.id = String(Date.now());
+        newElement.className = "createdOverlay";
+        newElement.classList.add("hidden");
+        videoContainer.appendChild(newElement);
+        print("Overlay: preRenderNoiseCanvas(): Pre-rendering noise canvas for overlays (async)");
+
+        // Render
+        Overlay.renderNoiseCanvas(newElement);
+
+        // Cleanup
+        removeElement(newElement);
     }
 
 
@@ -2086,6 +2759,222 @@ class Overlay extends MovableElement {
         document.removeEventListener('mouseup', mouseUpHandler);
     }
 
+
+    // Other
+
+    /**
+     * Fills a canvas with noise.
+     *
+     * @param canvas Canvas to fill with noise (must have width and height set)
+     * @param colors Array of rgba min, max values
+     * @param clustering Size of noise blocks
+     * @param smoothing Smoothing amount (0–255)
+     */
+    static fillCanvasWithNoise(canvas, colors = null, clustering = 2, smoothing = 10) {
+        const ctx = canvas.getContext('2d');                 // get canvas context
+        const width = canvas.width;                           // canvas width
+        const height = canvas.height;                         // canvas height
+        const imageData = ctx.createImageData(width, height);// allocate image buffer
+        const data = imageData.data;                          // pixel data array
+
+        if (!colors || colors.length < 8) {
+            colors = [0, 255, 0, 255, 0, 255, 255, 255];   // default rgba range
+        }
+
+        const bw = Math.ceil(width / clustering);            // blocks horizontal count
+        const bh = Math.ceil(height / clustering);           // blocks vertical count
+
+        /**
+         * Generate a random rgba value within settings range
+         * @returns {{r:number, g:number, b:number, a:number}}
+         */
+        function generateRandomRGBA() {
+            return {
+                r: Math.min(255, colors[0] + Math.floor(Math.random() * (colors[1] - colors[0] + 1))), // red
+                g: Math.min(255, colors[2] + Math.floor(Math.random() * (colors[3] - colors[2] + 1))), // green
+                b: Math.min(255, colors[4] + Math.floor(Math.random() * (colors[5] - colors[4] + 1))), // blue
+                a: Math.min(255, colors[6] + Math.floor(Math.random() * (colors[7] - colors[6] + 1)))  // alpha
+            };
+        }
+
+        /**
+         * Create initial noise blocks matrix
+         * @returns {Array<Array<{r:number,g:number,b:number,a:number}>>}
+         */
+        function createNoiseBlocks() {
+            const blocks = new Array(bh);
+            for (let y = 0; y < bh; y++) {
+                blocks[y] = new Array(bw);
+                for (let x = 0; x < bw; x++) {
+                    blocks[y][x] = generateRandomRGBA();         // fill with random rgba noise
+                }
+            }
+            return blocks;
+        }
+
+        /**
+         * Creates smoothing kernel scaled by smoothing parameter
+         * @returns {number[][]}
+         */
+        function createKernel() {
+            const size = 3;                                     // 3x3 kernel size
+            const kernel = new Array(size);
+            const smoothingRatio = smoothing / 255;            // normalize smoothing to 0..1
+            const baseWeight = 1 / 16;                          // base weight for edges
+            for (let i = 0; i < size; i++) {
+                kernel[i] = new Array(size).fill(baseWeight * smoothingRatio);
+            }
+            kernel[1][1] = (4 / 16) * smoothingRatio + (1 - smoothingRatio); // center weight with smoothing blend
+            return kernel;
+        }
+
+        /**
+         * Apply smoothing convolution kernel to noise blocks
+         * @param blocks Noise blocks matrix
+         * @param kernel Convolution kernel matrix
+         * @returns {Array<Array<{r:number,g:number,b:number,a:number}>>} Smoothed blocks
+         */
+        function smoothBlocks(blocks, kernel) {
+            const kHalf = Math.floor(kernel.length / 2);
+            const smoothed = new Array(bh);
+
+            for (let y = 0; y < bh; y++) {
+                smoothed[y] = new Array(bw);
+                for (let x = 0; x < bw; x++) {
+                    let r = 0, g = 0, b = 0, a = 0, wSum = 0;
+
+                    // Apply kernel weights to neighbors
+                    for (let ky = 0; ky < kernel.length; ky++) {
+                        for (let kx = 0; kx < kernel.length; kx++) {
+                            const nx = x + kx - kHalf;
+                            const ny = y + ky - kHalf;
+
+                            if (nx >= 0 && nx < bw && ny >= 0 && ny < bh) {
+                                const w = kernel[ky][kx];              // kernel weight
+                                const p = blocks[ny][nx];              // neighbor block
+                                r += p.r * w;                         // accumulate weighted red
+                                g += p.g * w;                         // accumulate weighted green
+                                b += p.b * w;                         // accumulate weighted blue
+                                a += p.a * w;                         // accumulate weighted alpha
+                                wSum += w;                           // sum weights for normalization
+                            }
+                        }
+                    }
+
+                    // Normalize colors by total weight
+                    smoothed[y][x] = {
+                        r: r / wSum,
+                        g: g / wSum,
+                        b: b / wSum,
+                        a: a / wSum
+                    };
+                }
+            }
+            return smoothed;
+        }
+
+        /**
+         * Write noise blocks into pixel data array
+         * @param blocks Noise blocks matrix to write
+         */
+        function writeBlocksToData(blocks) {
+            for (let y = 0; y < bh; y++) {
+                for (let x = 0; x < bw; x++) {
+                    const px = blocks[y][x];
+                    for (let dy = 0; dy < clustering; dy++) {
+                        for (let dx = 0; dx < clustering; dx++) {
+                            const pxX = x * clustering + dx;
+                            const pxY = y * clustering + dy;
+                            if (pxX >= width || pxY >= height) continue; // bounds check
+                            const i = (pxY * width + pxX) * 4;         // pixel index in data array
+                            data[i] = px.r;                            // red channel
+                            data[i + 1] = px.g;                        // green channel
+                            data[i + 2] = px.b;                        // blue channel
+                            data[i + 3] = px.a;                        // alpha channel
+                        }
+                    }
+                }
+            }
+        }
+
+        // Main flow
+
+        let blocks = createNoiseBlocks();                      // generate initial noise
+
+        if (smoothing > 0) {
+            const kernel = createKernel();                      // create smoothing kernel
+            blocks = smoothBlocks(blocks, kernel);              // apply smoothing
+        }
+
+        writeBlocksToData(blocks);                              // write final blocks to image data
+
+        ctx.putImageData(imageData, 0, 0);                      // draw on canvas
+    }
+
+
+    /**
+     *
+     * @param containerElement
+     * @param colors
+     * @param clustering
+     * @param smoothing
+     * @returns {HTMLCanvasElement}
+     */
+    static renderNoiseCanvas(containerElement, colors = Overlay.defaultTextureColors, clustering = Overlay.defaultTextureBlockSize, smoothing = Overlay.defaultTextureSmoothing) {
+
+        // Development
+        let startTime;
+        if (debugMode) {
+            startTime = performance.now();
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.style.pointerEvents = 'none';
+        const { width, height } = getElementDimensions(containerElement, true);
+        canvas.width = width;
+        canvas.height = height;
+        Overlay.fillCanvasWithNoise(canvas, colors, clustering, smoothing);
+        Overlay.noiseCanvas = canvas;
+
+        // Development
+        if (debugMode) {
+            const endTime = performance.now();
+            const renderTime = endTime - startTime; // milliseconds
+            const secondsElapsed = renderTime / 1000;
+            let textColor = "default";
+            if (secondsElapsed >= 2) textColor = "yellow";
+            if (secondsElapsed >= 4) textColor = "orange";
+            if (secondsElapsed >= 6) textColor = "red";
+            print("renderNoiseCanvas(): Rendering time: " + secondsElapsed + " s (< 2s expected)", textColor);
+
+            const dataURL = canvas.toDataURL();
+            const byteString = atob(dataURL.split(',')[1]);
+            const byteLength = byteString.length;
+            const sizeMB = byteLength / (1024 * 1024);
+            print("renderNoiseCanvas(): Rendered canvas size: " + sizeMB + " MB");
+        }
+
+        return canvas;
+    }
+
+    /**
+     *
+     * @param {HTMLCanvasElement} canvas Source canvas to copy.
+     * @returns {HTMLCanvasElement} Cloned canvas with copied image and dimensions.
+     */
+    copyCanvas(canvas) {
+        const clone = document.createElement('canvas');
+        clone.width = canvas.width;
+        clone.height = canvas.height;
+
+        const ctx = clone.getContext('2d');
+        ctx.drawImage(canvas, 0, 0);
+
+        return clone;
+    }
+
+
+
 }
 
 /**
@@ -2131,17 +3020,79 @@ class TextArea extends MovableElement {
         this.container.appendChild(this.element);
         createdElements.setActiveTextArea(this.element, this);                                                                               // TODO: Replace global variable use ; Makes font size buttons target latest created text area (overrides last clicked)
 
+        // Create contextual buttons
+        const textAreaButtonContainer = document.createElement("div");
+        textAreaButtonContainer.className = "createdTextAreaButtonContainer";
+        textAreaButtonContainer.classList.add("hidden");
+
+        const buttonData = [
+            {
+                src: "./images/textLarger.png",
+                extraClass: "createdTextAreaButtonLarger",
+                onClick: () => this.fontSizeIncrease(),
+            },
+            {
+                src: "./images/textSmaller.png",
+                extraClass: "createdTextAreaButtonSmaller",
+                onClick: () => this.fontSizeDecrease(),
+            },
+            {
+                src: "./images/delete.png",
+                extraClass: "createdTextAreaButtonDelete",
+                onClick: () => this.deleteTextArea(),
+            },
+        ];
+
+        buttonData.forEach(({ src, extraClass, onClick }, index) => {
+            const button = document.createElement("button");
+            button.className = `createdTextAreaButton ${extraClass}`;
+            button.onclick = onClick;
+
+            const img = document.createElement("img");
+            img.src = src;
+            img.className = "createdTextAreaButtonImage";
+            button.appendChild(img);
+
+            textAreaButtonContainer.appendChild(button);
+        });
+
+        this.container.appendChild(textAreaButtonContainer);
+
         // Apply translation
         translateElement(this.element);
 
         // Add resize handle
-        this.resizeHandle = document.createElement("div");                                                                     // Option to resize the textArea box
+        this.resizeHandle = document.createElement("img");
+        this.resizeHandle.src = "./images/textDrag.png";
         this.resizeHandle.className = "createdTextAreaResizeHandle";
         this.resizeHandle.id = this.id + "ResizeHandle";
+        this.resizeHandle.ondragstart = () => false; // Suppress all default drag features DEV: To replace this replace image-based handle
         this.container.appendChild(this.resizeHandle);
 
-        // Add resize listeners
+        // Add listeners
         this.handleListeners();
+
+        this.container.addEventListener('mouseover', () => {
+            // showElement(textAreaButtonContainer);
+            // showElement(this.resizeHandle);
+            textAreaButtonContainer.classList.remove("hidden");
+            this.resizeHandle.classList.remove("hidden");
+        });
+        this.container.addEventListener('mouseout', () => {
+            // hideElement(textAreaButtonContainer);
+            // hideElement(this.resizeHandle);
+            textAreaButtonContainer.classList.add("hidden");
+            this.resizeHandle.classList.add("hidden");
+        });
+
+        // Ensure element stays within viewport
+        const interval = setInterval(() => {
+            if (!this.container) {
+                clearInterval(interval);
+                return;
+            }
+            moveElementToView(this.container);
+        }, 3000);
 
     }
 
@@ -2168,9 +3119,9 @@ class TextArea extends MovableElement {
     dragStart(e) {
         print("dragStart(): Text area drag initiated");
 
-        createdElements.setActiveTextArea(this.element, this);                         // TODO: Replace global variable use, climb instance ladder or ask super class etc.
+        createdElements.setActiveTextArea(this.element, this);
 
-        // this.container.style.zIndex = "399";                                           // Get on top
+        // this.container.style.zIndex = "399";                                        // Get on top
 
         if (e.target === this.element) {                                               // Check is the mouse click event is on the text area
             this.isMoving = true;
@@ -2210,9 +3161,20 @@ class TextArea extends MovableElement {
             const y = e.clientY - this.offsetYText;                                               // new position y
             this.container.style.left = `${x}px`;
             this.container.style.top = `${y}px`;
-        } else if (this.isResizing) {                                                                      // Expand the textarea when the mouse moves
-            const newWidth = this.startWidth + (e.clientX - this.offsetXText);                             // New width for textarea container
-            const newHeight = this.startHeight + (e.clientY - this.offsetYText);                           // New height
+        } else if (this.isResizing) {                                                                         // Expand the textarea when the mouse moves
+            // const newWidth = this.startWidth + (e.clientX - this.offsetXText);                             // New width for textarea container
+            // const newHeight = this.startHeight + (e.clientY - this.offsetYText);                           // New height
+            // this.container.style.width = `${newWidth}px`;
+            // this.container.style.height = `${newHeight}px`;
+            // this.element.style.width = `${newWidth}px`;
+            // this.element.style.height = `${newHeight}px`;
+
+            const style = getComputedStyle(this.container);
+            const minWidth = parseFloat(style.minWidth);
+            const minHeight = parseFloat(style.minHeight);
+
+            const newWidth = Math.max(minWidth, this.startWidth + (e.clientX - this.offsetXText));
+            const newHeight = Math.max(minHeight, this.startHeight + (e.clientY - this.offsetYText));
             this.container.style.width = `${newWidth}px`;
             this.container.style.height = `${newHeight}px`;
 
@@ -2246,11 +3208,12 @@ class TextArea extends MovableElement {
      */
     resizeToFitText(textArea, textAreaContainer) {
         if (textArea.scrollHeight > textArea.offsetHeight) {
-            textArea.style.height = `${textArea.scrollHeight}px`;
-            textAreaContainer.style.height = textArea.style.height;
+            requestAnimationFrame(() => {                                   // Attempt to animate resize
+                textArea.style.height = `${textArea.scrollHeight}px`;
+                textAreaContainer.style.height = textArea.style.height;
+            });
         }
         // TODO: Will not work if amount of text is very low (1-4 characters) or there are no spaces (impedes word wrap), possibly browser-dependent issue
-        // TODO: Should also be run when font + is pressed, see changeFontSize()
     }
 
 
@@ -2269,9 +3232,26 @@ class TextArea extends MovableElement {
         print("changeFontSize(): Called font size " + element.style.fontSize + " = " + window.getComputedStyle(element).fontSize + " change by " + size + " for: " + element.id);
 
         let fontSize = parseFloat(element.style.fontSize);                                     // Get font size
-        fontSize += size;                                                                                      // Make font size bigger or smaller
+        fontSize += size;                                                                      // Make font size bigger or smaller
         element.style.fontSize = fontSize + "px";                                              // Change active text area's font size
 
+        this.resizeToFitText(this.element, this.container);
+
+    }
+
+    fontSizeIncrease() {
+        this.changeFontSize(5);
+    }
+
+    fontSizeDecrease() {
+        this.changeFontSize(-5);
+    }
+
+
+    // Other
+
+    deleteTextArea() {
+        hideElement(this.container, true);
     }
 
 }
@@ -2280,13 +3260,14 @@ class TextArea extends MovableElement {
  * Class for creating a menu programmatically.
  * Used for multiple or custom menus.
  */
-class Menu extends MovableElement {
-
-    // Generic
-    menuDefinitions;                    // Contains definitions for the menu contents in an array
+class Menu extends CreatedElement {
 
     // Examples
-    // const buttonTest = Menu.createButton("settings.png", "buttonTest", "iconTest", "Test button", menuContainerLeft);
+    //
+    // Process: Create caller button -> Define menu options and buttons in array -> Create menu
+    //
+    // ------ ------ Example of basic use: ------ ------
+    // const buttonTest = Menu.createButton("settings.png", "buttonId", "iconId", "Test button text", elementToAppendMenuTo);
     // const menuTest = [
     //     {id: "buttonRotateTest",     text: "Rotate",    img: "rotate.png",        action: videoRotate  },
     //     {id: "buttonFlipTest",       text: "Flip",      img: "flip.png",          action: videoFlip    },
@@ -2295,18 +3276,37 @@ class Menu extends MovableElement {
     //     {id: "buttonOverlayTest",    text: "Overlay",   img: "overlay.png",       action: addOverlay   },
     //     {id: "buttonAddTextTest",    text: "Add text",  img: "text.png",          action: addText      }
     // ]
-    // createdElements.createMenu(menuTest, buttonTest, "above");
+    // createdElements.createMenu(menuTest, buttonTest, "leftToRight");
     //
+    // ------ ------ Notes ------ ------
+    // Some functions and code blocks may need to be called through an arrow/anonymous function: action: () => { yourFunction(contextualVariable); }
+    // Above example generates generic buttons. Menus can also be populated with virtually any content by passing any custom HTML element in the definitions.
+    // Such content can be purely visual (separators, icons, animations, text) or functional (selectors, custom buttons, links).
+    //  ------ ------ Example of custom HTML use: ------ ------
     // const menuTest = [
-    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // WHere customHTML refers to any variable pointing to an HTML element
-    //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}
+    //     {id: "languageSelector" ,    text: "Language"  , customHTML: selectLanguageContainer}, // Property customHTML refers to an HTML element
+    //     {id: "themeSwitch"      ,    text: "Theme"     , customHTML: switchThemeContainer}     // All functionality (if any) for such custom elements must be created manually
     // ]
+    //
+    // ------ ------ Notes ------ ------
+    // Menus may require selections between buttons. A key example is the color selection in a drawing menu, where only one color may be selected at a time.
+    // This can be achieved by using a selection group.
+    // ------ ------ Example use of selection group ------ ------
+    //
+
+    // Generic
+    menuDefinitions;                    // Contains definitions for the menu contents in an array
 
     // Caller relations
     callerElement;                      // Element the menu is called from, e.g. a button
 
     // Positioning
     position = {x: null, y: null};      // Last set position for the menu
+    relativeDirection = "leftToRight";  // Direction and orientation of menu
+
+    // Selector logics
+    selectionGroups = [];               // Selection groups used in this menu
+
 
 
     // Initialization
@@ -2330,35 +3330,66 @@ class Menu extends MovableElement {
         this.element = document.createElement('div');
         this.element.id = this.id = String(Date.now());         // Assign a (pseudo) unique id
 
-        print("Menu: create(): Creating menu: " + this.id);
-
         // Styling
         this.element.classList.add("createdMenu");
         this.element.classList.add('hidden');                   // Initial state
         this.visible = false;
 
-        // Positioning
-        this.updatePosition();
-
         // Create controls
         this.menuDefinitions.forEach( (control) => {           // Parse definitions
-            if (!control.customHTML) {                         // No custom HTML (falsy parameter value)
-                // noinspection JSUnresolvedReference          // Object is dynamic
-                const button = createButton(control.id, control.text, control.img);
-                button.addEventListener('click', control.action);
-                this.element.appendChild(button);
-            } else {                                           // Custom HTML
-                const div = document.createElement("div");     // Contain custom menu element
-                div.appendChild(control.customHTML);
-                this.element.appendChild(div);
+
+            // Create basic or custom buttons
+            let buttonElement;
+            if (!control.customHTML) {                         // No custom HTML (falsy)
+                // noinspection JSUnresolvedReference          // Object property references are populated elsewhere
+                buttonElement = createButton(control.id, control.text, control.img);
+                this.element.appendChild(buttonElement);
+            } else {                                               // Custom HTML
+                buttonElement = document.createElement("div");     // Contain custom menu element
+                buttonElement.appendChild(control.customHTML);
+                this.element.appendChild(buttonElement);
+            }
+
+            // Store references
+            // control.elementReference = buttonElement;              // Adds HTML element reference to object in case needed
+            // buttonElement.definitionObject = control;              // Adds object reference to HTML element in case needed
+
+            // Apply click action if defined
+            if (control.action) {                                  // Check if action defined (truthy)
+                buttonElement.addEventListener('click', control.action);
+            }
+
+            // Build selection logic if needed
+            if (control.selectionGroup) {                          // Check if selection logic requested (truthy)
+                if (!arrayContains(this.selectionGroups, control.selectionGroup)) {
+                    this.selectionGroups.push(control.selectionGroup);
+                }
+                if (!control.selectionGroup.buttonsArray) control.selectionGroup.buttonsArray = [];     // Make sure array property can be pushed to
+                control.selectionGroup.buttonsArray.push(buttonElement);                                // Store associated button references to selection group object
+
+                // Create exclusive selection behavior (single selection, selection excludes others within same group)
+                if (control.selectionGroup.behavior === "exclusive") {
+                    buttonElement.addEventListener('click', () => {
+                        control.selectionGroup.buttonsArray.forEach(button => {         // DEV: Arrow function completely inherits values of used variables from this context
+                            button.classList.remove(control.selectionGroup.styleClass);
+                        });
+                        buttonElement.classList.add(control.selectionGroup.styleClass);
+                    });
+                }
             }
         });
+
+        // Positioning
+        this.updatePosition(); // DEV: Using resize listener for this update is possible but excessive
 
         // Append
         document.getElementById('videoContainer').appendChild(this.element);
 
-        // Attach click listener
+        // Attach listener for clicks on button
         this.callerElement.addEventListener('click', () => this.toggleVisibility() );
+
+        // Attach listener for clicks outside menu
+        document.addEventListener("click", (e) => this.handleClickOutside(e), true);
 
         // Nested functions
         function createButton(id, text, img) {
@@ -2374,24 +3405,9 @@ class Menu extends MovableElement {
             icon.classList.add("icon");
             button.appendChild(icon);
 
-            return button;
+            return button; // TODO: Use static method below?
         }
 
-    }
-
-
-    // Drag handling (TODO: Replace with generic in MovableElement)
-
-    dragStart() {
-        // Use generic from MovableElement!
-    }
-
-    dragUpdater() {
-        // Use generic from MovableElement!
-    }
-
-    dragStop() {
-        // Use generic from MovableElement!
     }
 
 
@@ -2400,16 +3416,17 @@ class Menu extends MovableElement {
     /**
      * Toggles visibility of menu.
      */
-    toggleVisibility() {
-        print("Menu: toggleVisibility(): Toggling: " + this.id);
-        if (this.visible) {
+    toggleVisibility(hide = false) {
+        print("Menu: toggleVisibility(): Toggling: " + this.id + " from " + this.visible + ", override to hide: " + hide);
+        if (hide || this.visible) {
             hideElement(this.element);
+            this.visible = false;
         } else {
-            showElement(this.element, "flex");
+            this.updatePosition();
+            showElement(this.element);
+            this.visible = true;
         }
-        this.visible = !this.visible;
 
-        this.updatePosition();
     }
 
     /**
@@ -2419,23 +3436,39 @@ class Menu extends MovableElement {
 
         // Get position of caller element
         const buttonPosition = getElementCenter(this.callerElement);
+        const buttonDimensions = getElementDimensions(this.callerElement);
 
-        // Set position for menu
-        const offsetX = 0;
-        const offsetY = 60; // Offset determines distance from caller button
-        this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`;
-        this.element.style.bottom = this.position.y = `${offsetY}px`;
-
+        // Set position for menu ("leftToRight", to the right of caller element)
+        const offsetX = buttonDimensions.width/2 + 1;                                  // Center + half of width + 1 px margin (in 2025 "twoday" design)
+        const offsetY = buttonDimensions.height/2;
+        this.element.style.left = this.position.x = `${buttonPosition.x + offsetX}px`; // Addition: offset to the right of button position
+        this.element.style.top = this.position.y = `${buttonPosition.y - offsetY}px`;  // Subtraction: offset upwards from button position
+        // TODO: Currently only handles 48px menu height, calculate y.
     }
+
+    handleClickOutside(e) {
+        if (!this.visible) {
+            // Click detected but the menu related this instance's event listener is not visible, no action
+            return;
+        }
+
+        if ( !e.target.closest(".createdMenu") && !e.target.closest(`#${this.callerElement.id}`) ) {
+            // Click detected and the target was not any menu NOR the caller button for this instance's menu, hiding this menu
+            // Note that visibility toggle from pressing menu button is handled by a separate listener, this arrangement prevents multiple menus from being opened simultaneously
+            this.toggleVisibility(true);
+        }
+    }
+
 
     // Related
 
     /**
      * Creates, appends and returns a button.
+     * This method should be used to create caller buttons for menus.
      *
-     * @param img Image for icon
+     * @param img Filename.ext for icon image
      * @param buttonId Id for button element
-     * @param iconId Id for icon element (useful for icon dynamics)
+     * @param iconId Id for icon element (useful for changing icon on press)
      * @param text Text for title and alt text
      * @param appendTo Element to append button to
      * @returns {HTMLButtonElement} HTML element for button
@@ -2447,101 +3480,213 @@ class Menu extends MovableElement {
         button.title = text;
 
         // Add icon
-        const icon = document.createElement("img");
-        icon.src = "./images/" + img;
+        const icon = getImage(img);
         icon.id = iconId;
         icon.alt = text;
         icon.classList.add("icon");
         button.appendChild(icon);
 
         if (appendTo) {                          // Check for truthy parameter value
+            button.classList.add("hidden");
             appendTo.appendChild(button);
+            icon.onload = () => {
+                // button.classList.remove("hidden");
+                showElement(button);
+            };
+            icon.onerror = (e) => {
+                console.error("createButton(): Icon load for " + buttonId + " failed: " + img + " : " + e?.message);
+                // button.classList.remove("hidden");
+                showElement(button);
+            };
         }
+
+        // TODO: Create icon swapping functionality here, listener to call swap function, callbacks for both, bi-state
 
         return button;
     }
 
-}
-
-
-// Developer functions (safe to delete)
-
-/**
- * Function to enable debug mode.
- */
-function debug() {
-    debugMode = true;
-    if (debugMode) {
-        print("Debug mode is enabled!");
-        print("Happy developing ✨");
+    static createSeparator() {
+        const separator = document.createElement('div');
+        separator.classList.add("menuSeparator");
+        return separator;
     }
 
-    // Enable developer menu
-    const developerButton = document.createElement('button');
-    developerButton.id = 'buttonDev';
-    developerButton.title = 'Developer';
-    developerButton.textContent = 'Developer Options';
-    developerButton.addEventListener('click', developerMenu);
-    developerButton.style.zIndex = '9000';
-    // developerButton.style.border = "2px solid darkgray";
-    developerButton.style.border = "none";
-    // developerButton.backgroundColor = "rgba(128, 128, 128, 0.7)";
-    // developerButton.color = "red";
-    developerButton.style.borderRadius = "5px";
-    developerButton.style.height = '40px';
-    developerButton.style.marginLeft = "0";
-
-    // developerButton.style.height = document.getElementById("controlBar").style.height - 20;
-
-    // const placement = document.getElementById('textControls');
-    document.getElementById('controlBarMidSpacer').appendChild(developerButton); // May run before DOM loaded
-
 }
 
 /**
- * Function to create and show developer options -menu.
- *
+ * Class for creating drawings.
  */
-function developerMenu() {
-    print("developerMenu(): Developer menu button pressed");
+class Drawing extends CreatedElement {
 
-    // ADD NEW BUTTONS HERE
-    customPrompt("Developer menu", "Options for developers", [
-        [   "Toggle visual debug"              , () => { debugVisual();                                                 }],
-        [   "Update video inputs"              , () => { backgroundUpdateInputList();                                   }],
-        [   "Release video stream"             , () => { releaseVideoStream();                } , "rgba(255,139,139,0.5)"],
-        [   "Start video (reset)"              , () => { videoStart();                        } , "rgba(139,255,141,0.5)"],
-        [   "Fallback resolution test"         , () => { getMaxResolutionFallback();                                     }],
-        [   "Dump local storage"               , () => { dumpLocalStorage();                  } , "rgba(172,139,255,0.5)"],
-        [   "Clear local storage"              , () => { localStorage.clear();                } , "rgba(255,139,139,0.5)"],
-        // ADD NEW ROW ABOVE THIS ROW FOR EACH NEW BUTTON, USE TEMPLATE
-        // Template:
-    //  [   "Text for button"                  , () => { function_or_code_block();                                      }],
-        [   "Dismiss"                          , () => {                                                                }]   // Preserve as final line
-    ], "585px", "180px");
 
-    // TODO: Create using Menu instead of prompt, use buttons with icons, add text support for buttons
-    // const button = Menu.createButton("cameraSettings.png", "devCameraSettings", "cameraSettingsIcon", "Camera Quality Settings", document.getElementById('menuContainerLeft'))
+    // Draw functions
 
+    /**
+     * Draws a line between two points.
+     *
+     * @param context Canvas 2d context to draw to
+     * @param x1
+     * @param y1
+     * @param x2
+     * @param y2
+     * @param draw
+     */
+    static drawLine(context, x1, y1, x2, y2, draw = true) {
+        context.beginPath();
+        context.moveTo(x1, y1);
+        context.lineTo(x2, y2);
+        if (draw) { context.stroke(); }
+    }
+
+    /**
+     * Draws a circle at given coordinates.
+     *
+     * @param context Canvas 2d context to draw to
+     * @param x X-coordinate of the center
+     * @param y Y-coordinate of the center
+     * @param diameter Diameter of the circle
+     * @param fill Whether to fill the circle
+     * @param draw Whether to draw immediately (stroke or fill)
+     */
+    static drawCircle(context, x, y, diameter, fill = false, draw = true) {
+        const radius = diameter / 2;
+        context.beginPath();
+        context.arc(x, y, radius, 0, Math.PI * 2);
+        if (draw) {
+            if (fill) {
+                context.fill();
+            } else {
+                context.stroke();
+            }
+        }
+    }
+
+
+    // Positioning and sizing functions
+
+    /**
+     * Moves an element to the center of another element.
+     *
+     * @param {HTMLElement} referenceElement Element to center on
+     * @param {HTMLElement} elementToMove Element to move
+     */
+    static moveToElementCenter(referenceElement, elementToMove) {
+        const center = getElementCenter(referenceElement);
+        const { width, height } = getElementDimensions(elementToMove, true);
+        elementToMove.style.position = 'fixed';
+        elementToMove.style.left = `${center.x - width / 2}px`;
+        elementToMove.style.top = `${center.y - height / 2}px`;
+    }
+
+    /**
+     * Resizes and optionally aligns a canvas to an HTML element.
+     *
+     * @param {HTMLElement} element Target HTML element
+     * @param {HTMLCanvasElement} canvas Canvas to resize and align
+     * @param {boolean} align If true, aligns canvas position to element's bounding rectangle
+     */
+    static resizeCanvasToElement(element, canvas, align = true) {
+        const { width, height } = getElementDimensions(element, true);
+        canvas.width = width;
+        canvas.height = height;
+        if (align) {
+            const rect = element.getBoundingClientRect();
+            canvas.style.top = `${rect.top}px`;
+            canvas.style.left = `${rect.left}px`;
+        }
+    }
+
+
+    // Test functions
+
+    static test() {
+        let removalFunction = drawElementTrackingIndicators(videoElement);
+        setTimeout(() => {
+            removalFunction();
+        }, 5000);
+    }
+
+    static testCenterTrackingCircle() {
+        const testElement = videoElement;
+
+        const canvas = document.createElement('canvas');
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.className = 'developer animateMove';
+        document.body.appendChild(canvas);
+
+        const diameter = 50;
+        canvas.width = diameter;
+        canvas.height = diameter;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.strokeStyle = 'orange';
+        Drawing.drawCircle(ctx, diameter / 2, diameter / 2, diameter, false, true);
+
+        setInterval(() => {
+            Drawing.moveToElementCenter(testElement, canvas);
+        }, 300);
+
+
+    }
+
+    static testBasicFunctions1() {
+        const testElement = videoElement;
+
+        const canvas = document.createElement('canvas');
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.className = 'developer';
+        document.body.appendChild(canvas);
+
+        const diameter = 50;
+        canvas.width = diameter;
+        canvas.height = diameter;
+
+        const ctx = canvas.getContext('2d');
+
+        ctx.strokeStyle = 'orange';
+        Drawing.drawCircle(ctx, diameter / 2, diameter / 2, diameter, false, true);
+
+        Drawing.moveToElementCenter(testElement, canvas);
+
+    }
+
+    static testBasicDraw() {
+
+        const testElement = videoElement;
+        const canvas = document.createElement('canvas');
+        Drawing.resizeCanvasToElement(testElement, canvas, true);
+
+        canvas.style.position = 'fixed';
+        canvas.style.pointerEvents = 'none';
+        canvas.className = 'developer';
+        document.body.appendChild(canvas);
+
+        const ctx = canvas.getContext('2d');
+        const center = getElementCenter(testElement);
+
+        ctx.strokeStyle = 'orange';
+        Drawing.drawCircle(ctx, center.x, center.y, 50, false, true);
+
+        ctx.fillStyle = 'orange';
+        Drawing.drawCircle(ctx, center.x + 300, center.y, 30, true, true);
+
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        Drawing.drawLine(ctx, center.x, center.y, center.x + 300, center.y, true);
+
+    }
 
 }
 
-/**
- * Prints out all local storage key-value pairs to console
- * @returns {{}} Object containing all key-value pairs
- */
-function dumpLocalStorage() {
-    let localStorageDataPairs = {};                             // Object instead of array
-    Object.keys(localStorage).forEach(key => {
-        localStorageDataPairs[key] = localStorage.getItem(key);
-    });
-    console.log(JSON.stringify(localStorageDataPairs));         // Formatted output
-    // console.log(localStorageDataPairs);
-    return localStorageDataPairs;
-}
+
+// Developer functions (do not delete)
 
 /**
  * Outputs strings to console if debug is enabled.
+ * Attention! Will not output unless debug is enabled! Use URL-parameter, set debugMode=true or call debug().
  * Used in development.
  * @param string String to output
  * @param color Text color string (optional)
@@ -2572,7 +3717,8 @@ function print(string, color = "gray", tracePrint = false) {
         case "black":   css = "color: black";   break;
         case "yellow":  css = "color: yellow";  break;
         case "orange":  css = "color: orange";  break;
-        default:        css = "color: gray";    break;
+        case "default":  css = "color: gray";  break;
+        default:        css = "color: red";    break; // This is an error case, invalid value
     }
     console.log("%c" + output, css);
 
@@ -2603,212 +3749,276 @@ function print(string, color = "gray", tracePrint = false) {
         }
     }
 
+    // TODO: Add stringification for objects, if string is object
+
+}
+
+let debugModeVisual = false;                                                                  // Enables visual debug tools
+if (debugMode || (new URLSearchParams(window.location.search).has("debug"))) {debugMode = true; debug();} else {
+    console.log("To activate debug mode, append parameter ' debug ' to URL (using ?/&) or type to console: ' debug() '");
 }
 
 /**
- * Shortens a long string.
- * Used for long hex device ids.
- * @param id
- * @returns {string}
+ * Function to enable debug mode.
  */
-function shorten(id) {
-    let shortenedId = id.trim();
-    shortenedId = shortenedId.replace(/[{}]/g, '');
-    shortenedId = `${shortenedId.slice(0, 4)}:${shortenedId.slice(-4)}`;
-    return shortenedId;
-}
+function debug() {
+    debugMode = true;
+    print("Debug mode is enabled!");
+    print("Happy developing ✨");
 
-/**
- * Function to enable visual debug features.
- */
-function debugVisual() {
-    debugModeVisual = !debugModeVisual;
-    if (debugModeVisual) {
-        print("Visual debug enabled!");
+    // Get container element for menu buttons
+    const menuContainerMiddle           = document.getElementById('controlBarMiddleContainer');
 
-        // Indicate element centers
-        debugVisualDrawElementTrackingIndicator(videoElement, 20, 'red', '0.9');
-        debugVisualDrawElementTrackingIndicator(videoContainer, 40, 'Turquoise', '0.5');
-        debugVisualDrawElementTrackingIndicator(canvasElement, 60, 'green', '0.2');
-    } else {
-        print("Visual debug disabled!");
+    // Create developer menu button
+    const buttonDeveloper = Menu.createButton("developer.png", "buttonDeveloper", "iconDeveloper", "Developer Options", menuContainerMiddle);
+
+    // Define developer menu options
+    let menuDeveloper = [
+        {id: "buttonClearStorage",        text: "Clear local storage",       img: "clean.png"       , action: () => { localStorage.clear(); }},
+        {id: "buttonClearStorage",        text: "Clear URL parameters",      img: "clean.png"       , action: () => { clearURLParameters(); }},
+        {id: "buttonRefreshPage",         text: "Refresh page",              img: "restart.png"     , action: window.location.reload.bind(window.location)},
+        {id: "buttonDumpStorage",         text: "Dump local storage",        img: "list.png"        , action: dumpLocalStorage},
+        {id: "buttonVisualDebug",         text: "Toggle visual debug",       img: "inspect.png"     , action: debugVisual},
+    //  {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png"     , action: backgroundUpdateInputList},
+        {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png"      , action: () => { releaseVideoStream(); }},
+        {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png"   , action: videoStart},
+        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png"        , action: () => { getMaxResolutionFallback(); }},
+    //  {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png"        , action: () => { Drawing.test(); }},
+    ];
+
+    // Create developer menu
+    new CreatedElements().createMenu(menuDeveloper, buttonDeveloper, "leftToRight");
+
+    // Settings menu creation
+    // noinspection PointlessBooleanExpressionJS
+    if (false) {                                   // Code block for collapsing
+
+        // Create settings menu button
+        // noinspection UnreachableCodeJS
+        const buttonSettings = Menu.createButton("settings.png", "buttonSettings", "iconSettings", "Settings", menuContainerMiddle);
+
+        let menuSettings = [];
+
+        // Create settings menu subsection: language selection
+        const selectLanguageContainer = document.createElement("div");
+        selectLanguageContainer.style.display = "flex";
+        selectLanguageContainer.style.flexDirection = "row";
+        selectLanguageContainer.style.alignItems = "center";
+        selectLanguageContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
+        selectLanguageContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
+
+        const languageImg = document.createElement("img");
+        languageImg.src = "./images/language.png";
+        languageImg.style.display = "block";
+        languageImg.style.width = "22px";
+        languageImg.style.height = "22px";
+        languageImg.classList.add("icon");
+        selectLanguageContainer.appendChild(languageImg);
+
+        const languagesDiv = document.createElement("div");
+        languagesDiv.id = "languages";
+
+        const select = document.createElement("select");
+        select.setAttribute("data-locale-selector", "");
+        select.className = "locale-switcher";
+        select.title = "Change Language";
+        select.style.width = "80px";
+        select.setAttribute("data-locale-key", "language");
+
+        // Language options TODO: DEV: Load based on available locales instead of explicitly creating option for each language
+
+        const optionEn = document.createElement("option");
+        optionEn.value = "en";
+        optionEn.setAttribute("data-locale-key", "english");
+        optionEn.textContent = "English";
+        select.appendChild(optionEn);
+
+        const optionFi = document.createElement("option");
+        optionFi.value = "fi";
+        optionFi.setAttribute("data-locale-key", "finnish");
+        optionFi.textContent = "Finnish";
+        select.appendChild(optionFi);
+
+        languagesDiv.appendChild(select);
+        selectLanguageContainer.appendChild(languagesDiv);
+
+        menuSettings.push({ id: "languageSelector", text: "Language", customHTML: selectLanguageContainer });
+
+        // Create settings menu subsection: theme selection
+
+        const switchThemeContainer = document.createElement("div");
+        switchThemeContainer.style.display = "flex";
+        switchThemeContainer.style.flexDirection = "column";
+        switchThemeContainer.style.gap = "7px"; // DEV: CSS inheritance not working, inline used
+        switchThemeContainer.style.padding = "0 7px"; // DEV: CSS inheritance not working, inline used
+
+        const switchThemeLabel = document.createElement("div");
+        switchThemeLabel.textContent = "Light Theme";
+        switchThemeLabel.style.textAlign = "center";
+
+        const switchTheme = document.createElement("input");
+        switchTheme.type = "checkbox";
+
+        switchTheme.addEventListener("change", () => {
+            document.documentElement.classList.toggle("lightMode");
+        });
+
+        switchThemeContainer.appendChild(switchThemeLabel);
+        switchThemeContainer.appendChild(switchTheme);
+
+        menuSettings.push({ id: "themeSwitch", text: "Theme", customHTML: switchThemeContainer });
+
+        // Create settings menu
+        new CreatedElements().createMenu(menuSettings, buttonSettings, "leftToRight");
+
+        // bindLocaleSelector(defaultLocale, "[data-locale-selector]");
+    }
+
+    /**
+     * Sets up the language selector and binds event listeners to detect language changes.
+     * @param {string} initialLocale - The initial locale to set.
+     * @param selector Selector to bind.
+     */
+    function bindLocaleSelector(initialLocale, selector) {
+        const localeSelector = document.querySelector(selector);
+        localeSelector.value = initialLocale;
+        localeSelector.onchange = (e) => {
+            // Set the language based on the selected value
+            setLocale(e.target.value).then(() => {});
+        };
+    }
+
+    // Nested function for clearing URL parameters
+    function clearURLParameters() {
+        const url = new URL(window.location.href);
+        const debug = url.searchParams.get("debug");
+        const skipWait = url.searchParams.get("skipWait");
+        url.search = "";
+        if (debug !== null) url.searchParams.set("debug", debug);
+        if (skipWait !== null) url.searchParams.set("skipWait", skipWait);
+        window.history.replaceState(null, "", url.toString());
     }
 }
 
 /**
- * Creates center tracking indicator on HTML element.
- * @param element
- * @param size
- * @param color
- * @param opacity
+ * Prints out all local storage key-value pairs to console
+ * @returns {{}} Object containing all key-value pairs
  */
-function debugVisualDrawElementTrackingIndicator(element, size, color, opacity) {
-
-    // TODO: Make this flow explicitly async
-
-    let interval = setInterval(() => {
-        if (debugModeVisual === false) {clearInterval(interval);}
-
-        const {ball: ball, label: label} = drawCenterIndicator(element, size, color, opacity);
-        const {canvas: cross, labelTopLeft: l1, labelTopRight: l2, labelBottomLeft: l3, labelBottomRight: l4} = drawCrossingLines(element, size/10, color, opacity);
-        const {t:t, b:b, r:r, l:l} = drawViewPortEdges();
-
-        setTimeout(() => {
-            ball.remove();
-            label.remove();
-            cross.remove();
-            l1.remove();
-            l2.remove();
-            l3.remove();
-            l4.remove();
-            t.remove();
-            b.remove();
-            r.remove();
-            l.remove();
-        }, 300);
-    }, 300);
+function dumpLocalStorage() {
+    let localStorageDataPairs = {};                             // Object instead of array
+    Object.keys(localStorage).forEach(key => {
+        localStorageDataPairs[key] = localStorage.getItem(key);
+    });
+    console.log(JSON.stringify(localStorageDataPairs));         // Formatted output
+    // console.log(localStorageDataPairs);
+    return localStorageDataPairs;
 }
 
-/**
- * Creates an indicator for the center of an HTML element.
- * @param element
- * @param size
- * @param color
- * @param opacity
- * @param zindex
- * @returns {{ball: HTMLDivElement, label: HTMLDivElement}}
- */
-function drawCenterIndicator(element, size, color = 'green', opacity = '1', zindex = '9001') {
-    let horizontalOffset = size / 2 * 1.05 + 10;                // Offset for label to place it next to indicator
-    let {x: centerX, y: centerY} = getElementCenter(element);
-    let text = centerX + " " + centerX  + " " + " is center of: " + (element.getAttribute('id') || 'id_undefined') + " " + (element.getAttribute('class') || '');
-
-    const ball = drawBall(centerX, centerY, size, color, opacity, zindex);
-    const label = drawLabel(centerX + horizontalOffset, centerY, size, color, opacity, zindex, text);
-
-    return { ball, label };
+function debugVisual() {
+    debugVisual.removalFunction ??= null;
+    debugModeVisual = !debugModeVisual;
+    if (debugModeVisual) {
+        print("Visual debug enabled!");
+        debugVisual.removalFunction = drawElementTrackingIndicators(videoElement);
+    } else {
+        print("Visual debug disabled!");
+        if (debugVisual.removalFunction) {
+            debugVisual.removalFunction();
+            debugVisual.removalFunction = null;
+        }
+    }
 }
 
-/**
- * Draws a ball (with its center) at the coordinates.
- * HTML/CSS implementation.
- *
- * @param coordinateX
- * @param coordinateY
- * @param diameter
- * @param color
- * @param opacity
- * @param zindex
- * @returns {HTMLDivElement}
- */
-function drawBall(coordinateX, coordinateY, diameter, color = 'green', opacity = '1', zindex = '9002') {
-    // print("Drew " + color + " ball at X: " + coordinateX + " Y: " + coordinateY);
-
-    const ball = document.createElement('div');
-    ball.style.position = 'absolute';
-    ball.style.left = `${coordinateX - diameter / 2}px`;
-    ball.style.top = `${coordinateY - diameter / 2}px`;
-    ball.style.width = `${diameter}px`;
-    ball.style.height = `${diameter}px`;
-    ball.style.backgroundColor = color;
-    ball.style.borderRadius = '50%';
-    ball.style.zIndex = zindex;
-    ball.style.opacity = opacity;
-    ball.style.pointerEvents = 'none';                    // Make not clickable
-
-    document.body.appendChild(ball);
-
-    return ball;
-}
-
-/**
- * Draws balls centered at each viewport edge.
- *
- * @param size
- * @param color
- * @param opacity
- * @param zindex
- * @returns {{b: HTMLDivElement, r: HTMLDivElement, t: HTMLDivElement, l: HTMLDivElement}}
- */
-function drawViewPortEdges(size = 30, color = 'OrangeRed', opacity = '1', zindex = '9003') {
-    const {top: top, right: right, bottom: bottom, left: left} = getViewportEdges();
-
-    const t = drawBall(right/2, top, size, color, opacity, zindex);
-    const b = drawBall(right/2, bottom, size, color, opacity, zindex);
-
-    const r = drawBall(right, bottom/2, size, color, opacity, zindex);
-    const l = drawBall(left, bottom/2, size, color, opacity, zindex);
-
-    return {t, b, r, l};
-
-}
-
-/**
- * Draws diagonal lines that cross from the edges of bounding rectangles.
- *
- * @param element
- * @param lineWidth
- * @param color
- * @param opacity
- * @param zindex
- * @returns {{labelTopLeft: HTMLDivElement, canvas: HTMLCanvasElement, labelBottomRight: HTMLDivElement, labelTopRight: HTMLDivElement, labelBottomLeft: HTMLDivElement}}
- */
-function drawCrossingLines(element, lineWidth, color = 'red', opacity = '1', zindex = '9004') {
+function drawElementTrackingIndicators(element) {
 
     const canvas = document.createElement('canvas');
-    let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
-    canvas.width = elementWidth;
-    canvas.height = elementHeight;
-    canvas.style.zIndex = zindex;
-    canvas.style.opacity = opacity;
-    canvas.style.position = 'absolute';
-    canvas.style.pointerEvents = 'none';                    // Make not clickable
-
-    const rect = element.getBoundingClientRect();
-    canvas.style.left = rect.left + 'px';
-    canvas.style.top = rect.top + 'px';
-
-    const context = canvas.getContext('2d');
-    context.lineWidth = lineWidth;
-    context.strokeStyle = color;
-    let { bottomLeft: bottomLeft, topRight: topRight, topLeft: topLeft, bottomRight: bottomRight } = getElementCorners(element);
-    drawLine(context, bottomLeft.x, bottomLeft.y, topRight.x, topRight.y);
-    drawLine(context, topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
-
+    canvas.style.position = 'fixed';
+    canvas.style.pointerEvents = 'none';
+    canvas.className = 'developer animateMove';
     document.body.appendChild(canvas);
 
+    const ctx = canvas.getContext('2d');
 
+    const mainDiameter = 50;
+    const cornerDiameter = 60;
+    const cornerMiniDiameter = 30;
+    const edgeDiameter = 40;
 
-    // Draw labels at rect for troubleshooting coordinate mismatches between rect coordinates and actual view coordinates
-    const rect1 = element.getBoundingClientRect();
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
+    canvas.width = mainDiameter;
+    canvas.height = mainDiameter;
 
-    const horizontalOffset = 100;
-    const verticalOffset = 100;
-    const labelTopLeft =        drawLabel(rect1.left + horizontalOffset, rect1.top + verticalOffset, 35, color, opacity, zindex,           "TL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.top + " + " +        scrollY);
-    const labelBottomLeft =     drawLabel(rect1.left + horizontalOffset, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,      "BL Rect X: " +     rect1.left + " + " +     scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
-    const labelTopRight =       drawLabel(rect1.right - horizontalOffset*3, rect1.top + verticalOffset, 35, color, opacity, zindex,        "TR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.top + " + " +        scrollY);
-    const labelBottomRight =    drawLabel(rect1.right - horizontalOffset*3, rect1.bottom - verticalOffset*2, 35, color, opacity, zindex,   "BR Rect X: " +     rect1.right + " + " +    scrollX + " Y: " +  rect1.bottom + " + " +     scrollY);
+    ctx.strokeStyle = 'orange';
+    Drawing.drawCircle(ctx, mainDiameter / 2, mainDiameter / 2, mainDiameter, false, true);
 
-    return {canvas, labelTopLeft, labelTopRight, labelBottomLeft, labelBottomRight};
+    const centerInterval = setInterval(() => {
+        Drawing.moveToElementCenter(element, canvas);
+    }, 300);
+
+    function drawAt(x, y, diameter, color) {
+        const c = document.createElement('canvas');
+        c.width = diameter;
+        c.height = diameter;
+        c.style.position = 'fixed';
+        c.style.pointerEvents = 'none';
+        c.className = 'developer animateMove';
+        document.body.appendChild(c);
+
+        const cx = c.getContext('2d');
+        cx.strokeStyle = color;
+        Drawing.drawCircle(cx, diameter / 2, diameter / 2, diameter, false, true);
+        c.style.left = `${x - diameter / 2}px`;
+        c.style.top = `${y - diameter / 2}px`;
+        return c;
+    }
+
+    function drawCornerAndEdgeCircles() {
+        const rect = element.getBoundingClientRect();
+
+        return [
+            drawAt(rect.left, rect.top, cornerDiameter, 'red'),
+            drawAt(rect.left, rect.top, cornerMiniDiameter, 'red'),
+            drawAt(rect.right, rect.top, cornerDiameter, 'red'),
+            drawAt(rect.left, rect.bottom, cornerDiameter, 'red'),
+            drawAt(rect.right, rect.bottom, cornerDiameter, 'red'),
+            drawAt((rect.left + rect.right) / 2, rect.top, edgeDiameter, 'green'),
+            drawAt((rect.left + rect.right) / 2, rect.bottom, edgeDiameter, 'green'),
+            drawAt(rect.left, (rect.top + rect.bottom) / 2, edgeDiameter, 'green'),
+            drawAt(rect.right, (rect.top + rect.bottom) / 2, edgeDiameter, 'green'),
+        ];
+    }
+
+    const extraCanvases = drawCornerAndEdgeCircles();
+
+    const updateInterval = setInterval(() => {
+        const rect = element.getBoundingClientRect();
+        const coords = [
+            [rect.left, rect.top, cornerDiameter],
+            [rect.left, rect.top, cornerMiniDiameter],
+            [rect.right, rect.top, cornerDiameter],
+            [rect.left, rect.bottom, cornerDiameter],
+            [rect.right, rect.bottom, cornerDiameter],
+            [(rect.left + rect.right) / 2, rect.top, edgeDiameter],
+            [(rect.left + rect.right) / 2, rect.bottom, edgeDiameter],
+            [rect.left, (rect.top + rect.bottom) / 2, edgeDiameter],
+            [rect.right, (rect.top + rect.bottom) / 2, edgeDiameter],
+        ];
+
+        extraCanvases.forEach((c, i) => {
+            const [x, y, d] = coords[i];
+            c.style.left = `${x - d / 2}px`;
+            c.style.top = `${y - d / 2}px`;
+        });
+    }, 200);
+
+    return () => {
+        clearInterval(centerInterval);
+        clearInterval(updateInterval);
+        removeElement(canvas);
+        extraCanvases.forEach(c => removeElement(c));
+    };
 }
 
-/**
- * Draws a line between two points.
- *
- * @param context Canvas 2d context to draw to
- * @param x1
- * @param y1
- * @param x2
- * @param y2
- */
-function drawLine(context, x1, y1, x2, y2) {
-    context.beginPath();
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
-    context.stroke();
-}
+// Developer functions (safe to delete)
 
 /**
  * Gets coordinates of element bounding rectangle corners.
@@ -2831,50 +4041,81 @@ function getElementCorners(element) {
 }
 
 /**
- * Gets dimensions of an element based on bounding rectangle.
- *
- * @param element
- * @returns {{width: number, height: number}}
+ * Temporary container for obsolete island control bar functions.
+ * Use while generalizing drag handler.
  */
-function getElementDimensions(element) {
-    const rect = element.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+class IslandControlBar {
+    island                = document.getElementById('island_controlBar');                  // Floating island control bar
+    isIslandDragging = false                                                               // Dragging island control bar
+    islandX;                                                                               // Initial position of the control island
+    islandY;
 
-    return { width, height }; // Example use: let { width: elementWidth, height: elementHeight } = getElementDimensions(element);
+    setupAll() {
+        showElement(this.island);
+        listenerToElement('island_controlBar', 'mousedown', this.islandDragStart);                                // Draggable island bar
 
-}
+        // Keep control island visible
+        setInterval(() => { moveElementToView(this.island) }, 5000); // Periodically ensures control island is visible
 
-/**
- * Draws a label (with the middle of its left edge) at the coordinates
- * HTML/CSS implementation.
- *
- * @param coordinateX
- * @param coordinateY
- * @param height
- * @param backgroundColor
- * @param opacity
- * @param zindex
- * @param text
- * @returns {HTMLDivElement}
- */
-function drawLabel(coordinateX, coordinateY, height, backgroundColor = 'green', opacity = '1', zindex = '9005', text = "text") {
-    // print("Drew " + backgroundColor + " label at X: " + coordinateX + " Y: " + coordinateY);
+        showElement(this.island, 'flex');
 
-    const label = document.createElement('div');
-    label.style.position = 'absolute';
-    label.style.left = `${coordinateX}px`;
-    label.style.top = `${coordinateY - height / 2}px`;
-    label.style.width = 'auto';
-    label.style.height = `${height}px`;
-    label.style.backgroundColor = backgroundColor;
-    label.style.color = 'black';
-    label.style.opacity = opacity;
-    label.style.zIndex = zindex;
-    label.style.pointerEvents = 'none';
-    label.textContent = text;
+    }
 
-    document.body.appendChild(label);
 
-    return label;
+
+    /**
+     * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
+     * @param event Mouse event 'mousedown'
+     */
+    islandDragStart (event) {
+
+        print("islandDragStart(): Island drag initiated" );
+
+        this.isIslandDragging = true;
+
+        // Get current coordinates
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+        this.islandX = parseInt(this.island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
+        this.islandY = parseInt(this.island.style.top, 10) || 0;
+
+        document.addEventListener('mousemove', this.islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
+        document.addEventListener('mouseup', this.islandDragStop);
+
+    }
+
+    /**
+     * Calculate new position for island control bar. Update island style according new position.
+     * @param event Mouse event 'mousemove'
+     */
+    islandDragUpdater(event) {
+
+        print("islandDragUpdater(): Mass event: Island drag in progress");
+
+        if (this.isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
+            // Calculates new position
+            let pos1 = mouseX - event.clientX;
+            let pos2 = mouseY - event.clientY;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+
+            // Updates the dragged island's position
+            this.island.style.top = (this.island.offsetTop - pos2) + "px";
+            this.island.style.left = (this.island.offsetLeft - pos1) + "px";
+        }
+    }
+
+    /**
+     * Stop Island dragging when mouse key is lifted. Remove event listeners.
+     */
+    islandDragStop() {
+        this.isIslandDragging = false;
+        document.removeEventListener('mousemove', this.islandDragUpdater);
+        document.removeEventListener('mouseup', this.islandDragStop);
+
+        moveElementToView(this.island);
+
+        print("islandDragStop(): Island drag stopped");
+    }
+
 }

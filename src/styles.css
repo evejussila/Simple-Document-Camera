@@ -2,24 +2,26 @@
 
 :root {
     /* Core colors */
-    --text-color: #ffffff;
-    --bg-color-darkest: #171717;
-    --bg-color-basic: #212121;
-    --bg-color-lightest: #454545;
-    --general-accent-color: rgba(255, 141, 44, 0.5);
+    --text-color: #2A2A2D;              /* Generic text color */
+    --text-color-contrast: #FCFCFC;     /* Text color on different backgrounds */
+    --bg-color-darkest: #191818;
+    --bg-color-basic: #494950;
+    --bg-color-lightest: #F7F7F8;
+    --general-accent-color: #2A2A2D;
+    --bg-color-body: var(--bg-color-lightest);
 
     /* Other colors */
-    --button-bg-color: rgba(151, 151, 151, 0.25);            /* Must have contrast to background, must have transparency */
+    --button-bg-color: rgba(151, 151, 151, 0);            /* Must have contrast to background, must have transparency */
     --remove-button-bg-color: rgba(151, 151, 151, 0.6);      /* Likely requires more visibility than other buttons */
-    --link-color: #ff7633;
-    --link-hover: #ffa400;
-    --link-visited: #b35729;
-    --link-active: #ffcc00;
+    --link-color: #4747D1;
+    --link-hover: #5a5acf;
+    --link-visited: #4731ae;
+    --link-active: #6767f8;
     --option-bg-color: var(--button-bg-color);
-    --icon-filter: invert(1);                                /* Color inversion for icons (black-white) */
+    --icon-filter: ;                                /* Allows color inversion for icons */
 
     /* Animations and hovers */
-    --general-transitions: opacity 400ms ease, background-color 25ms linear, transform 300ms ease-in-out;
+    --general-transitions: opacity 300ms ease, background-color 25ms linear, transform 300ms ease-in-out;
     --button-bg-color-hover: var(--general-accent-color);
     --general-hover-filter: opacity(1) brightness(1);
 
@@ -50,7 +52,7 @@
 
     --option-bg-color: rgba(173, 231, 255, 0.51);
 
-    --icon-filter: invert(0);
+    --icon-filter: invert(1);
 
     --general-accent-color: rgba(0, 178, 255, 0.6);
 
@@ -58,6 +60,13 @@
     --link-hover: #4141ff;
     --link-visited: #6811ff;
     --link-active: #6161ff;
+}
+
+.darkMode {                                /* Toggleable dark mode */
+    --link-color: #ff7633;
+    --link-hover: #ffa400;
+    --link-visited: #b35729;
+    --link-active: #ffcc00;
 }
 
 
@@ -88,11 +97,16 @@ body {
     height:100%;
     overflow: hidden;
 
-    margin: 7px;
+    margin: 0;
+    padding: 0;
 
-    font-family: 'Noto Sans', sans-serif;
+    font-family: Roboto, sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0;
 
-    background-color: var(--bg-color-basic);
+    background-color: var(--bg-color-body);
     color: var(--text-color);
 }
 
@@ -105,11 +119,9 @@ body {
 /* Buttons, options, icons */
 
 button {
-    width: max-content;
-    min-width: 30px;
-    min-height: 30px;
-    padding: 5px;
-    margin: auto;
+    width: 48px;
+    height: 48px;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -120,7 +132,6 @@ button {
 
     background-size: cover;
     background-position: center;
-    border-radius: 5px;
 
     background-color: var(--button-bg-color);
     color: var(--text-color);
@@ -139,14 +150,15 @@ button:not(:hover) {
 .buttonSmall {
     color: var(--text-color);
 
-    min-width: 23px;
-    min-height: 23px;
+    width: 18px;
+    height: 18px;
 }
 
 .icon {
-    width: 30px;
-    height: 30px;
-    object-fit: contain; /* Ensures the icon fits within defined width and height */
+    width: 25px;
+    height: 25px;
+    /* object-fit: cover;   Fill, maintain aspect ratio, crop overflow */
+    object-fit: contain;   /* Fit, maintain aspect ratio, no overflow */
 
     filter: var(--icon-filter);
 }
@@ -157,13 +169,45 @@ button:not(:hover) {
 
 .promptOption {
     width: 100%;
-    margin: 4px 0;
-    border: none;
-    padding: 10px;
-    border-radius: 5px;
+    max-width: 180px;
+    height: 40px;
+    padding: 0 10px 0 10px;
+    border-style: solid;
+    border-width: 1px;
+    border-radius: 6px;
+    font-weight: 500;
 
-    background-color: var(--option-bg-color);
-    color: var(--text-color);
+    background-color: #EFEFF0;
+    border-color: #E4E4E7;
+    color: #4747D1;
+}
+.promptOption:hover{
+    background-color: #bed9ff;
+}
+
+.promptOption.optionDefault {
+    background-color: #5C5CD6;
+    border-color: #4747D1;
+    color: #FCFCFC;
+}
+.promptOption.optionDefault:hover{
+    background-color: #8989ec;
+}
+.promptOption.optionNeutral {
+    background-color: #EFEFF0;
+    border-color: #E4E4E7;
+    color: #4747D1;
+}
+.promptOption.optionNeutral:hover{
+    background-color: #bed9ff;
+}
+.promptOption.optionNegative {
+    background-color: #D6C25C;
+    border-color: #D1BA47;
+    color: #2A2A2D;
+}
+.promptOption.optionNegative:hover{
+    background-color: #ecdb86;
 }
 
 
@@ -188,33 +232,64 @@ button:not(:hover) {
     color: var(--text-color);
 }
 
-#zoomControls {
+.buttonZoom {
+    width: 32px;
+    height: 36px;
+    padding: 8px 12px;
+    gap: 8px;
+    opacity: 1;
+    border-radius: 6px;
+    background: #BDBDC2;
+
+    font-weight: 1000;
+}
+
+.buttonZoom:hover {
+    background: #dfdfe1;
+}
+
+.languageSelector {
     display: flex;
-    margin-left: 15px;
-    margin-right: 15px;
     align-items: center;
-
-    gap: 5px;   /* FF: 2px looks good, Chrome needs more */
-
-    color: var(--text-color);
+    gap: 4px;
+    margin-left: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    font-size: 16px;
 }
 
-#zoomSlider {
-    accent-color: var(--general-accent-color);
+.languageSelector span:hover {
+    color: var(--link-hover);
 }
-
 
 /* Core UI */
 
+#controlBarTopContainer, #controlBarMiddleContainer, #controlBarBottomContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    visibility: visible;
+    width: 100%;
+}
+#controlBarTopContainer {
+    justify-content: flex-start;
+}
+#controlBarBottomContainer {
+    justify-content: flex-end;
+}
+#controlBarMiddleContainer {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
+    justify-content: center;
+}
+
 #avButtons, #controlBarEndSpacer { /* Container and spacer for always visible buttons */
     display: flex;
-    flex-direction: row-reverse;
-    margin: 0 5px 0 5px;
-    height: 50px;
-    right: 5px;
+    flex-direction: column;
+    height: 48px;
     bottom: 0;
-    width: 100px; /* Width must apply to spacer in bottom bar */
-    gap: 0;
+    width: 48px;
 
     align-items: center;
 }
@@ -223,59 +298,28 @@ button:not(:hover) {
     position: absolute;
 }
 
-#buttonCollapse, #buttonFullScreen {
+#buttonFullScreen {
     aspect-ratio: 1/1;
-    margin: 4px;
     z-index: 899; /* TODO: Use variable, always on top of UI */
     visibility: visible;
 }
 
 #controlBar {
     display: inline-flex;
+    flex-direction: column;
     position: absolute;
-    height: 50px;
-    max-width: 100%;
+    width: 48px;
+    height: 100%;
     z-index: 898;  /* TODO: Use variable, almost always on top of UI */
+    top: 0;
     bottom: 0;
-    left: 7px;
-    right: 7px;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
+    left: 0;
+    right: auto;
 
     align-items: center;
 
-    background-color: var(--bg-color-darkest);
+    background-color: var(--bg-color-basic);
     color: var(--text-color);
-}
-
-#island_controlBar::before {  /* Targets the element and applies the pseudo-element */
-    content: "";              /* Creates an empty pseudo-element */
-    display: block;           /* Ensures it behaves as block */
-    height: 15px;
-    width: 100%;
-} /* Spacer pseudo-element (for island drag handle) is not in DOM */
-
-#island_controlBar {
-    position: absolute;
-    left: 45px;
-    top: 190px;
-    transform: translateX(-50%) translateY(-50%);
-    cursor: move;
-    z-index: 897;  /* TODO: Use variable, usually on top of UI */
-    display: flex;
-    flex-direction: column;
-    width: 60px;
-    height: max-content;
-    border-radius: 10px;
-    padding-bottom: 10px;
-    padding-top: 10px;
-
-    gap: 7px;
-
-    background-color: var(--bg-color-lightest);
-    color: var(--text-color);
-
-
 }
 
 #selectorDevice {
@@ -286,22 +330,56 @@ button:not(:hover) {
     border: 1px solid var(--text-color);
 
     background-color: var(--bg-color-basic);
-    color: var(--text-color);
+    color: #FFFFFF;
+}
+
+#zoomControls {
+    display: flex;
+    /*
+    margin-left: 15px;
+     */
+    margin-right: 8px;
+
+    align-items: center;
+
+    font-weight: 600;
+
+    gap: 5px;   /* FF: 2px looks good, Chrome needs more */
+
+    color: #FFFFFF;
+}
+
+#zoomSlider {
+    accent-color: var(--general-accent-color);
 }
 
 
-/* Core elements */
+/* Core video elements */
+
+#videoContainer {
+    position: fixed;
+    top: 0;
+    left: 48px;
+    width: calc(100vw - 48px);
+    height: 100vh;
+    overflow: hidden;
+}
+
+#cameraFeedFrame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    width: max-content;
+    height: max-content;
+}
 
 #cameraFeed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 50% 50%;
     display: block;
-    min-width: 100%;
-    height: 100%;
-    object-fit: cover;
-    position: relative;
-    z-index: var(--zindex-visual-core);
-    border-radius: 5px;
-
-    transition: transform 130ms linear;      /* Slight smoothing for zoom */
 }
 
 #canvasMain {
@@ -314,73 +392,67 @@ button:not(:hover) {
     z-index: var(--zindex-visual-core);
 }
 
-#videoContainer {
-    width: 100%;
-    height: 100%;
-    z-index: var(--zindex-visual-core);
-}
-
-#menuContainerLeft, #menuContainerRight {
-    display: flex;
-    margin: 0 5px 0 5px;
-    align-items: center;
-    visibility: visible;
-    gap: 10px;
-
-}
-
-#menuContainerLeft {
-    justify-content: flex-start;
-}
-
-#menuContainerRight {
-    justify-content: flex-end;
-}
-
-
-/* Layout elements */
-
-#controlBarMidSpacer {
-    flex-grow: 1;
-    flex-shrink: 1;
-    flex-basis: auto;
-}
-
 
 /* Programmatically created elements */
 
 .createdMenu {
     position: fixed;
-    transform: translateX(-50%);
     width: max-content;
-    background-color: var(--bg-color-lightest);
+    min-height: 48px;
+    background-color: var(--bg-color-basic);
     color: var(--text-color);
-    border-radius: 5px;
-    padding: 5px;
     z-index: 700;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     gap: 7px;
+    padding: 0 7px;
+}
+
+.menuSeparator {
+    width: 1px;
+    height: 38px;
+    background-color: #727277;
+}
+
+.drawMenuOptionSelection {
+    margin: 0 2px;
+    outline: 1px solid #FFFFFF;
+    outline-offset: 2px;
+}
+
+.drawMenuColorOption {
+    width: 24px;
+    height: 24px;
+}
+
+.drawMenuThicknessOption {
+    width: 24px;
+    height: 24px;
+    position: relative;
+    background-color: #F7F7F8;
 }
 
 .createdOverlay {
     width: 105%;
     height: 105%;
-    background: linear-gradient(to bottom, #e6e6e6, #222222);
+    background: linear-gradient(to bottom, #ffffff, #b19e90);
+    box-shadow: 4px 4px 10px 2px rgba(57, 57, 57, 0.66); /* x-offset, y-offset, blur, spread, color */
     cursor: move;
     z-index: var(--zindex-overlays);
     position: absolute;
     left: 2%;
     top: 2%;
+    overflow: hidden;
 }
 
 .createdOverlayRemoveButton {
-    width: 5%;
-    height: 20px;
-    margin: -10px auto auto;
+    position: absolute;
+    margin: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: none; /* Displayed programmatically */
-
     background-color: var(--remove-button-bg-color);
 }
 
@@ -388,8 +460,8 @@ button:not(:hover) {
     position: absolute;
     left: 300px;
     top: 100px;
-    min-width: 150px;
-    min-height: 40px;
+    min-width: 240px;
+    min-height: 80px;
     z-index: 301; /* TODO: Use variable if possible */
 }
 
@@ -400,13 +472,15 @@ button:not(:hover) {
     height: 100%;
     font-size: 30px;
     resize: none; /* Prefer custom implementation for resize */
-    overflow: auto;
+    overflow: hidden;
+    background-color: #FFFFFF;
+    border: 1px solid #C8C8C8;
+    border-radius: 8px;
     cursor: move; /* TODO: Will not allow for text selection cursor, related: drag handler interferes with text selection */
-    z-index: 301; /* TODO: Use variable if possible */
+    z-index: 302; /* TODO: Use variable if possible */
 }
 
 .createdTextAreaContainerRemoveButton { /* TODO: JS implementation breaks class naming */
-
     width: 20px;
     height: 20px;
     margin-top: -18px;
@@ -414,29 +488,73 @@ button:not(:hover) {
     display: none;
     border-radius: 10px;
     padding-bottom: 10px;
-    z-index: 300; /* TODO: Use variable if possible */
+    z-index: 303; /* TODO: Use variable if possible */
 
     background-color: var(--remove-button-bg-color)
 }
 
+.createdTextAreaButtonContainer {
+    width: 70px;
+    height: 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border: none;
+    background: none;
+    visibility: hidden;
+    transform: translateY(-100%);
+    position: relative;
+    left: 8px;
+}
+
+.createdTextAreaButton {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #E7E7E7;
+    background-color: #494950;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: visible;
+}
+
+.createdTextAreaButtonImage {
+    width: 16px;
+    height: auto;
+    max-height: 16px;
+}
+
+.createdTextAreaButton:hover {}
+
+.createdTextAreaButtonLarger {
+    border-top-left-radius: 6px;
+}
+
+.createdTextAreaButtonSmaller {}
+
+.createdTextAreaButtonDelete {
+    border-top-right-radius: 6px;
+}
+
 .createdTextAreaResizeHandle {
-    width: 15px;
-    height: 15px;
-    background-color: gray;
+    width: 10px;
+    height: 10px;
     position: absolute;
     right: 0;
     bottom: 0;
     cursor: se-resize;
-    clip-path: polygon(100% 0, 0 100%, 100% 100%);
-    z-index: 302; /* TODO: Use variable if possible */
-
+    clip-path: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: auto;
+    z-index: 303; /* TODO: Use variable if possible */
 }
 
 .createdContentBox {
     overflow: scroll;
 }
 
-.modalOverlay {
+.modalPromptOverlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -448,45 +566,116 @@ button:not(:hover) {
 }
 
 .prompt {
-    transform: translateX(-50%);
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
     background-color: var(--bg-color-lightest);
-    border-radius: 10px;
-    padding: 12px 7px 9px 7px;          /* Shorthand: top right bottom left */
+    border-radius: 8px;
     z-index: var(--zindex-prompts);
+    width: 600px;
+    filter: drop-shadow(0px 2px 48px #22212C26);
+    border: 1px solid #2A2A2D33;
+    overflow: clip;
 }
 
 .promptTitle {
-    font-size: 20px;
-    text-align: center;
-    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    font-size: 24px;
+    text-align: left;
+    padding-left: 24px;
+    box-sizing: border-box;
+    background-color: #FCFCFC;
+    height: 80px;
 
-    color: var(--text-color);
+    color: #7A7A85;
 }
 
 .promptText {
     text-align: justify;        /* Text fills horizontal space */
-    margin-bottom: 10px;
-    max-height: 100%;
-    overflow: auto;
-    padding: 5px;               /*  In case of vertical scrollbar */
+    margin-bottom: 0;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 24px;
     box-sizing: content-box;    /*  Prevents padding from affecting width */
+    background-color: #F7F7F8;
+    border-top: 1px solid #2A2A2D20;
+    border-bottom: 1px solid #2A2A2D20;
+    border-left: none;
+    border-right: none;
 
     color: var(--text-color);
 }
 
 .promptOptionContainer {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex-grow: 1;
-    justify-content: flex-end;
-    padding: 0 3px 0 3px;
+    justify-content: center;
+    align-items: center;
+    padding: 24px 32px;
+    box-sizing: border-box;
+    gap: 20px;
+    height: 80px;
+}
 
-    gap: 0;
+.promptContentBox {
+    aspect-ratio: 16 / 9;
+    display: flex;
+    flex-direction: column;
+    z-index: 1050;
 }
 
 
 /* Special behavior */
 
+.buttonHighlight {
+    background-color: var(--bg-color-lightest);
+}
+
 #island_controlBar.animate_move {
     transition: left 1s, top 1s;
+}
+
+.loader {
+    width: 34px;
+    height: 34px;
+    border: 5px solid #494950;
+    border-top: 5px solid rgba(255, 255, 255, 0);
+    border-radius: 60%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+.animateMove {
+    transition: top 400ms, left 400ms;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+
+/* Branding */
+
+.brandingLogo {
+    width: 270px;
+    height: 60px;
+}
+
+.waitPromptContainer {
+
+}
+
+.waitPromptText {
+
+}
+
+/* Development */
+
+.developer {
+    z-index: var(--zindex-dev);
 }
