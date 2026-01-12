@@ -2554,19 +2554,23 @@ class MovableElement extends CreatedElement {
         // this.container.addEventListener("mousemove", (e) => this.dragUpdater(e) );     // Handle mousemove action
         // this.container.addEventListener("mouseup",   (e) => this.dragStop(e)    );     // Stop moving or resizing when the mouse is released
 
-        // DEV: Arrow functions risk creating duplicate function calls, direct calls are singular?
         // DEV: Event object is passed automatically? As first parameter?
+        // DEV: Arrow function may be required when there are scope inheritance issues
         this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action
 
         // DEV: Mousemove and -up listeners here would lead to duplicates and uncleared listeners? Them not causing visible issues would only be thanks to boolean flag checks.
         // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
         // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
 
+        // DEV: Extra variable was previously used to guard against some scope inheritance issues
+
     }
 
     // Drag handling (TODO: Write and implement generic)
 
-    dragStart(event) {
+    dragStart(event, elementToMove = this.container) {
+        // elementToMove is a legacy parameter left as a reminder, it can be used for tweaks (or to guard against some scope inheritance issues where this.scope is not natively passed)
+
         if (!this.allowMove) return;
 
         print("MovableElement.dragStart(): Drag initiated" );
@@ -2578,10 +2582,14 @@ class MovableElement extends CreatedElement {
         this.containerX = parseInt(this.container.style.left, 10) || 0;  // Parses position to decimal number. Number is set to 0 if NaN.
         this.containerY = parseInt(this.container.style.top, 10) || 0;
 
+        // DEV: Offsets considered in legacy overlay version
+        // parseInt(elementToMove.style.left, 10) || elementToMove.offsetLeft || 0;
+        // parseInt(elementToMove.style.top, 10) || elementToMove.offsetTop || 0;
+
         document.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
         document.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
 
-        // DEV: Island drag handler used document instead of container?
+        // DEV: Some handler used container instead of document?
         // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
         // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
 
@@ -2592,14 +2600,26 @@ class MovableElement extends CreatedElement {
 
         if (this.isDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
             // Calculates new position
-            let pos1 = mouseX - event.clientX;
-            let pos2 = mouseY - event.clientY;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
+            let deltaX = mouseX - event.clientX;
+            let deltaY = mouseY - event.clientY;
+
+            // Some legacy updater also updated these here
+            // mouseX = event.clientX;
+            // mouseY = event.clientY;
 
             // Updates the dragged container's position
-            this.container.style.left = (this.container.offsetLeft - pos1) + "px";
-            this.container.style.top = (this.container.offsetTop - pos2) + "px";
+            this.container.style.left = `${this.containerX - deltaX}px`;
+            this.container.style.top = `${this.containerY - deltaY}px`;
+
+            // Alternative syntax
+            // this.container.style.left = (this.container.offsetLeft - deltaX) + "px";
+            // this.container.style.top = (this.container.offsetTop - deltaY) + "px";
+
+            // DEV: Legacy overlay used inverted
+            // const deltaX = e.clientX - mouseX;
+            // const deltaY = e.clientY - mouseY;
+            // overlay.style.left = `${this.containerX + deltaX}px`;
+            // overlay.style.top = `${this.containerY + deltaY}px`;
         }
     }
 
@@ -2680,13 +2700,11 @@ class MovableElement extends CreatedElement {
  */
 class Overlay extends MovableElement {
 
-    // Class shared variables (TODO: Deprecate)
-    static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
-
     // Other
-    overlayX;                                                                               // Initial position of the overlay when starting drag
-    overlayY;
-    defaultTextureBackground;                                                               // Inline style for overlay background
+    containerX;                                                                               // Initial position of the overlay when starting drag
+    containerY;
+
+    // Texture and parameters
     static defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
         236, 250,               // r min, max
         230, 240,               // g min, max
@@ -2715,7 +2733,8 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "createdOverlay", this.id, true);
+        this.element = super.createElement("div", "createdOverlay", this.id, true); // TODO: Should create container instead
+        this.container = this.element;
 
         if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
             Overlay.renderNoiseCanvas(this.element);
@@ -2737,8 +2756,7 @@ class Overlay extends MovableElement {
     handleListeners() {
         // Add listener for drag
         print("handleListeners(): Adding drag listener for overlay: " +  this.id);
-        let overlay = document.getElementById(this.id);                              // TODO: Remove extra gets, use reference in variable
-        overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
+        this.element.addEventListener('mousedown', (e) => this.dragStart(e)); // Start overlay dragging
     }
 
     static async preRenderNoiseCanvas() {
@@ -2764,23 +2782,22 @@ class Overlay extends MovableElement {
      * Handles dragging overlay elements with mouse.
      * Starts drag.
      * @param e MouseEvent 'mousedown'
-     * @param overlay Overlay element
+     * @param elementToMove Overlay element
      */
-    dragStart(e, overlay) {
+    dragStart(e, elementToMove = this.container) {
         print("dragStart(): Overlay drag initiated");
 
-        // overlay.style.zIndex = "499"                                                       // Get on top
-        Overlay.isOverlayDragging = true;
+        this.isDragging = true;
 
         // Stores the initial mouse and overlay positions
         mouseX = e.clientX;
         mouseY = e.clientY;
-        this.overlayX = parseInt(overlay.style.left, 10) || overlay.offsetLeft || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
-        this.overlayY = parseInt(overlay.style.top, 10) || overlay.offsetTop || 0;
+        this.containerX = parseInt(elementToMove.style.left, 10) || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
+        this.containerY = parseInt(elementToMove.style.top, 10) || 0;
 
         // Stores references to the event handlers
-        const mouseMoveHandler = (event) => this.dragUpdater(event, overlay);
-        const mouseUpHandler = () => this.dragStop(overlay, mouseMoveHandler, mouseUpHandler);
+        const mouseMoveHandler = (event) => this.dragUpdater(event, elementToMove);
+        const mouseUpHandler = () => this.dragStop(elementToMove, mouseMoveHandler, mouseUpHandler);
 
         // Event listeners for mouse move and release
         document.addEventListener('mousemove', mouseMoveHandler);
@@ -2790,19 +2807,19 @@ class Overlay extends MovableElement {
     /**
      * Calculates new position for overlay when dragged with mouse.
      * Runs while dragging.
-     * @param e MouseEvent 'mousemove'
+     * @param event MouseEvent 'mousemove'
      * @param overlay Overlay element
      */
-    dragUpdater(e, overlay) {
+    dragUpdater(event, overlay) {
         print("dragUpdater(): Mass event: Overlay drag in progress");
-        if (Overlay.isOverlayDragging) {
+        if (this.isDragging) {
             // Calculates new position
-            const deltaX = e.clientX - mouseX;
-            const deltaY = e.clientY - mouseY;
+            const deltaX = mouseX - event.clientX;
+            const deltaY = mouseY - event.clientY;
 
             // Updates the dragged overlay's position
-            overlay.style.left = `${this.overlayX + deltaX}px`;
-            overlay.style.top = `${this.overlayY + deltaY}px`;
+            this.container.style.left = `${this.containerX - deltaX}px`;
+            this.container.style.top = `${this.containerY - deltaY}px`;
         }
     }
 
@@ -2816,7 +2833,7 @@ class Overlay extends MovableElement {
         print("dragStop(): Overlay drag stopped");
 
         // overlay.style.zIndex = "400";                                                       // Return z-index
-        Overlay.isOverlayDragging = false;
+        this.isDragging = false;
 
         document.removeEventListener('mousemove', mouseMoveHandler);
         document.removeEventListener('mouseup', mouseUpHandler);
@@ -3452,7 +3469,7 @@ class Menu extends CreatedElement {
         // Attach listener for clicks on button
         this.callerElement.addEventListener('click', () => {
             this.toggleVisibility()
-            this.extraCallAction();
+            this.extraCallAction?.();
         } );
 
         // Attach listener for clicks outside menu
