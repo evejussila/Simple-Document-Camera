@@ -2547,7 +2547,7 @@ class MovableElement extends CreatedElement {
         super(type); // Derived class must call superclass
         this.allowMove = true;
 
-        // this.handleDragListeners();
+        // this.handleDragListeners(); // TODO: Ideal to call here, but need to create container first, necessitating further rework of initial element creation
     }
 
 
@@ -2559,11 +2559,16 @@ class MovableElement extends CreatedElement {
 
         // DEV: Event object is passed automatically? As first parameter?
         // DEV: Arrow function may be required when there are scope inheritance issues
-        this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action DEV: Must target container, not document
+
+        print("handleDragListeners(): Adding drag listener for " + this.type + " : " +  this.id);
+
 
         // TODO: While this.context should already be the same for the derived and superclass, binding here results in incorrect this.context
+        this.dragStart = this.dragStart.bind(this);
         this.dragUpdater = this.dragUpdater.bind(this);
         this.dragStop = this.dragStop.bind(this);
+
+        this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action DEV: Must target container, not document
 
         // DEV: Mousemove and -up listeners here would lead to duplicates and uncleared listeners? Them not causing visible issues would only be thanks to boolean flag checks.
         // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
@@ -2737,6 +2742,7 @@ class Overlay extends MovableElement {
      * Relies on parent class.
      */
     constructor() {
+
         super('overlay'); // Derived class must call superclass
         this.create();
     }
@@ -2760,20 +2766,9 @@ class Overlay extends MovableElement {
         // Regenerate texture on element resize
         // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
 
-        // Add listeners
-        this.handleListeners();
-    }
+        // Initialize listeners
+        this.handleDragListeners(); // TODO: After reworking createElement(), call this in super constructor instead
 
-    /**
-     * Adds listener for drag of overlay.
-     */
-    handleListeners() {
-        // Add listener for drag
-        print("handleListeners(): Adding drag listener for overlay: " +  this.id);
-        this.container.addEventListener('mousedown', (e) => this.dragStart(e)); // Start overlay dragging
-
-        this.dragUpdater = this.dragUpdater.bind(this);
-        this.dragStop = this.dragStop.bind(this)
     }
 
     static async preRenderNoiseCanvas() {
