@@ -2561,6 +2561,10 @@ class MovableElement extends CreatedElement {
         // DEV: Arrow function may be required when there are scope inheritance issues
         this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action DEV: Must target container, not document
 
+        // TODO: While this.context should already be the same for the derived and superclass, binding here results in incorrect this.context
+        this.dragUpdater = this.dragUpdater.bind(this);
+        this.dragStop = this.dragStop.bind(this);
+
         // DEV: Mousemove and -up listeners here would lead to duplicates and uncleared listeners? Them not causing visible issues would only be thanks to boolean flag checks.
         // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
         // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
@@ -2599,8 +2603,8 @@ class MovableElement extends CreatedElement {
         // DEV: ! When a function is passed to a listener, context/scope is lost and this.scope is not available, and class functions will not work if they refer to class instance
         // DEV: ! Binding functions ( !! once per instance !! , prior to listener registration) may be one alternative to solving issue this.dragUpdater = this.dragUpdater.bind(this)
         // DEV: ! Attaching listener to document instead of an element should be avoided, but may by unavoidable (is at least mousemove and mouseup do not target document, moving an element under another will leave drag in a weird state).
-        this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
-        this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
+        document.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
+        document.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
 
         // DEV: Some handler used container instead of document?
         // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
@@ -2616,7 +2620,7 @@ class MovableElement extends CreatedElement {
             let deltaX = mouseX - event.clientX;
             let deltaY = mouseY - event.clientY;
 
-            // Some legacy updater also updated these here
+            // DEV: Some legacy updater also updated these here
             // mouseX = event.clientX;
             // mouseY = event.clientY;
 
@@ -2624,11 +2628,11 @@ class MovableElement extends CreatedElement {
             this.container.style.left = `${this.containerX - deltaX}px`;
             this.container.style.top = `${this.containerY - deltaY}px`;
 
+            // DEV: Useless
             // Alternative syntax
             // this.container.style.left = (this.container.offsetLeft - deltaX) + "px";
             // this.container.style.top = (this.container.offsetTop - deltaY) + "px";
-
-            // DEV: Legacy overlay used inverted
+            // Legacy overlay used inverted
             // const deltaX = e.clientX - mouseX;
             // const deltaY = e.clientY - mouseY;
             // overlay.style.left = `${this.containerX + deltaX}px`;
@@ -2640,8 +2644,9 @@ class MovableElement extends CreatedElement {
         print("MovableElement.dragStop(): Drag stopped");
         this.isDragging = false;
 
-        this.container.removeEventListener('mousemove', this.dragUpdater);
-        this.container.removeEventListener('mouseup', this.dragStop);
+        // DEV: ! Incomplete removal is hard to spot! Beware! TODO: Add notification of failure
+        document.removeEventListener('mousemove', this.dragUpdater);
+        document.removeEventListener('mouseup', this.dragStop);
     }
 
 
@@ -2742,7 +2747,7 @@ class Overlay extends MovableElement {
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "createdOverlay", this.id, true); // TODO: Should create container instead
+        this.element = super.createElement("div", "createdOverlay", this.id, true); // TODO: Should create container instead; why call super?
         this.container = this.element;
 
         if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
@@ -2785,66 +2790,6 @@ class Overlay extends MovableElement {
 
         // Cleanup
         removeElement(newElement);
-    }
-
-
-    // Drag handling (TODO: Replace with generic in MovableElement)
-
-    /**
-     * Handles dragging overlay elements with mouse.
-     * Starts drag.
-     * @param e MouseEvent 'mousedown'
-     * @param elementToMove Overlay element
-     */
-    dragStart(e, elementToMove = this.container) {
-        print("dragStart(): Overlay drag initiated");
-
-        this.isDragging = true;
-
-        // Stores the initial mouse and overlay positions
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        this.containerX = parseInt(elementToMove.style.left, 10) || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
-        this.containerY = parseInt(elementToMove.style.top, 10) || 0;
-
-        // Event listeners for mouse move and release
-        document.addEventListener('mousemove', this.dragUpdater);
-        document.addEventListener('mouseup', this.dragStop);
-    }
-
-    /**
-     * Calculates new position for overlay when dragged with mouse.
-     * Runs while dragging.
-     * @param event MouseEvent 'mousemove'
-     * @param overlay Overlay element
-     */
-    dragUpdater(event, overlay) {
-        print("dragUpdater(): Mass event: Overlay drag in progress");
-        if (this.isDragging) {
-            // Calculates new position
-            const deltaX = mouseX - event.clientX;
-            const deltaY = mouseY - event.clientY;
-
-            // Updates the dragged overlay's position
-            this.container.style.left = `${this.containerX - deltaX}px`;
-            this.container.style.top = `${this.containerY - deltaY}px`;
-        }
-    }
-
-    /**
-     * Stops overlay dragging.
-     * @param overlay Overlay element
-     * @param mouseMoveHandler EventListener
-     * @param mouseUpHandler EventListener
-     */
-    dragStop(overlay, mouseMoveHandler, mouseUpHandler) {
-        print("dragStop(): Overlay drag stopped");
-
-        // overlay.style.zIndex = "400";                                                       // Return z-index
-        this.isDragging = false;
-
-        document.removeEventListener('mousemove', this.dragUpdater);
-        document.removeEventListener('mouseup', mouseUpHandler);
     }
 
 
