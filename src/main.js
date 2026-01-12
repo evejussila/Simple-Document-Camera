@@ -147,12 +147,20 @@ function addCoreListeners() {
     navigator.mediaDevices.addEventListener('devicechange', () => {
         backgroundUpdateInputList().then( () => {
             print("listener(): Device change registered");
-            blinkVideoSelector();
+            blinkVideoButton();
         } );
     });
 
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge case issues)
+
+    // React to window resize events
+    window.addEventListener('resize', () => {
+        if (true) { // TODO: Add check for set fill or fit modes and maintain those until manual control of zoom taken
+            zoomFill();
+            blinkZoomButton();
+        }
+    });
     
 }
 
@@ -208,10 +216,10 @@ async function setLocale(newLocale) {
         if (content) {
             legalText = content;
             legalText.textExists = true;
-            print("setLocale(): Found text: " + legalText.file + " with title: " + content.title);
+            print("setLocale(): Found text: " + file + " with title: " + content.title);
         } else {
             legalText.textExists = false;
-            console.warn("setLocale(): Did not find text: " + legalText.file);
+            console.warn("setLocale(): Did not find text: " + file);
         }
 
         return legalText;
@@ -676,15 +684,30 @@ function createMenus() {
 
 function handleOnboarding() {
     // Blink video selector button at start (hint)
-    blinkVideoSelector(300, 3);
+    blinkVideoButton(300, 3);
 }
 
-function blinkVideoSelector(length = 300, repeats = 0) {
+function blinkVideoButton(length = 300, repeats = 0) {
     let count = 0;
     const blink = () => {                           // Creates a series of async events that should fire sequentially
         selector.callerElement.classList.add("buttonHighlight");
         setTimeout(() => {
             selector.callerElement.classList.remove("buttonHighlight");
+            count++;
+            if (count < repeats) setTimeout(blink, 200);
+        }, length);
+    };
+    blink();
+}
+
+function blinkZoomButton(length = 300, repeats = 0) {
+    let element = document.getElementById('buttonZoom');
+
+    let count = 0;
+    const blink = () => {                           // Creates a series of async events that should fire sequentially
+        element.classList.add("buttonHighlight");
+        setTimeout(() => {
+            element.classList.remove("buttonHighlight");
             count++;
             if (count < repeats) setTimeout(blink, 200);
         }, length);
@@ -892,7 +915,7 @@ async function getVideoInputs() {
             return videoInputs;
         } else {
             console.warn("getVideoInputs(): No video sources found")
-            blinkVideoSelector();
+            blinkVideoButton();
             throw new Error("getVideoInputs(): No valid video inputs");
         }
 
@@ -927,7 +950,7 @@ function updateInputList(inputs) {
         selector.selectedIndex = 0;                                                                 // Select first option
         if (originalSelection) {                                                                    // Check for truthy value to prevent unneeded trigger at startup
             console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
-            blinkVideoSelector();
+            blinkVideoButton();
         }
 
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
@@ -1335,11 +1358,11 @@ function zoomFill() {
     // Decide scaling axis based on aspect ratios
     if (videoAspect > containerAspect) {
         // Video is wider than container -> scale by height (clipping width)
-        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
+        // print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
         scaleFactor = containerDims.height / videoDims.height;
     } else {
         // Video is taller than container -> scale by width (clipping height)
-        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling/clipping to match width: " + videoDims.width + " -> " + containerDims.width);
+        // print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling/clipping to match width: " + videoDims.width + " -> " + containerDims.width);
         scaleFactor = containerDims.width / videoDims.width;
     }
 

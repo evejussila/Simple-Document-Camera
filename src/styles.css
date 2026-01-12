@@ -633,7 +633,7 @@ button:not(:hover) {
 /* Special behavior */
 
 .buttonHighlight {
-    background-color: var(--bg-color-lightest);
+    background-color: #7f7f88;
 }
 
 #island_controlBar.animate_move {
