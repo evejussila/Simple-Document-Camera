@@ -2530,31 +2530,85 @@ class MovableElement extends CreatedElement {
 
     // Switches
     allowMove;                                      // Is drag ability enabled
+    isDragging;
 
     // Initialization
+    containerX;
+    containerY;
 
     /**
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor(type, allowMove = true) {
+    constructor(type) {
         super(type);
-        this.allowMove = allowMove;
+        this.allowMove = true;
+
+        // this.handleDragListeners();
     }
 
 
     // Functionality
+    handleDragListeners() {
+        // this.container.addEventListener("mousedown", (e) => this.dragStart(e)   );     // Handle mousedown action
+        // this.container.addEventListener("mousemove", (e) => this.dragUpdater(e) );     // Handle mousemove action
+        // this.container.addEventListener("mouseup",   (e) => this.dragStop(e)    );     // Stop moving or resizing when the mouse is released
 
+        // DEV: Arrow functions risk creating duplicate function calls, direct calls are singular?
+        // DEV: Event object is passed automatically? As first parameter?
+        this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action
+
+        // DEV: Mousemove and -up listeners here would lead to duplicates and uncleared listeners? Them not causing visible issues would only be thanks to boolean flag checks.
+        // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
+        // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
+
+    }
 
     // Drag handling (TODO: Write and implement generic)
 
-    dragStart() {
+    dragStart(event) {
+        if (!this.allowMove) return;
+
+        print("MovableElement.dragStart(): Drag initiated" );
+        this.isDragging = true;
+
+        // Get current coordinates
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+        this.containerX = parseInt(this.container.style.left, 10) || 0;  // Parses position to decimal number. Number is set to 0 if NaN.
+        this.containerY = parseInt(this.container.style.top, 10) || 0;
+
+        document.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
+        document.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
+
+        // DEV: Island drag handler used document instead of container?
+        // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
+        // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
+
     }
 
-    dragUpdater() {
+    dragUpdater(event) {
+        print("MovableElement.dragStart(): Mass event: Drag in progress");
+
+        if (this.isDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
+            // Calculates new position
+            let pos1 = mouseX - event.clientX;
+            let pos2 = mouseY - event.clientY;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+
+            // Updates the dragged container's position
+            this.container.style.left = (this.container.offsetLeft - pos1) + "px";
+            this.container.style.top = (this.container.offsetTop - pos2) + "px";
+        }
     }
 
-    dragStop() {
+    dragStop(event) {
+        print("MovableElement.dragStart(): Drag stopped");
+        this.isDragging = false;
+
+        document.removeEventListener('mousemove', this.dragUpdater);
+        document.removeEventListener('mouseup', this.dragStop);
     }
 
 
@@ -4118,85 +4172,5 @@ function getElementCorners(element) {
         bottomLeft:     { x: rect.left + scrollX,   y: rect.bottom + scrollY    },
         bottomRight:    { x: rect.right + scrollX,  y: rect.bottom + scrollY    }
     };
-
-}
-
-/**
- * Temporary container for obsolete island control bar functions.
- * Use while generalizing drag handler.
- */
-class IslandControlBar {
-    island                = document.getElementById('island_controlBar');                  // Floating island control bar
-    isIslandDragging = false                                                               // Dragging island control bar
-    islandX;                                                                               // Initial position of the control island
-    islandY;
-
-    setupAll() {
-        showElement(this.island);
-        listenerToElement('island_controlBar', 'mousedown', this.islandDragStart);                                // Draggable island bar
-
-        // Keep control island visible
-        setInterval(() => { moveElementToView(this.island) }, 5000); // Periodically ensures control island is visible
-
-        showElement(this.island, 'flex');
-
-    }
-
-
-
-    /**
-     * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
-     * @param event Mouse event 'mousedown'
-     */
-    islandDragStart (event) {
-
-        print("islandDragStart(): Island drag initiated" );
-
-        this.isIslandDragging = true;
-
-        // Get current coordinates
-        mouseX = event.clientX;
-        mouseY = event.clientY;
-        this.islandX = parseInt(this.island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
-        this.islandY = parseInt(this.island.style.top, 10) || 0;
-
-        document.addEventListener('mousemove', this.islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
-        document.addEventListener('mouseup', this.islandDragStop);
-
-    }
-
-    /**
-     * Calculate new position for island control bar. Update island style according new position.
-     * @param event Mouse event 'mousemove'
-     */
-    islandDragUpdater(event) {
-
-        print("islandDragUpdater(): Mass event: Island drag in progress");
-
-        if (this.isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
-            // Calculates new position
-            let pos1 = mouseX - event.clientX;
-            let pos2 = mouseY - event.clientY;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-
-            // Updates the dragged island's position
-            this.island.style.top = (this.island.offsetTop - pos2) + "px";
-            this.island.style.left = (this.island.offsetLeft - pos1) + "px";
-        }
-    }
-
-    /**
-     * Stop Island dragging when mouse key is lifted. Remove event listeners.
-     */
-    islandDragStop() {
-        this.isIslandDragging = false;
-        document.removeEventListener('mousemove', this.islandDragUpdater);
-        document.removeEventListener('mouseup', this.islandDragStop);
-
-        moveElementToView(this.island);
-
-        print("islandDragStop(): Island drag stopped");
-    }
 
 }
