@@ -1,35 +1,36 @@
 // Development tools
 let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
-const version = ("2026-01-07-alpha");
+const version = ("2026-01-13-alpha");
 console.log("Version: " + version);
 
 // Localization
-const defaultLocale = "fi";                                         // Default locale is english
-const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: DEV: Get based on available localisation files
+const defaultLocale = "en";                                         // Default locale is english TODO: Get from browser default
+const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: Get based on available localisation files
 let currentLocale;                                                  // The active locale
 let currentTranslations = {};                                       // Stores translations for the active locale
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
-const videoElementFrame     = document.getElementById('cameraFeedFrame');
+const videoElementFrame     = document.getElementById('cameraFeedFrame');            // Frame used for some transforms (notably zoom scaling)
 const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
 const videoContainer        = document.getElementById('videoContainer');             // Video container
-const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
+const controlBar            = document.getElementById('controlBar');                 // Control bar
 
 // Video feed state
-let rotation = 0;                                                                    // Store rotation state
-let currentZoom = 1;                                                                 // Current zoom level
-let flip = 1;                                                                        // State of image mirroring, 1 = no flip, -1 = horizontal flip
-let isFrozen = false;                                                                // Video freeze on or off
+let rotation = 0;                                                                    // Rotation state
+let currentZoom = 1;                                                                 // Zoom level
+let flip = 1;                                                                        // Mirroring state (-1 is X flip)
+let isFrozen = false;                                                                // Video freeze state
 
 // UI state
-let mouseX;                                                                          // Initial position of the mouse
+let mouseX;                                                                          // Initial position of the mouse (used in drag handling) TODO: Move to class where possible
 let mouseY;
 
 // Other
 let selector;                                                                        // Camera feed selector
 let createdElements;                                                                 // Handles created elements
 let appStatus = {};                                                                  // Stores app status information
+
 
 // Initialization
 
@@ -41,9 +42,9 @@ function start() {
     createdElements = new CreatedElements();
 
     // Pre-generate resources
-    Overlay.preRenderNoiseCanvas();
+    Overlay.preRenderNoiseCanvas().then(() => {  });                                // Render texture for overlays in background
 
-    // Set app status
+    // Set app status flags
     appStatus.paused = true;
     appStatus.hasVideoError = false;
 
@@ -53,32 +54,43 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Add localization and wait for it to complete
-    setLocale(defaultLocale).then(() => {               // DEV: Localization can't be fully parallel and independent if ToS etc. are required for use
-        
-        // Handle notices, consent and data storage
-        handlePrivacy().then( (initialResult) => {                                  // Function finishes fast, returned variable will change value later based on prompt response
+    // Get default language to use
+    // TODO: Write and implement
+    let locale = defaultLocale;
 
-            appStatus.privacy = initialResult;
-            if (initialResult === "wait" || initialResult === "waitStorage") {      // Continue based on initial or future value
-                waitPrivacy();
+    // Add localization and wait for it to complete
+    setLocale(locale).then(() => {
+        // Handle notices, consent and data storage
+        handlePrivacy().then( (initialResult) => {                                 // Function finishes fast, returned variable will change value later based on prompt response
+            appStatus.privacy = initialResult;                                     // Store initial state in global variable
+            if (initialResult === "wait" || initialResult === "waitStorage") {     // Continue based on initial or future value
+                waitPrivacy();                                                     // Wait for change (in appStatus.privacy)
             } else {
-                startup();
+                startup().then(() => {  } );
             }
         });
     });
 
+    /**
+     * Nested function to wait for answer to prompt.
+     * Event-driven.
+     */
     function waitPrivacy() {
-        window.addEventListener('privacyChanged', (e) => {                          // Wait for custom event to be dispatched
+        window.addEventListener('privacyChanged', (e) => {                          // Wait for custom event to be dispatched from prompt
             print("start(): Event: Privacy property value changed to: " + e.detail.newValue);
 
             if (e.detail.newValue !== "wait" && e.detail.newValue !== "waitStorage" && e.detail.newValue !== "reject") {
-                startup();
-                // TODO: Could run multiple times if there's an issue with prompt
+                startup().then(() => {  } );
+            } else {
+                console.error("start(): Startup will not run, privacy property value: " + e.detail.newValue);
             }
         });
     }
 
+    /**
+     * Nested function to finalize app initialization.
+     * @returns {Promise<void>}
+     */
     async function startup() {
         // Set app status
         appStatus.paused = false;
@@ -88,8 +100,8 @@ function start() {
 
         // Start video feed
         videoStart().then(() =>
-            showWaitPrompt(4)).then(() => {
-                showElement(videoElement);
+            showWaitPrompt(4)).then(() => {                 // Show wait prompt
+                showElement(videoElement);                  // Show (fade) video element in after prompt
             }
         );
 
@@ -110,7 +122,7 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage' , 'click'   , saveImage     );                              // Save image button
     listenerToElement('buttonOverlay'   , 'click'   , addOverlay    );                              // Overlay button
     listenerToElement('buttonAddText'   , 'click'   , addText       );                              // Text button
-    listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider                                                             //
+    listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider
     listenerToElement('buttonZoomIn'    , 'click'   , () => adjustZoom(0.1));                       // Zoom in button
     listenerToElement('buttonZoomOut'   , 'click'   , () => adjustZoom(-0.1));                      // Zoom out button
     listenerToElement('buttonZoomFill'  , 'click'   , () => zoomFill());
@@ -170,9 +182,10 @@ function addCoreListeners() {
  * @param {string} newLocale - The locale to set.
  */
 async function setLocale(newLocale) {
+    // Check if user chose current language
     if (newLocale === currentLocale) return;
 
-    // Checks if new locale is in the list of available locales
+    // Check if new locale is in the list of available locales
     if (!availableLocales.includes(newLocale)) {
         console.error(`setLocale(): Attempted to load unsupported locale: ${newLocale}`);
         return;
@@ -196,7 +209,7 @@ async function setLocale(newLocale) {
     const legalTextPrivacy = prefixKeys(await getLegalText(currentLocale + "_privacy"), "privacy");
 
     // Save legal translations
-    currentTranslations.legalTextTos = legalTextTos;
+    currentTranslations.legalTextTos = legalTextTos;                // TODO: Full save but also merge, vs merge only?
     currentTranslations.legalTextPrivacy = legalTextPrivacy;
 
     // Merge translations
@@ -209,7 +222,11 @@ async function setLocale(newLocale) {
     // Apply translations
     applyTranslations();
 
-    // Nested function to get legal text
+    /**
+     * Nested function to get a legal text
+     * @param file
+     * @returns {Promise<{}>}
+     */
     async function getLegalText(file) {
         let legalText = {};
         const content = await fetchJSON(file);
@@ -225,8 +242,13 @@ async function setLocale(newLocale) {
         return legalText;
     }
 
-    // Nested function for applying prefixes to object keys
-    // Used for making generic object keys unique to avoid overwrites when merging
+    /**
+     * Nested function for applying prefixes to object keys
+     * Used for making generic object keys unique to avoid overwrites when merging
+     * @param object
+     * @param prefix
+     * @returns {{}}
+     */
     function prefixKeys(object, prefix) {
         let prefixed = {};
         for (let key in object) {
@@ -268,7 +290,7 @@ async function fetchJSON(file) {
  * This function iterates over the DOM and updates elements based on their translation keys.
  */
 function applyTranslations() {
-    document.querySelectorAll("[data-locale-key]").forEach(translateElement);
+    document.querySelectorAll("[data-locale-key]").forEach(translateElement);       // Find all elements with localization key, apply translateElement() to each
 }
 
 /**
@@ -281,7 +303,7 @@ function translateElement(element) {
 
     // Return if no translation is available
     if (!translation) {
-        console.error("translateElement(): Dataset locale key set but no translation found for key: " + key + " , translation: " + translation);
+        console.error("translateElement(): Dataset locale key set for element " + element.id + " but no translation found for key: " + key + " , translation: " + translation);
         return;
     }
 
@@ -289,6 +311,7 @@ function translateElement(element) {
     if (element.hasAttribute("title")) {
         element.setAttribute("title", translation);
     }
+
     // Else if element has placeholder attribute, translate
     else if (element.hasAttribute("placeholder")) {
         element.setAttribute("placeholder", translation);
@@ -296,7 +319,8 @@ function translateElement(element) {
 
     // Else if element has non-empty text content, translate
     else if (element.textContent.trim().length > 0) {
-        if (/</.test(element.innerHTML) && />/.test(element.innerHTML)) {       // If content is HTML, allow parsing
+        // If content is HTML, support parsing
+        if (/</.test(element.innerHTML) && />/.test(element.innerHTML)) {
             element.innerHTML = translation;
         } else {
             element.textContent = translation;
@@ -318,7 +342,7 @@ async function handlePrivacy() {
 
         set: function(value) {                              // Intercept value set
             this._privacy = value;                          // Initializes backing field property
-            window.dispatchEvent(new CustomEvent('privacyChanged', { detail: { newValue: value } }));   // Fire an event on change
+            window.dispatchEvent(new CustomEvent('privacyChanged', { detail: { newValue: value } }));   // Fire a custom event on change
         },
 
         get: function() {                                   // Intercept value get
@@ -588,7 +612,7 @@ function createMenus() {
     {                                   // Code block for collapsing
         let menuInfo = [
             {
-                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalFullInfo(); }
+                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalFullInfo().then(() => {  } ); }
             }
         ];
 
@@ -1264,6 +1288,7 @@ function autoFill() {
     });
 }
 
+
 // UI functions
 
 /**
@@ -1499,7 +1524,7 @@ function videoFreeze(freezeIcon) {
         translateElement(freezeIcon);
         isFrozen = true;                                                                            // Freeze is on
     } else {
-        videoStart();
+        videoStart().then(() => {  } );
         videoElement.style.display = 'block';
         canvasElement.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
@@ -1798,7 +1823,7 @@ function showErrorPrompt(errorPackage) {
     //     )
     // }
 
-    customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut);
+    customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut).then(() => {  } );
 
 }
 
@@ -2750,6 +2775,10 @@ class Overlay extends MovableElement {
 
     }
 
+    /**
+     * Pre-render canvas used for texturing of overlays
+     * @returns {Promise<void>}
+     */
     static async preRenderNoiseCanvas() {
         // Create temporary container element for actual dimensions
         let newElement = document.createElement("div");
@@ -3096,7 +3125,7 @@ class TextArea extends MovableElement {
                 clearInterval(interval);
                 return;
             }
-            moveElementToView(this.container);
+            moveElementToView(this.container).then(() => {  } );
         }, 3000);
 
     }
@@ -3120,8 +3149,9 @@ class TextArea extends MovableElement {
      * Activates the selected text area with mouse click and captures the mouse click position.
      * Attaches event listeners for `mousemove` and `mouseup`.
      * @param e MouseEvent 'mousedown'
+     * @param elementToMove Legacy
      */
-    dragStart(e) {
+    dragStart(e, elementToMove = this.container) {
         print("dragStart(): Text area drag initiated");
 
         createdElements.setActiveTextArea(this.element, this);
@@ -3697,7 +3727,7 @@ class Drawing extends CreatedElement {
 }
 
 
-// Temporary drawing functions (TODO: Move to Drawing class)
+// Temporary drawing functions (TODO: Move to Drawing class when possible)
 
 function drawStart() {
     print("drawStart(): Draw activated", "green");
@@ -3864,7 +3894,7 @@ function debug() {
     //  {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png"     , action: backgroundUpdateInputList},
         {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png"      , action: () => { releaseVideoStream(); }},
         {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png"   , action: videoStart},
-        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png"        , action: () => { getMaxResolutionFallback(); }},
+        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png"        , action: () => { getMaxResolutionFallback().then(() => {  } ); }},
     //  {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png"        , action: () => { Drawing.test(); }},
     ];
 
