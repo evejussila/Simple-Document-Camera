@@ -526,17 +526,6 @@ function createMenus() {
             return box;
         }
 
-        /**
-         * Changes active drawing color.
-         *
-         * @param color Color to use
-         */
-        function setDrawColor(color) {
-            // Colors from parameter are strings of this type: '#000000' '#FFFFFF' '#FC6C85' etc
-            // Example call of this function: setDrawColor('#FFDE21')
-            print("setDrawColor(): Changing color to " + color, "green");
-        }
-
         // Create separator
         menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
 
@@ -558,6 +547,15 @@ function createMenus() {
             option.customHTML = createCircleBox(option.thickness);
             menuDraw.push(option);
         });
+
+        // Create separator
+        menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
+
+        // Create eraser button
+        menuDraw.push( {id: "buttonDrawEraser", text: "Eraser", img: "eraser.png", action: drawEraser} );
+
+        // Create clear button
+        menuDraw.push( {id: "buttonDrawClear", text: "Clear drawings", img: "delete.png", action: drawClear} );
 
         /**
          * Nested function to create button boxes for line thickness
@@ -582,20 +580,8 @@ function createMenus() {
             return box;
         }
 
-        /**
-         * Changes active drawing thickness.
-         *
-         * @param thickness Thickness to use
-         */
-        function setDrawThickness(thickness) {
-            // Thickness values from parameter are numbers of this type: 2 4 8 etc
-            // Example call of this function: setDrawThickness(12)
-            // Thickness values are diameters
-            print("setDrawThickness(): Changing thickness to " + thickness, "green");
-        }
-
         // Create menu
-        createdElements.createMenu(menuDraw, buttonDraw, "leftToRight");
+        createdElements.createMenu(menuDraw, buttonDraw, drawStart);
     }
 
     // Info menu creation
@@ -2433,8 +2419,8 @@ class CreatedElements {
     /**
      * Creates a menu and registers it to management.
      */
-    createMenu(menuDefinitions, callerElement) {
-        const classReference = new Menu(menuDefinitions, callerElement);
+    createMenu(menuDefinitions, callerElement, extraCallAction) {
+        const classReference = new Menu(menuDefinitions, callerElement, extraCallAction);
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
         print("createMenu(): Created and registered " + classReference.getType() + " : " + classReference.getElementId());
         return classReference;
@@ -3338,11 +3324,12 @@ class Menu extends CreatedElement {
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor(menuDefinitions, callerElement) {
+    constructor(menuDefinitions, callerElement, extraCallAction) {
         super('menu');
 
         this.menuDefinitions = menuDefinitions;
         this.callerElement = callerElement;
+        this.extraCallAction = extraCallAction;
 
         this.create();
     }
@@ -3409,7 +3396,10 @@ class Menu extends CreatedElement {
         document.getElementById('videoContainer').appendChild(this.element);
 
         // Attach listener for clicks on button
-        this.callerElement.addEventListener('click', () => this.toggleVisibility() );
+        this.callerElement.addEventListener('click', () => {
+            this.toggleVisibility()
+            this.extraCallAction();
+        } );
 
         // Attach listener for clicks outside menu
         document.addEventListener("click", (e) => this.handleClickOutside(e), true);
@@ -3702,6 +3692,73 @@ class Drawing extends CreatedElement {
 
     }
 
+}
+
+
+// Temporary drawing functions (TODO: Move to Drawing class)
+
+function drawStart() {
+    print("drawStart(): Draw activated", "green");
+    // This function is called from the draw menu button.
+    // Called _every time_ the menu button is pressed, and only when it is pressed.
+
+    // Fill in drawing start functionality here
+}
+
+/**
+ * Changes active drawing color.
+ *
+ * @param color Color to use
+ */
+function setDrawColor(color) {
+    print("setDrawColor(): Changing color to " + color, "green");
+    // This function is called from the color buttons. Do not call this function. This function should just change color practically.
+    // Colors from parameter are strings of this type: '#000000' '#FFFFFF' '#FC6C85' etc
+    // Example call of this function: setDrawColor('#FFDE21')
+
+    // Fill in whatever code practically changes the color to use
+}
+
+/**
+ * Changes active drawing thickness.
+ *
+ * @param thickness Thickness to use
+ */
+function setDrawThickness(thickness) {
+    print("setDrawThickness(): Changing thickness to " + thickness, "green");
+    // This function is called from the thickness buttons. Do not call this function. This function should just change thickness practically.
+    // Thickness values from parameter are numbers (int) of this type: 2 4 8 etc
+    // Example call of this function: setDrawThickness(12)
+    // Thickness values are diameters
+
+    // Fill in whatever code practically changes the width to use
+}
+
+function drawEraser() {
+    print("drawEraser(): Eraser activated", "green");
+    // This function is called from the eraser button.
+
+    // Fill eraser functionality here
+}
+
+function drawClear() {
+    print("drawClear(): Clear called", "yellow");
+    // This function is called from the clear button.
+
+    // Create modal prompt
+    // TODO: Will be added later
+    let response = true;
+
+    // Answer is yes
+    if (response) {
+        print("drawClear(): Clear confirmed");
+        // Fill clear functionality here
+
+        return;
+    }
+
+    // Answer is cancel
+    print("drawClear(): Clear cancelled");
 }
 
 
@@ -4040,6 +4097,7 @@ function drawElementTrackingIndicators(element) {
         extraCanvases.forEach(c => removeElement(c));
     };
 }
+
 
 // Developer functions (safe to delete)
 
