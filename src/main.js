@@ -2532,12 +2532,12 @@ class MovableElement extends CreatedElement {
     allowMove;                                      // Is drag ability enabled
     isDragging;
 
-    // Initialization
+    // Geometry
     containerX;
     containerY;
 
-    // Reference storage for listeners
-    // Alternative for binding
+
+    // Initialization
 
     /**
      * Instantiates class.
@@ -2553,28 +2553,15 @@ class MovableElement extends CreatedElement {
 
     // Functionality
     handleDragListeners() {
-        // this.container.addEventListener("mousedown", (e) => this.dragStart(e)   );     // Handle mousedown action
-        // this.container.addEventListener("mousemove", (e) => this.dragUpdater(e) );     // Handle mousemove action
-        // this.container.addEventListener("mouseup",   (e) => this.dragStop(e)    );     // Stop moving or resizing when the mouse is released
-
-        // DEV: Event object is passed automatically? As first parameter?
-        // DEV: Arrow function may be required when there are scope inheritance issues
-
         print("handleDragListeners(): Adding drag listener for " + this.type + " : " +  this.id);
 
+        // Bind context to functions
+        this.dragStart      =   this.dragStart.bind(this);          // ... When such functions are passed to a listener, this.context scope is lost and necessary variables are inaccessible to the function.
+        this.dragUpdater    =   this.dragUpdater.bind(this);        // ... If this is worked around using wrapper arrow functions, deleting listeners becomes impossible, as the listeners cannot be referred to.
+        this.dragStop       =   this.dragStop.bind(this);           // ... Alternatives include storing references to named functions as static class variables or passing them to dragStop as arguments.
 
-        // TODO: While this.context should already be the same for the derived and superclass, binding here results in incorrect this.context
-        this.dragStart = this.dragStart.bind(this);
-        this.dragUpdater = this.dragUpdater.bind(this);
-        this.dragStop = this.dragStop.bind(this);
-
-        this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action DEV: Must target container, not document
-
-        // DEV: Mousemove and -up listeners here would lead to duplicates and uncleared listeners? Them not causing visible issues would only be thanks to boolean flag checks.
-        // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
-        // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
-
-        // DEV: Extra variable was previously used to guard against some scope inheritance issues
+        // Attach core listener
+        this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action; must target container, not document; event object is automatically passed as first argument
 
     }
 
@@ -2582,16 +2569,12 @@ class MovableElement extends CreatedElement {
 
     dragStart(event, elementToMove = this.container) {
         print("MovableElement.dragStart(): Drag initiated" );
-        // DEV: elementToMove is a legacy parameter left as a reminder, it can be used for tweaks (or to guard against some scope inheritance issues where this.scope is not natively passed)
-        // Broken implementation used explicit reference passing:
-        // const mouseMoveHandler = (event) => this.dragUpdater(event, elementToMove);
-        // const mouseUpHandler = () => this.dragStop(elementToMove, mouseMoveHandler, mouseUpHandler);
-        // document.addEventListener('mousemove', mouseMoveHandler);
-        // document.addEventListener('mouseup', mouseUpHandler);
-        // and dragStop removed listeners referring to mouseMoveHandler and mouseUpHandler
+        // DEV: elementToMove is a legacy parameter left as a reminder, it can be used for tweaks (or to guard against some scope inheritance issues where this.scope is not natively passed), may be necessary for textArea drag handling
 
+        // Check if movement prohibited
         if (!this.allowMove) return;
 
+        // Set core drag flag
         this.isDragging = true;
 
         // Get current coordinates
@@ -2604,24 +2587,19 @@ class MovableElement extends CreatedElement {
         // parseInt(elementToMove.style.left, 10) || elementToMove.offsetLeft || 0;
         // parseInt(elementToMove.style.top, 10) || elementToMove.offsetTop || 0;
 
-        // DEV: ! Listeners must be passed a named function (instead of a wrapper arrow function), or they cannot be deleted later on, as they cannot be referred to
-        // DEV: ! When a function is passed to a listener, context/scope is lost and this.scope is not available, and class functions will not work if they refer to class instance
-        // DEV: ! Binding functions ( !! once per instance !! , prior to listener registration) may be one alternative to solving issue this.dragUpdater = this.dragUpdater.bind(this)
-        // DEV: ! Attaching listener to document instead of an element should be avoided, but may by unavoidable (is at least mousemove and mouseup do not target document, moving an element under another will leave drag in a weird state).
+        // Attach listeners
         document.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
         document.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
-
-        // DEV: Some handler used container instead of document?
-        // this.container.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
-        // this.container.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
+        // DEV: Attaching listener to document instead of an element should be avoided, but may by unavoidable (is at least mousemove and mouseup do not target document, moving an element under another will leave drag in a weird state).
 
     }
 
     dragUpdater(event) {
-        print("MovableElement.dragUpdater(): Mass event: Drag in progress");
+        print("MovableElement.dragUpdater(): Mass event: Drag in progress");  // DEV: If this printout is visible when not dragging, drag handling is broken
 
-        if (this.isDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
-            // Calculates new position
+        // Check core drag flag
+        if (this.isDragging) {                                                // DEV: This conditional will behaviorally mask issues like drag handlers not being removed
+            // Calculate new position
             let deltaX = mouseX - event.clientX;
             let deltaY = mouseY - event.clientY;
 
@@ -2629,7 +2607,7 @@ class MovableElement extends CreatedElement {
             // mouseX = event.clientX;
             // mouseY = event.clientY;
 
-            // Updates the dragged container's position
+            // Update the dragged container's position
             this.container.style.left = `${this.containerX - deltaX}px`;
             this.container.style.top = `${this.containerY - deltaY}px`;
 
@@ -2647,10 +2625,12 @@ class MovableElement extends CreatedElement {
 
     dragStop(event) {
         print("MovableElement.dragStop(): Drag stopped");
+
+        // Set core drag flag
         this.isDragging = false;
 
-        // DEV: ! Incomplete removal is hard to spot! Beware! TODO: Add notification of failure
-        document.removeEventListener('mousemove', this.dragUpdater);
+        // Remove listeners
+        document.removeEventListener('mousemove', this.dragUpdater);         // DEV: ! Incomplete removal is hard to spot! Beware! Fails to remove do not throw any error.
         document.removeEventListener('mouseup', this.dragStop);
     }
 
@@ -2664,7 +2644,7 @@ class MovableElement extends CreatedElement {
      * @param id Unique identifier for added element
      * @param createRemoveButton True of remove button should be created (optional, css class for button is classNameRemoveButton)
      */
-    createElement(type, className, id, createRemoveButton = false) { // TODO: Move to super
+    createElement(type, className, id, createRemoveButton = false) { // TODO: Move to highest super
 
         // Create main element
         let newElement = document.createElement(type);
@@ -2742,26 +2722,25 @@ class Overlay extends MovableElement {
      * Relies on parent class.
      */
     constructor() {
-
         super('overlay'); // Derived class must call superclass
         this.create();
     }
 
     /**
      * Creates new overlay on top of feed.
-     * Draggable.
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "createdOverlay", this.id, true); // TODO: Should create container instead; why call super?
+        this.element = super.createElement("div", "createdOverlay", this.id, true); // TODO: Should create container instead; eliminate call for super
         this.container = this.element;
 
+        // Render texture if it does not exist
         if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
             Overlay.renderNoiseCanvas(this.element);
         }
 
-        // TODO: Make into async block, enable fade-in
-        this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas));
+        // Apply texture
+        this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas)); // TODO: Make into async block, enable fade-in
 
         // Regenerate texture on element resize
         // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
@@ -2778,7 +2757,7 @@ class Overlay extends MovableElement {
         newElement.className = "createdOverlay";
         newElement.classList.add("hidden");
         videoContainer.appendChild(newElement);
-        print("Overlay: preRenderNoiseCanvas(): Pre-rendering noise canvas for overlays (async)");
+        print("Overlay.preRenderNoiseCanvas(): Pre-rendering noise canvas for overlays (async)");
 
         // Render
         Overlay.renderNoiseCanvas(newElement);
@@ -2939,7 +2918,6 @@ class Overlay extends MovableElement {
         ctx.putImageData(imageData, 0, 0);                      // draw on canvas
     }
 
-
     /**
      *
      * @param containerElement
@@ -3000,7 +2978,6 @@ class Overlay extends MovableElement {
 
         return clone;
     }
-
 
 
 }
@@ -3417,7 +3394,13 @@ class Menu extends CreatedElement {
         // Attach listener for clicks on button
         this.callerElement.addEventListener('click', () => {
             this.toggleVisibility()
-            this.extraCallAction?.();
+            if (this.extraCallAction) {
+                try {
+                    this.extraCallAction();
+                } catch (e) {
+                    // TODO: A stricter initial check (check exist and is function) may reduce need for error handling here, this.extraCallAction?.() is insufficient
+                }
+            }
         } );
 
         // Attach listener for clicks outside menu
