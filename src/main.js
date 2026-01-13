@@ -1,6 +1,6 @@
 // Development tools
 let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
-const version = ("2026-01-13-alpha");
+const version = ("2026-01-14-alpha");
 console.log("Version: " + version);
 
 // Localization
