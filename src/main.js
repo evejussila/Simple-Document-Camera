@@ -391,8 +391,8 @@ async function handlePrivacy() {
     // Text states (does text exist)   Privacy parameters and actions
     // Privacy text    Tos text        agreeTosInclusive        null                  (agreeAll)            (malformed)
     // ---------------------------------------------------------------------------------------------------------------------------
-    // true            -               privacy prompt                                 handleLocalStorage()
-    // false           -               handleLocalStorage()                           handleLocalStorage()
+    // true            any            privacy prompt                                  handleLocalStorage()
+    // false           any            handleLocalStorage()                            handleLocalStorage()
     // true            true                                     full prompt           handleLocalStorage()  full prompt
     // false           true                                     tos prompt            handleLocalStorage()  tos prompt
     // true            false                                    privacy prompt        handleLocalStorage()  privacy prompt
@@ -403,10 +403,10 @@ async function handlePrivacy() {
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            if (currentTranslations.privacyTextExists) {                                           // Privacy text exists
+            // noinspection JSUnresolvedReference                                // Object property references are populated elsewhere
+            if (currentTranslations.privacyTextExists) {                         // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
-                showLegalPrompt("privacy")                                // Privacy prompt
+                showLegalPrompt("privacy")                                       // Privacy prompt
                 return "waitStorage";
             } else {                                                             // Privacy text does not exist
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
@@ -415,24 +415,24 @@ async function handlePrivacy() {
             }
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            if (currentTranslations.tosTextExists) {                                           // ToS text exists
+            // noinspection JSUnresolvedReference                                // Object property references are populated elsewhere
+            if (currentTranslations.tosTextExists) {                             // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
-                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-                if (currentTranslations.privacyTextExists) {                                       // Privacy text exists
+                // noinspection JSUnresolvedReference                            // Object property references are populated elsewhere
+                if (currentTranslations.privacyTextExists) {                     // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
-                    showLegalPrompt("full")                               // Full prompt
+                    showLegalPrompt("full")                                      // Full prompt
                 } else {                                                         // Privacy text does not exist
                     print("handlePrivacy(): ... privacy text does not exist");
-                    showLegalPrompt("tos")                                // ToS prompt
+                    showLegalPrompt("tos")                                       // ToS prompt
                 }
                 return "wait";
             } else {                                                             // ToS text does not exist
                 print("handlePrivacy(): ... ToS text does not exist");
-                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-                if (currentTranslations.privacyTextExists) {                                       // Privacy text does exist
+                // noinspection JSUnresolvedReference                            // Object property references are populated elsewhere
+                if (currentTranslations.privacyTextExists) {                     // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
-                    showLegalPrompt("privacy")                            // Privacy prompt
+                    showLegalPrompt("privacy")                                   // Privacy prompt
                     return "waitStorage";
                 } else {
                     print("handlePrivacy(): ... privacy text does not exist");
@@ -442,13 +442,13 @@ async function handlePrivacy() {
             }
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            // noinspection JSUnresolvedReference                                // Object property references are populated elsewhere
             if (currentTranslations.privacyTextExists && currentTranslations.tosTextExists) {
-                showLegalPrompt("full")                                  // Full prompt
+                showLegalPrompt("full")                                          // Full prompt
                 return "full";
             } else {
                 return null;
-                // TODO: Edge error cases not further differentiated yet
+                // TODO: Edge error cases with unexpected values not further differentiated yet
             }
     }
 
@@ -494,7 +494,11 @@ function handleLocalStorage() {
  *
  */
 function handleSettingStorage() {
-    // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage)
+    // URL parameter settings
+    // TODO: Save some settings: language
+
+    // Local storage settings
+    // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage): last camera (truncated internal id, beware of fingerprinting risk)
 }
 
 function createMenus() {
@@ -896,7 +900,9 @@ async function getMediaPermission() {
  */
 async function getVideoInputs() {
 
-    // Reliable and complete input enumeration requires already existing media permissions:
+    // Permissions should be requested separately from enumeration for UX reasons, though it is not strictly required.
+    // Missing permissions will be automatically requested, leading to various requests if not done beforehand.
+    // Input enumeration requires media permissions:
     // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices
     // The returned list will omit any devices that are blocked by the document Permission Policy:
     // microphone, camera, speaker-selection (for output devices), and so on.
@@ -964,6 +970,7 @@ function updateInputList(inputs) {
         }
 
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
+        // TODO: Need to work with selection of a default (last used camera) value stored in local storage
     }
 
     // Check selection is valid (debug)
@@ -993,6 +1000,7 @@ async function backgroundUpdateInputList() {
         updateInputList(inputs);
     } catch (e) {
         print("backgroundUpdateInputList(): Background update failed: " + e.name + " : " + e.message);
+        // TODO: Check for appStatus to determine if in initialization phase, when these errors are irrelevant
     }
 }
 
@@ -1049,7 +1057,7 @@ async function getMaxResolution(input = selector.value) {
     try {
         print("getMaxResolution(): Determining max resolution for video input: " + shorten(input));
 
-        // const stream = await getStreamFromInput(4096, 4096, input);                             // Will cause failure on some cameras: technically valid MediaStream with no content
+        // const stream = await getStreamFromInput(4096, 4096, input);                             // DEV: Will cause failure on some cameras: technically valid MediaStream with no content
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 deviceId: {exact: input},
@@ -1084,7 +1092,7 @@ async function getMaxResolutionFallback(input = selector.value) {
     print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
 
     // Resolutions to test
-    const testResolutions = [                                               // Resolutions to test in decreasing order
+    const testResolutions = [                                               // Resolutions to test in decreasing, decending order
         { width: 3840, height: 2160, description: "4K UHD"          },      // During test a boolean property "available" will be added to each
         { width: 2560, height: 1440, description: "1440p"           },      // Best available resolution is first array element with true value for "available"
         { width: 1920, height: 1200, description: "WUXGA"           },
@@ -1106,7 +1114,7 @@ async function getMaxResolutionFallback(input = selector.value) {
     ];
 
     // Loop test
-    const maxResolutions = 3;
+    const maxResolutions = 3;                       // How many available resolutions are enough
     let availableResolutions = 0;
     for (const res of testResolutions) {
         try {
@@ -1149,8 +1157,8 @@ async function getStreamFromInput(width, height, deviceId) {
     const stream = await navigator.mediaDevices.getUserMedia({
         video: {
             deviceId: {exact: deviceId},                                // Constrain to specific camera
-            width: {ideal: width},                                      // Request width
-            height: {ideal: height}                                     // Request height
+            width: {ideal: width},                                      // Request width, avoid overconstraining
+            height: {ideal: height}                                     // Request height, avoid overconstraining
             // frameRate: {ideal: 60}                                   // Request framerate
             // facingMode: {ideal: 'environment'},                      // Request a camera that is facing away from the user
         }
@@ -1169,7 +1177,7 @@ function releaseVideoStream(stream = videoElement.srcObject) {
         stream = null;
     } catch (e) {
         print("releaseVideoStream(): Video release failed (safe): " + e.name);
-        // Error if releasing when no video: TypeError: videoElement.srcObject is null
+        // TODO: Filter out error from releasing when no video: TypeError: videoElement.srcObject is null
     }
 
 }
@@ -1280,11 +1288,10 @@ function getStreamInformation(stream, printOut = false) {
 }
 
 function autoFill() {
-    // Setup a call for fill mode after videoElement loads fully
-    videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
-        zoomFill();
+    // Setup a call for fill mode after videoElement loads fully          // Avoids racing: initial dimensions are default 300x150 and will update asynchronously)
+    videoElement.addEventListener('loadedmetadata', function handler() {  // Triggers when all metadata, including dimension, has loaded (or new src but not srcObject set)
         videoElement.removeEventListener('loadedmetadata', handler);
-        // TODO: Failed input load may leave an obsolete listener instance that either produces double effect (harmless) or just stays in memory?
+        // TODO: Could failed input load leave an obsolete listener instance?
     });
 }
 
@@ -1296,7 +1303,7 @@ function autoFill() {
  * @param value Zoom value
  */
 function setZoomLevel(value) {
-    currentZoom = value / 100;                                                                      // Update zoom value
+    currentZoom = value / 100;                                                             // Update zoom value
     updateVideoTransform();
     document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
 }
@@ -1307,9 +1314,9 @@ function setZoomLevel(value) {
  */
 function adjustZoom(increment) {
     let newZoom = currentZoom * 100 + increment * 100;                                      // Change back to percentages, increase or decrease 10%
-    newZoom = Math.min(Math.max(newZoom, 10), 1000);                                                // Limit zoom between n% and n%
-    setZoomLevel(newZoom);                                                                          // Zoom in percent %
-    document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+    newZoom = Math.min(Math.max(newZoom, 10), 1000);                                        // Limit zoom between n% and n%
+    setZoomLevel(newZoom);                                                                  // Zoom in percent %
+    document.getElementById('zoomSlider').value = newZoom;                                  // Set zoom slider to the correct position DEV: Note that slider has separate min/max
 }
 
 /**
@@ -1319,19 +1326,21 @@ function adjustZoom(increment) {
 function zoomFit() {
     print("zoomFit(): Fit called");
 
+    // Get dimensions
     const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
     const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
 
+    // Check for suspicious dimensions
     if (videoDims.width === 300 && videoDims.height === 150) {
         console.warn("zoomFit(): Fit called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
     }
 
+    // Calculate aspect ratios
     const videoAspect = videoDims.width / videoDims.height;
     const containerAspect = containerDims.width / containerDims.height;
 
+    // Determine scaling and axis based on aspect ratios
     let scaleFactor;
-
-    // Decide scaling axis based on aspect ratios
     if (videoAspect > containerAspect) {
         // Video is wider than container -> scale by width (leaving empty letterbox space on bottom)
         print("zoomFit(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling to match width: " + videoDims.width + " -> " + containerDims.width);
@@ -1342,6 +1351,7 @@ function zoomFit() {
         scaleFactor = containerDims.height / videoDims.height;
     }
 
+    // Apply scaling
     const zoomPercent = scaleFactor * 100;
     setZoomLevel(zoomPercent);
     document.getElementById('zoomSlider').value = zoomPercent;
@@ -1354,19 +1364,21 @@ function zoomFit() {
 function zoomFill() {
     print("zoomFill(): Fill called");
 
+    // Get dimensions
     const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
     const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
 
+    // Check for suspicious dimensions
     if (videoDims.width === 300 && videoDims.height === 150) {
         console.warn("zoomFill(): Fill called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
     }
 
+    // Calculate aspect ratios
     const videoAspect = videoDims.width / videoDims.height;
     const containerAspect = containerDims.width / containerDims.height;
 
+    // Determine scaling and axis based on aspect ratios
     let scaleFactor;
-
-    // Decide scaling axis based on aspect ratios
     if (videoAspect > containerAspect) {
         // Video is wider than container -> scale by height (clipping width)
         // print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
@@ -1377,6 +1389,7 @@ function zoomFill() {
         scaleFactor = containerDims.width / videoDims.width;
     }
 
+    // Apply scaling
     const zoomPercent = scaleFactor * 100;
     setZoomLevel(zoomPercent);
     document.getElementById('zoomSlider').value = zoomPercent;
@@ -1418,9 +1431,9 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
  */
 async function moveElementToView(element) {
     const { x: elementX, y: elementY } = getElementCenter(element);                                             // Get center of element
-    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();        // Get viewport edges
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();          // Get viewport edges
 
-    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {         // Check if element is outside viewport (crude)
+    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {           // Check if element is outside viewport (crude)
         console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + elementX + " y = " + elementY + ", moving to view");
         element.classList.add("animateMove");
 
@@ -1578,6 +1591,7 @@ function showLegalPrompt(promptType, onlyReturnFunction = false, noOptions = fal
     let text;
     let localeKey;
 
+    // Build prompt based on type
     switch(promptType) {
         case 'privacy':
             // Displays a privacy notice.
@@ -2768,6 +2782,7 @@ class Overlay extends MovableElement {
         this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas)); // TODO: Make into async block, enable fade-in
 
         // Regenerate texture on element resize
+        // DEV: Note that this would be run in multiple async instances, each very heavy! Beware!
         // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
 
         // Initialize listeners
@@ -3286,7 +3301,7 @@ class TextArea extends MovableElement {
     // Other
 
     deleteTextArea() {
-        hideElement(this.container, true);
+        removeElement(this.container);
     }
 
 }
