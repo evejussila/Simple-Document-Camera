@@ -1288,8 +1288,8 @@ function getStreamInformation(stream, printOut = false) {
 }
 
 function autoFill() {
-    // Setup a call for fill mode after videoElement loads fully          // Avoids racing: initial dimensions are default 300x150 and will update asynchronously)
-    videoElement.addEventListener('loadedmetadata', function handler() {  // Triggers when all metadata, including dimension, has loaded (or new src but not srcObject set)
+    // Setup a call for fill mode after videoElement loads fully            // Avoids racing: initial dimensions are default 300x150 and will update asynchronously)
+    videoElement.addEventListener('loadedmetadata', function handler() {    // Triggers when all metadata, including dimension, has loaded (or new src but not srcObject set)
         zoomFill();
         videoElement.removeEventListener('loadedmetadata', handler);
         // TODO: Could failed input load leave an obsolete listener instance?
