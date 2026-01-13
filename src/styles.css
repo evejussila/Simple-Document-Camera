@@ -365,7 +365,7 @@ button:not(:hover) {
     overflow: hidden;
 }
 
-#cameraFeedFrame {
+#cameraFeedZoomFrame {
     position: absolute;
     top: 0;
     left: 0;
@@ -382,7 +382,7 @@ button:not(:hover) {
     display: block;
 }
 
-#canvasMain {
+#videoPauseCanvas {
     display: none;
     width: 100%;
     height: 100%;

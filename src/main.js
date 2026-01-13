@@ -11,8 +11,8 @@ let currentTranslations = {};                                       // Stores tr
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
-const videoElementFrame     = document.getElementById('cameraFeedFrame');            // Frame used for some transforms (notably zoom scaling)
-const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
+const videoElementZoomFrame = document.getElementById('cameraFeedZoomFrame');        // Frame used for some transforms (notably zoom scaling)
+const videoPauseCanvas      = document.getElementById('videoPauseCanvas');           // Main canvas
 const videoContainer        = document.getElementById('videoContainer');             // Video container
 const controlBar            = document.getElementById('controlBar');                 // Control bar
 
@@ -1474,20 +1474,20 @@ async function moveElementToView(element) {
 
 /**
  * Saves the current view as a jpg file
- * Flattens videoElement and canvasElement to a temporary canvas and saves it
+ * Flattens videoElement and someCanvas to a temporary canvas and saves it
  */
 function saveImage() {
-    matchElementDimensions(videoElement, canvasElement);                                               // Ensure canvas matches video element (redundancy)
+    // matchElementDimensions(videoElement, someCanvas);                                               // Ensure canvas matches video element (redundancy)
 
     const canvasToSave = document.createElement('canvas');                                             // Create temporary canvas for flattening/combining video feed and canvas together
     const canvasContext = canvasToSave.getContext('2d');                                               // Get canvas context for drawing
     canvasToSave.style.display = 'none';                                                               // Make sure temporary canvas is never visible (redundancy)
     matchElementDimensions(videoElement, canvasToSave);                                                // Match new canvas with video element
 
-    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                       // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
+    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                                  // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
     canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);      // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
-    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);                    // TODO: Same JSDoc typecast
-    canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);     // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
+    // const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (someCanvas);                               // TODO: Same JSDoc typecast
+    // canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);  // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
 
     const dataURL = canvasToSave.toDataURL('image/jpeg');                                              // Converts canvas element to image encoding string
     const downloadElement = document.createElement('a');                                               // Creates "clickable" element
@@ -1540,7 +1540,7 @@ function videoFreeze(freezeIcon) {
     } else {
         videoStart().then(() => {  } );
         videoElement.style.display = 'block';
-        canvasElement.style.display = 'none';
+        videoPauseCanvas.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
         freezeIcon.title = "Freeze";
         freezeIcon.setAttribute("data-locale-key", "freeze");
@@ -2207,15 +2207,15 @@ function getDateTime() {
 }
 
 /**
- * Draws the current frame of videoElement to canvasElement
- * Hides videoElement, shows canvasElement
+ * Draws the current frame of videoElement to videoPauseCanvas
+ * Hides videoElement, shows videoPauseCanvas
  */
 function canvasDrawCurrentFrame() {
-    matchElementDimensions(videoElement, canvasElement);                                        // Update canvas to match video element
-    const canvasContext = canvasElement.getContext("2d");                              // Get canvas context for drawing
-    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);                                                 // Draw frame from video element
+    matchElementDimensions(videoElement, videoPauseCanvas);                                        // Update canvas to match video element
+    const canvasContext = videoPauseCanvas.getContext("2d");                              // Get canvas context for drawing
+    canvasContext.drawImage(videoElement, 0, 0, videoPauseCanvas.width, videoPauseCanvas.height);                                                 // Draw frame from video element
     videoElement.style.display = 'none';                                                         // Disable video element visibility
-    canvasElement.style.display = 'block';                                                       // Make canvas element visible
+    videoPauseCanvas.style.display = 'block';                                                       // Make canvas element visible
 }
 
 /**
@@ -2235,14 +2235,19 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElementFrame.style.transform =
+    // Apply zoom scaling to frame
+    videoElementZoomFrame.style.transform =
         `scale(${currentZoom})`;
 
+    // Apply other transforms to subordinate frame
     videoElement.style.transform =
         `rotate(${rotation}deg) scaleX(${flip})`;
 
+    // Apply transforms to pause canvas (zoom scaling is automatically applied from parent div)
+    videoPauseCanvas.style.transform = videoElement.style.transform; // Updates transformations to pause canvas (still frame)
+
+    // DEV: Legacy
     // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
-    // canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
 }
 
 /**
