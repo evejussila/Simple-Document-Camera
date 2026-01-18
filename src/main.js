@@ -1,35 +1,36 @@
 // Development tools
 let debugMode = false;                                              // Sets default level of console output and toggles availability of some options
-const version = ("2026-01-07-alpha");
+const version = ("2026-01-14-alpha");
 console.log("Version: " + version);
 
 // Localization
-const defaultLocale = "fi";                                         // Default locale is english
-const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: DEV: Get based on available localisation files
+const defaultLocale = "en";                                         // Default locale is english TODO: Get from browser default
+const availableLocales = ["en", "fi"];                              // Stores list of available locales TODO: Get based on available localisation files
 let currentLocale;                                                  // The active locale
 let currentTranslations = {};                                       // Stores translations for the active locale
 
 // Fetch core HTML elements
 const videoElement          = document.getElementById('cameraFeed');                 // Camera feed
-const videoElementFrame     = document.getElementById('cameraFeedFrame');
-const canvasElement         = document.getElementById('canvasMain');                 // Main canvas
+const videoElementZoomFrame = document.getElementById('cameraFeedZoomFrame');        // Frame used for some transforms (notably zoom scaling)
+const videoPauseCanvas      = document.getElementById('videoPauseCanvas');           // Main canvas
 const videoContainer        = document.getElementById('videoContainer');             // Video container
-const controlBar            = document.getElementById('controlBar');                 // Fixed control bar
+const controlBar            = document.getElementById('controlBar');                 // Control bar
 
 // Video feed state
-let rotation = 0;                                                                    // Store rotation state
-let currentZoom = 1;                                                                 // Current zoom level
-let flip = 1;                                                                        // State of image mirroring, 1 = no flip, -1 = horizontal flip
-let isFrozen = false;                                                                // Video freeze on or off
+let rotation = 0;                                                                    // Rotation state
+let currentZoom = 1;                                                                 // Zoom level
+let flip = 1;                                                                        // Mirroring state (-1 is X flip)
+let isFrozen = false;                                                                // Video freeze state
 
 // UI state
-let mouseX;                                                                          // Initial position of the mouse
+let mouseX;                                                                          // Initial position of the mouse (used in drag handling) TODO: Move to class where possible
 let mouseY;
 
 // Other
 let selector;                                                                        // Camera feed selector
 let createdElements;                                                                 // Handles created elements
-let appStatus = {};                                                                  // Stores app status information
+let appStatus = {  };                                                                // Stores app status information TODO: List used keys
+
 
 // Initialization
 
@@ -41,9 +42,9 @@ function start() {
     createdElements = new CreatedElements();
 
     // Pre-generate resources
-    Overlay.preRenderNoiseCanvas();
+    Overlay.preRenderNoiseCanvas().then(() => {  });                                // Render texture for overlays in background
 
-    // Set app status
+    // Set app status flags
     appStatus.paused = true;
     appStatus.hasVideoError = false;
 
@@ -53,32 +54,43 @@ function start() {
     // Add core listeners for interface elements
     addCoreListeners();
 
-    // Add localization and wait for it to complete
-    setLocale(defaultLocale).then(() => {               // DEV: Localization can't be fully parallel and independent if ToS etc. are required for use
-        
-        // Handle notices, consent and data storage
-        handlePrivacy().then( (initialResult) => {                                  // Function finishes fast, returned variable will change value later based on prompt response
+    // Get default language to use
+    // TODO: Write and implement
+    let locale = defaultLocale;
 
-            appStatus.privacy = initialResult;
-            if (initialResult === "wait" || initialResult === "waitStorage") {      // Continue based on initial or future value
-                waitPrivacy();
+    // Add localization and wait for it to complete
+    setLocale(locale).then(() => {
+        // Handle notices, consent and data storage
+        handlePrivacy().then( (initialResult) => {                                 // Function finishes fast, returned variable will change value later based on prompt response
+            appStatus.privacy = initialResult;                                     // Store initial state in global variable
+            if (initialResult === "wait" || initialResult === "waitStorage") {     // Continue based on initial or future value
+                waitPrivacy();                                                     // Wait for change (in appStatus.privacy)
             } else {
-                startup();
+                startup().then(() => {  } );
             }
         });
     });
 
+    /**
+     * Nested function to wait for answer to prompt.
+     * Event-driven.
+     */
     function waitPrivacy() {
-        window.addEventListener('privacyChanged', (e) => {                          // Wait for custom event to be dispatched
+        window.addEventListener('privacyChanged', (e) => {                          // Wait for custom event to be dispatched from prompt
             print("start(): Event: Privacy property value changed to: " + e.detail.newValue);
 
             if (e.detail.newValue !== "wait" && e.detail.newValue !== "waitStorage" && e.detail.newValue !== "reject") {
-                startup();
-                // TODO: Could run multiple times if there's an issue with prompt
+                startup().then(() => {  } );
+            } else {
+                console.error("start(): Startup will not run, privacy property value: " + e.detail.newValue);
             }
         });
     }
 
+    /**
+     * Nested function to finalize app initialization.
+     * @returns {Promise<void>}
+     */
     async function startup() {
         // Set app status
         appStatus.paused = false;
@@ -88,8 +100,8 @@ function start() {
 
         // Start video feed
         videoStart().then(() =>
-            showWaitPrompt(4)).then(() => {
-                showElement(videoElement);
+            showWaitPrompt(4)).then(() => {                 // Show wait prompt
+                showElement(videoElement);                  // Show (fade) video element in after prompt
             }
         );
 
@@ -110,7 +122,7 @@ function addCoreListeners() {
     listenerToElement('buttonSaveImage' , 'click'   , saveImage     );                              // Save image button
     listenerToElement('buttonOverlay'   , 'click'   , addOverlay    );                              // Overlay button
     listenerToElement('buttonAddText'   , 'click'   , addText       );                              // Text button
-    listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider                                                             //
+    listenerToElement('zoomSlider'      , 'input'   , (event) => setZoomLevel(event.target.value)); // Zoom slider
     listenerToElement('buttonZoomIn'    , 'click'   , () => adjustZoom(0.1));                       // Zoom in button
     listenerToElement('buttonZoomOut'   , 'click'   , () => adjustZoom(-0.1));                      // Zoom out button
     listenerToElement('buttonZoomFill'  , 'click'   , () => zoomFill());
@@ -147,12 +159,20 @@ function addCoreListeners() {
     navigator.mediaDevices.addEventListener('devicechange', () => {
         backgroundUpdateInputList().then( () => {
             print("listener(): Device change registered");
-            blinkVideoSelector();
+            blinkVideoButton();
         } );
     });
 
     // Update video input list periodically
     setInterval(backgroundUpdateInputList, 10000); // Runs background update periodically (redundancy for edge case issues)
+
+    // React to window resize events
+    window.addEventListener('resize', () => {
+        if (true) { // TODO: Add check for set fill or fit modes and maintain those until manual control of zoom taken
+            zoomFill();
+            blinkZoomButton();
+        }
+    });
     
 }
 
@@ -162,9 +182,10 @@ function addCoreListeners() {
  * @param {string} newLocale - The locale to set.
  */
 async function setLocale(newLocale) {
+    // Check if user chose current language
     if (newLocale === currentLocale) return;
 
-    // Checks if new locale is in the list of available locales
+    // Check if new locale is in the list of available locales
     if (!availableLocales.includes(newLocale)) {
         console.error(`setLocale(): Attempted to load unsupported locale: ${newLocale}`);
         return;
@@ -188,7 +209,7 @@ async function setLocale(newLocale) {
     const legalTextPrivacy = prefixKeys(await getLegalText(currentLocale + "_privacy"), "privacy");
 
     // Save legal translations
-    currentTranslations.legalTextTos = legalTextTos;
+    currentTranslations.legalTextTos = legalTextTos;                // TODO: Full save but also merge, vs merge only?
     currentTranslations.legalTextPrivacy = legalTextPrivacy;
 
     // Merge translations
@@ -201,24 +222,33 @@ async function setLocale(newLocale) {
     // Apply translations
     applyTranslations();
 
-    // Nested function to get legal text
+    /**
+     * Nested function to get a legal text
+     * @param file
+     * @returns {Promise<{}>}
+     */
     async function getLegalText(file) {
         let legalText = {};
         const content = await fetchJSON(file);
         if (content) {
             legalText = content;
             legalText.textExists = true;
-            print("setLocale(): Found text: " + legalText.file + " with title: " + content.title);
+            print("setLocale(): Found text: " + file + " with title: " + content.title);
         } else {
             legalText.textExists = false;
-            console.warn("setLocale(): Did not find text: " + legalText.file);
+            console.warn("setLocale(): Did not find text: " + file);
         }
 
         return legalText;
     }
 
-    // Nested function for applying prefixes to object keys
-    // Used for making generic object keys unique to avoid overwrites when merging
+    /**
+     * Nested function for applying prefixes to object keys
+     * Used for making generic object keys unique to avoid overwrites when merging
+     * @param object
+     * @param prefix
+     * @returns {{}}
+     */
     function prefixKeys(object, prefix) {
         let prefixed = {};
         for (let key in object) {
@@ -260,7 +290,7 @@ async function fetchJSON(file) {
  * This function iterates over the DOM and updates elements based on their translation keys.
  */
 function applyTranslations() {
-    document.querySelectorAll("[data-locale-key]").forEach(translateElement);
+    document.querySelectorAll("[data-locale-key]").forEach(translateElement);       // Find all elements with localization key, apply translateElement() to each
 }
 
 /**
@@ -273,7 +303,7 @@ function translateElement(element) {
 
     // Return if no translation is available
     if (!translation) {
-        console.error("translateElement(): Dataset locale key set but no translation found for key: " + key + " , translation: " + translation);
+        console.error("translateElement(): Dataset locale key set for element " + element.id + " but no translation found for key: " + key + " , translation: " + translation);
         return;
     }
 
@@ -281,6 +311,7 @@ function translateElement(element) {
     if (element.hasAttribute("title")) {
         element.setAttribute("title", translation);
     }
+
     // Else if element has placeholder attribute, translate
     else if (element.hasAttribute("placeholder")) {
         element.setAttribute("placeholder", translation);
@@ -288,7 +319,8 @@ function translateElement(element) {
 
     // Else if element has non-empty text content, translate
     else if (element.textContent.trim().length > 0) {
-        if (/</.test(element.innerHTML) && />/.test(element.innerHTML)) {       // If content is HTML, allow parsing
+        // If content is HTML, support parsing
+        if (/</.test(element.innerHTML) && />/.test(element.innerHTML)) {
             element.innerHTML = translation;
         } else {
             element.textContent = translation;
@@ -310,7 +342,7 @@ async function handlePrivacy() {
 
         set: function(value) {                              // Intercept value set
             this._privacy = value;                          // Initializes backing field property
-            window.dispatchEvent(new CustomEvent('privacyChanged', { detail: { newValue: value } }));   // Fire an event on change
+            window.dispatchEvent(new CustomEvent('privacyChanged', { detail: { newValue: value } }));   // Fire a custom event on change
         },
 
         get: function() {                                   // Intercept value get
@@ -359,8 +391,8 @@ async function handlePrivacy() {
     // Text states (does text exist)   Privacy parameters and actions
     // Privacy text    Tos text        agreeTosInclusive        null                  (agreeAll)            (malformed)
     // ---------------------------------------------------------------------------------------------------------------------------
-    // true            -               privacy prompt                                 handleLocalStorage()
-    // false           -               handleLocalStorage()                           handleLocalStorage()
+    // true            any            privacy prompt                                  handleLocalStorage()
+    // false           any            handleLocalStorage()                            handleLocalStorage()
     // true            true                                     full prompt           handleLocalStorage()  full prompt
     // false           true                                     tos prompt            handleLocalStorage()  tos prompt
     // true            false                                    privacy prompt        handleLocalStorage()  privacy prompt
@@ -371,10 +403,10 @@ async function handlePrivacy() {
 
     switch (privacyParameter) {
         case "agreeTosInclusive":                                                // User already agrees to ToS, has not agreed to local storage
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            if (currentTranslations.privacyTextExists) {                                           // Privacy text exists
+            // noinspection JSUnresolvedReference                                // Object property references are populated elsewhere
+            if (currentTranslations.privacyTextExists) {                         // Privacy text exists
                 print("handlePrivacy(): ToS agree, privacy unknown, displaying privacy prompt");
-                showLegalPrompt("privacy")                                // Privacy prompt
+                showLegalPrompt("privacy")                                       // Privacy prompt
                 return "waitStorage";
             } else {                                                             // Privacy text does not exist
                 print("handlePrivacy(): ToS agree, privacy unknown, no privacy notice text, creating local storage without prompt");
@@ -383,24 +415,24 @@ async function handlePrivacy() {
             }
         case null:                                                               // No URL privacy parameter set
             print("handlePrivacy(): ToS unknown, privacy unknown, displaying prompts for which texts exist");
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-            if (currentTranslations.tosTextExists) {                                           // ToS text exists
+            // noinspection JSUnresolvedReference                                // Object property references are populated elsewhere
+            if (currentTranslations.tosTextExists) {                             // ToS text exists
                 print("handlePrivacy(): ... ToS text exists");
-                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-                if (currentTranslations.privacyTextExists) {                                       // Privacy text exists
+                // noinspection JSUnresolvedReference                            // Object property references are populated elsewhere
+                if (currentTranslations.privacyTextExists) {                     // Privacy text exists
                     print("handlePrivacy(): ... privacy text exists");
-                    showLegalPrompt("full")                               // Full prompt
+                    showLegalPrompt("full")                                      // Full prompt
                 } else {                                                         // Privacy text does not exist
                     print("handlePrivacy(): ... privacy text does not exist");
-                    showLegalPrompt("tos")                                // ToS prompt
+                    showLegalPrompt("tos")                                       // ToS prompt
                 }
                 return "wait";
             } else {                                                             // ToS text does not exist
                 print("handlePrivacy(): ... ToS text does not exist");
-                // noinspection JSUnresolvedReference // Object property references are populated elsewhere
-                if (currentTranslations.privacyTextExists) {                                       // Privacy text does exist
+                // noinspection JSUnresolvedReference                            // Object property references are populated elsewhere
+                if (currentTranslations.privacyTextExists) {                     // Privacy text does exist
                     print("handlePrivacy(): ... privacy text exists");
-                    showLegalPrompt("privacy")                            // Privacy prompt
+                    showLegalPrompt("privacy")                                   // Privacy prompt
                     return "waitStorage";
                 } else {
                     print("handlePrivacy(): ... privacy text does not exist");
@@ -410,13 +442,13 @@ async function handlePrivacy() {
             }
         default:                                                                 // Privacy agreement state value unexpected
             console.warn("handlePrivacy(): URL privacy parameter has unexpected value: " + privacyParameter);
-            // noinspection JSUnresolvedReference // Object property references are populated elsewhere
+            // noinspection JSUnresolvedReference                                // Object property references are populated elsewhere
             if (currentTranslations.privacyTextExists && currentTranslations.tosTextExists) {
-                showLegalPrompt("full")                                  // Full prompt
+                showLegalPrompt("full")                                          // Full prompt
                 return "full";
             } else {
                 return null;
-                // TODO: Edge error cases not further differentiated yet
+                // TODO: Edge error cases with unexpected values not further differentiated yet
             }
     }
 
@@ -462,7 +494,11 @@ function handleLocalStorage() {
  *
  */
 function handleSettingStorage() {
-    // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage)
+    // URL parameter settings
+    // TODO: Save some settings: language
+
+    // Local storage settings
+    // TODO: Setting loads and saves (saves should only be committed if user has agreed to storage): last camera (truncated internal id, beware of fingerprinting risk)
 }
 
 function createMenus() {
@@ -518,17 +554,6 @@ function createMenus() {
             return box;
         }
 
-        /**
-         * Changes active drawing color.
-         *
-         * @param color Color to use
-         */
-        function setDrawColor(color) {
-            // Colors from parameter are strings of this type: '#000000' '#FFFFFF' '#FC6C85' etc
-            // Example call of this function: setDrawColor('#FFDE21')
-            print("setDrawColor(): Changing color to " + color, "green");
-        }
-
         // Create separator
         menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
 
@@ -550,6 +575,15 @@ function createMenus() {
             option.customHTML = createCircleBox(option.thickness);
             menuDraw.push(option);
         });
+
+        // Create separator
+        menuDraw.push( {id: "separator", text: "Separator", customHTML: Menu.createSeparator()} );
+
+        // Create eraser button
+        menuDraw.push( {id: "buttonDrawEraser", text: "Eraser", img: "eraser.png", action: drawEraser} );
+
+        // Create clear button
+        menuDraw.push( {id: "buttonDrawClear", text: "Clear drawings", img: "delete.png", action: drawClear} );
 
         /**
          * Nested function to create button boxes for line thickness
@@ -574,27 +608,15 @@ function createMenus() {
             return box;
         }
 
-        /**
-         * Changes active drawing thickness.
-         *
-         * @param thickness Thickness to use
-         */
-        function setDrawThickness(thickness) {
-            // Thickness values from parameter are numbers of this type: 2 4 8 etc
-            // Example call of this function: setDrawThickness(12)
-            // Thickness values are diameters
-            print("setDrawThickness(): Changing thickness to " + thickness, "green");
-        }
-
         // Create menu
-        createdElements.createMenu(menuDraw, buttonDraw, "leftToRight");
+        createdElements.createMenu(menuDraw, buttonDraw, drawStart);
     }
 
     // Info menu creation
     {                                   // Code block for collapsing
         let menuInfo = [
             {
-                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalFullInfo(); }
+                id: "buttonLegalInfoPrompt", text: "Show legal information", img: "terms.png", action: () => { showLegalFullInfo().then(() => {  } ); }
             }
         ];
 
@@ -676,15 +698,30 @@ function createMenus() {
 
 function handleOnboarding() {
     // Blink video selector button at start (hint)
-    blinkVideoSelector(300, 3);
+    blinkVideoButton(300, 3);
 }
 
-function blinkVideoSelector(length = 300, repeats = 0) {
+function blinkVideoButton(length = 300, repeats = 0) {
     let count = 0;
     const blink = () => {                           // Creates a series of async events that should fire sequentially
         selector.callerElement.classList.add("buttonHighlight");
         setTimeout(() => {
             selector.callerElement.classList.remove("buttonHighlight");
+            count++;
+            if (count < repeats) setTimeout(blink, 200);
+        }, length);
+    };
+    blink();
+}
+
+function blinkZoomButton(length = 300, repeats = 0) {
+    let element = document.getElementById('buttonZoom');
+
+    let count = 0;
+    const blink = () => {                           // Creates a series of async events that should fire sequentially
+        element.classList.add("buttonHighlight");
+        setTimeout(() => {
+            element.classList.remove("buttonHighlight");
             count++;
             if (count < repeats) setTimeout(blink, 200);
         }, length);
@@ -863,7 +900,9 @@ async function getMediaPermission() {
  */
 async function getVideoInputs() {
 
-    // Reliable and complete input enumeration requires already existing media permissions:
+    // Permissions should be requested separately from enumeration for UX reasons, though it is not strictly required.
+    // Missing permissions will be automatically requested, leading to various requests if not done beforehand.
+    // Input enumeration requires media permissions:
     // https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/enumerateDevices
     // The returned list will omit any devices that are blocked by the document Permission Policy:
     // microphone, camera, speaker-selection (for output devices), and so on.
@@ -892,7 +931,7 @@ async function getVideoInputs() {
             return videoInputs;
         } else {
             console.warn("getVideoInputs(): No video sources found")
-            blinkVideoSelector();
+            blinkVideoButton();
             throw new Error("getVideoInputs(): No valid video inputs");
         }
 
@@ -927,10 +966,11 @@ function updateInputList(inputs) {
         selector.selectedIndex = 0;                                                                 // Select first option
         if (originalSelection) {                                                                    // Check for truthy value to prevent unneeded trigger at startup
             console.warn("updateInputList(): Original video input option not available: " + shorten(originalSelection) + " != " + shorten(selector.value));
-            blinkVideoSelector();
+            blinkVideoButton();
         }
 
         // TODO: In some cases, first option is not usable but second is. Find a way to check for this case and try next option.
+        // TODO: Need to work with selection of a default (last used camera) value stored in local storage
     }
 
     // Check selection is valid (debug)
@@ -960,6 +1000,7 @@ async function backgroundUpdateInputList() {
         updateInputList(inputs);
     } catch (e) {
         print("backgroundUpdateInputList(): Background update failed: " + e.name + " : " + e.message);
+        // TODO: Check for appStatus to determine if in initialization phase, when these errors are irrelevant
     }
 }
 
@@ -1016,7 +1057,7 @@ async function getMaxResolution(input = selector.value) {
     try {
         print("getMaxResolution(): Determining max resolution for video input: " + shorten(input));
 
-        // const stream = await getStreamFromInput(4096, 4096, input);                             // Will cause failure on some cameras: technically valid MediaStream with no content
+        // const stream = await getStreamFromInput(4096, 4096, input);                             // DEV: Will cause failure on some cameras: technically valid MediaStream with no content
         const stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 deviceId: {exact: input},
@@ -1051,7 +1092,7 @@ async function getMaxResolutionFallback(input = selector.value) {
     print("getMaxResolutionFallback(): Starting fallback test for highest available resolution");
 
     // Resolutions to test
-    const testResolutions = [                                               // Resolutions to test in decreasing order
+    const testResolutions = [                                               // Resolutions to test in decreasing, decending order
         { width: 3840, height: 2160, description: "4K UHD"          },      // During test a boolean property "available" will be added to each
         { width: 2560, height: 1440, description: "1440p"           },      // Best available resolution is first array element with true value for "available"
         { width: 1920, height: 1200, description: "WUXGA"           },
@@ -1073,7 +1114,7 @@ async function getMaxResolutionFallback(input = selector.value) {
     ];
 
     // Loop test
-    const maxResolutions = 3;
+    const maxResolutions = 3;                       // How many available resolutions are enough
     let availableResolutions = 0;
     for (const res of testResolutions) {
         try {
@@ -1116,8 +1157,8 @@ async function getStreamFromInput(width, height, deviceId) {
     const stream = await navigator.mediaDevices.getUserMedia({
         video: {
             deviceId: {exact: deviceId},                                // Constrain to specific camera
-            width: {ideal: width},                                      // Request width
-            height: {ideal: height}                                     // Request height
+            width: {ideal: width},                                      // Request width, avoid overconstraining
+            height: {ideal: height}                                     // Request height, avoid overconstraining
             // frameRate: {ideal: 60}                                   // Request framerate
             // facingMode: {ideal: 'environment'},                      // Request a camera that is facing away from the user
         }
@@ -1136,7 +1177,7 @@ function releaseVideoStream(stream = videoElement.srcObject) {
         stream = null;
     } catch (e) {
         print("releaseVideoStream(): Video release failed (safe): " + e.name);
-        // Error if releasing when no video: TypeError: videoElement.srcObject is null
+        // TODO: Filter out error from releasing when no video: TypeError: videoElement.srcObject is null
     }
 
 }
@@ -1247,13 +1288,14 @@ function getStreamInformation(stream, printOut = false) {
 }
 
 function autoFill() {
-    // Setup a call for fill mode after videoElement loads fully
-    videoElement.addEventListener('loadedmetadata', function handler() { // Initial dimensions are a default 300×150 and may not update fast enough, setting srcObject will not trigger but src would, trigger should mean all metadata including dimensions has loaded
+    // Setup a call for fill mode after videoElement loads fully            // Avoids racing: initial dimensions are default 300x150 and will update asynchronously)
+    videoElement.addEventListener('loadedmetadata', function handler() {    // Triggers when all metadata, including dimension, has loaded (or new src but not srcObject set)
         zoomFill();
         videoElement.removeEventListener('loadedmetadata', handler);
-        // TODO: Failed input load may leave an obsolete listener instance that either produces double effect (harmless) or just stays in memory?
+        // TODO: Could failed input load leave an obsolete listener instance?
     });
 }
+
 
 // UI functions
 
@@ -1262,7 +1304,7 @@ function autoFill() {
  * @param value Zoom value
  */
 function setZoomLevel(value) {
-    currentZoom = value / 100;                                                                      // Update zoom value
+    currentZoom = value / 100;                                                             // Update zoom value
     updateVideoTransform();
     document.getElementById('zoomPercentageLabel').innerText = `${Math.round(value)}%`;    // Update zoom percentage label
 }
@@ -1273,9 +1315,9 @@ function setZoomLevel(value) {
  */
 function adjustZoom(increment) {
     let newZoom = currentZoom * 100 + increment * 100;                                      // Change back to percentages, increase or decrease 10%
-    newZoom = Math.min(Math.max(newZoom, 10), 1000);                                                // Limit zoom between n% and n%
-    setZoomLevel(newZoom);                                                                          // Zoom in percent %
-    document.getElementById('zoomSlider').value = newZoom;                                 // Set zoom slider to the correct position
+    newZoom = Math.min(Math.max(newZoom, 10), 1000);                                        // Limit zoom between n% and n%
+    setZoomLevel(newZoom);                                                                  // Zoom in percent %
+    document.getElementById('zoomSlider').value = newZoom;                                  // Set zoom slider to the correct position DEV: Note that slider has separate min/max
 }
 
 /**
@@ -1285,19 +1327,21 @@ function adjustZoom(increment) {
 function zoomFit() {
     print("zoomFit(): Fit called");
 
+    // Get dimensions
     const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
     const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
 
+    // Check for suspicious dimensions
     if (videoDims.width === 300 && videoDims.height === 150) {
         console.warn("zoomFit(): Fit called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
     }
 
+    // Calculate aspect ratios
     const videoAspect = videoDims.width / videoDims.height;
     const containerAspect = containerDims.width / containerDims.height;
 
+    // Determine scaling and axis based on aspect ratios
     let scaleFactor;
-
-    // Decide scaling axis based on aspect ratios
     if (videoAspect > containerAspect) {
         // Video is wider than container -> scale by width (leaving empty letterbox space on bottom)
         print("zoomFit(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling to match width: " + videoDims.width + " -> " + containerDims.width);
@@ -1308,6 +1352,7 @@ function zoomFit() {
         scaleFactor = containerDims.height / videoDims.height;
     }
 
+    // Apply scaling
     const zoomPercent = scaleFactor * 100;
     setZoomLevel(zoomPercent);
     document.getElementById('zoomSlider').value = zoomPercent;
@@ -1320,29 +1365,32 @@ function zoomFit() {
 function zoomFill() {
     print("zoomFill(): Fill called");
 
+    // Get dimensions
     const videoDims = getElementDimensions(videoElement, false); // When scaled, element bounding rectangle changes, need to use original dimensions
     const containerDims = getElementDimensions(videoContainer, true); // Use bounding rectangle for container
 
+    // Check for suspicious dimensions
     if (videoDims.width === 300 && videoDims.height === 150) {
         console.warn("zoomFill(): Fill called for an element that may not be fully loaded (dimensions match HTML default 300x150)");
     }
 
+    // Calculate aspect ratios
     const videoAspect = videoDims.width / videoDims.height;
     const containerAspect = containerDims.width / containerDims.height;
 
+    // Determine scaling and axis based on aspect ratios
     let scaleFactor;
-
-    // Decide scaling axis based on aspect ratios
     if (videoAspect > containerAspect) {
         // Video is wider than container -> scale by height (clipping width)
-        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
+        // print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " > " + containerAspect + " ) -> scaling/clipping to match height: " + videoDims.height + " -> " + containerDims.height);
         scaleFactor = containerDims.height / videoDims.height;
     } else {
         // Video is taller than container -> scale by width (clipping height)
-        print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling/clipping to match width: " + videoDims.width + " -> " + containerDims.width);
+        // print("zoomFill(): Video is wider than container ( ratio: " + videoAspect + " < " + containerAspect + " ) -> scaling/clipping to match width: " + videoDims.width + " -> " + containerDims.width);
         scaleFactor = containerDims.width / videoDims.width;
     }
 
+    // Apply scaling
     const zoomPercent = scaleFactor * 100;
     setZoomLevel(zoomPercent);
     document.getElementById('zoomSlider').value = zoomPercent;
@@ -1384,9 +1432,9 @@ function switchToFullscreen(fullScreenIcon, fullScreenButton) {
  */
 async function moveElementToView(element) {
     const { x: elementX, y: elementY } = getElementCenter(element);                                             // Get center of element
-    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();        // Get viewport edges
+    const { top: topEdge, right: rightEdge, bottom: bottomEdge, left: leftEdge } = getViewportEdges();          // Get viewport edges
 
-    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {         // Check if element is outside viewport (crude)
+    if (elementX < leftEdge || elementX > rightEdge || elementY > bottomEdge || elementY < topEdge) {           // Check if element is outside viewport (crude)
         console.warn("moveElementToView(): Element " + element.id + " outside viewport, x = " + elementX + " y = " + elementY + ", moving to view");
         element.classList.add("animateMove");
 
@@ -1426,20 +1474,20 @@ async function moveElementToView(element) {
 
 /**
  * Saves the current view as a jpg file
- * Flattens videoElement and canvasElement to a temporary canvas and saves it
+ * Flattens videoElement and someCanvas to a temporary canvas and saves it
  */
 function saveImage() {
-    matchElementDimensions(videoElement, canvasElement);                                               // Ensure canvas matches video element (redundancy)
+    // matchElementDimensions(videoElement, someCanvas);                                               // Ensure canvas matches video element (redundancy)
 
     const canvasToSave = document.createElement('canvas');                                             // Create temporary canvas for flattening/combining video feed and canvas together
     const canvasContext = canvasToSave.getContext('2d');                                               // Get canvas context for drawing
     canvasToSave.style.display = 'none';                                                               // Make sure temporary canvas is never visible (redundancy)
     matchElementDimensions(videoElement, canvasToSave);                                                // Match new canvas with video element
 
-    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                       // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
+    const videoElementTypecast = /** @type {HTMLVideoElement} */ (videoElement);                                  // TODO: Fixed type issue with  dirty JSDoc solution for typecast, only TypeScript allows for clear typecast syntax, implicit typecast (type coercion) not good enough
     canvasContext.drawImage(videoElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);      // Draw frame from video element      // TODO: Without typecast ERR: Type HTMLElement is not assignable to type VideoFrame
-    const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (canvasElement);                    // TODO: Same JSDoc typecast
-    canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);     // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
+    // const canvasElementTypecast = /** @type {HTMLCanvasElement} */ (someCanvas);                               // TODO: Same JSDoc typecast
+    // canvasContext.drawImage(canvasElementTypecast, 0, 0, canvasToSave.width, canvasToSave.height);  // Draw content from canvas element  // TODO: Without typecast ERR: HTMLElement is not assignable to parameter type CanvasImageSource, Type HTMLElement is not assignable to type VideoFrame
 
     const dataURL = canvasToSave.toDataURL('image/jpeg');                                              // Converts canvas element to image encoding string
     const downloadElement = document.createElement('a');                                               // Creates "clickable" element
@@ -1490,9 +1538,9 @@ function videoFreeze(freezeIcon) {
         translateElement(freezeIcon);
         isFrozen = true;                                                                            // Freeze is on
     } else {
-        videoStart();
+        videoStart().then(() => {  } );
         videoElement.style.display = 'block';
-        canvasElement.style.display = 'none';
+        videoPauseCanvas.style.display = 'none';
         freezeIcon.src = "./images/freeze.png";
         freezeIcon.title = "Freeze";
         freezeIcon.setAttribute("data-locale-key", "freeze");
@@ -1544,6 +1592,7 @@ function showLegalPrompt(promptType, onlyReturnFunction = false, noOptions = fal
     let text;
     let localeKey;
 
+    // Build prompt based on type
     switch(promptType) {
         case 'privacy':
             // Displays a privacy notice.
@@ -1789,7 +1838,7 @@ function showErrorPrompt(errorPackage) {
     //     )
     // }
 
-    customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut);
+    customPrompt({title: errorPackage.promptTitle, localeKey: errorPackage.promptTitleLocaleKey}, {content: errorPackage.promptInfoText, localeKey: errorPackage.promptInfoTextLocaleKey}, promptButtons, null, modal, clickOut).then(() => {  } );
 
 }
 
@@ -2158,15 +2207,15 @@ function getDateTime() {
 }
 
 /**
- * Draws the current frame of videoElement to canvasElement
- * Hides videoElement, shows canvasElement
+ * Draws the current frame of videoElement to videoPauseCanvas
+ * Hides videoElement, shows videoPauseCanvas
  */
 function canvasDrawCurrentFrame() {
-    matchElementDimensions(videoElement, canvasElement);                                        // Update canvas to match video element
-    const canvasContext = canvasElement.getContext("2d");                              // Get canvas context for drawing
-    canvasContext.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);                                                 // Draw frame from video element
+    matchElementDimensions(videoElement, videoPauseCanvas);                                        // Update canvas to match video element
+    const canvasContext = videoPauseCanvas.getContext("2d");                              // Get canvas context for drawing
+    canvasContext.drawImage(videoElement, 0, 0, videoPauseCanvas.width, videoPauseCanvas.height);                                                 // Draw frame from video element
     videoElement.style.display = 'none';                                                         // Disable video element visibility
-    canvasElement.style.display = 'block';                                                       // Make canvas element visible
+    videoPauseCanvas.style.display = 'block';                                                       // Make canvas element visible
 }
 
 /**
@@ -2186,14 +2235,19 @@ function matchElementDimensions(elementMaster, elementSub) {
  * Update style transformations (rotation, flipping, zoom etc.) to video feed and canvas.
  */
 function updateVideoTransform() {
-    videoElementFrame.style.transform =
+    // Apply zoom scaling to frame
+    videoElementZoomFrame.style.transform =
         `scale(${currentZoom})`;
 
+    // Apply other transforms to subordinate frame
     videoElement.style.transform =
-        `rotate(${rotation}deg) scaleX(${flip})`;
+        `rotate(${rotation}deg) scaleX(${flip})`;                           // DEV: Transform order matters greatly
 
-    // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
-    // canvasElement.style.transform = videoElement.style.transform;                                     // Updates transformations to the canvas (still frame)
+    // Apply transforms to pause canvas (zoom scaling is automatically applied from parent div)
+    videoPauseCanvas.style.transform = videoElement.style.transform;        // Updates transformations to pause canvas (still frame)
+
+    // DEV: Legacy
+    // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;
 }
 
 /**
@@ -2410,8 +2464,8 @@ class CreatedElements {
     /**
      * Creates a menu and registers it to management.
      */
-    createMenu(menuDefinitions, callerElement) {
-        const classReference = new Menu(menuDefinitions, callerElement);
+    createMenu(menuDefinitions, callerElement, extraCallAction) {
+        const classReference = new Menu(menuDefinitions, callerElement, extraCallAction);
         this.elements.push([classReference, classReference.getType(), classReference.getElementId()]);
         print("createMenu(): Created and registered " + classReference.getType() + " : " + classReference.getElementId());
         return classReference;
@@ -2521,6 +2575,12 @@ class MovableElement extends CreatedElement {
 
     // Switches
     allowMove;                                      // Is drag ability enabled
+    isDragging;
+
+    // Geometry
+    containerX;
+    containerY;
+
 
     // Initialization
 
@@ -2528,24 +2588,95 @@ class MovableElement extends CreatedElement {
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor(type, allowMove = true) {
-        super(type);
-        this.allowMove = allowMove;
+    constructor(type) {
+        super(type); // Derived class must call superclass
+        this.allowMove = true;
+
+        // this.handleDragListeners(); // TODO: Ideal to call here, but need to create container first, necessitating further rework of initial element creation
     }
 
 
     // Functionality
+    handleDragListeners() {
+        print("handleDragListeners(): Adding drag listener for " + this.type + " : " +  this.id);
 
+        // Bind context to functions
+        this.dragStart      =   this.dragStart.bind(this);          // ... When such functions are passed to a listener, this.context scope is lost and necessary variables are inaccessible to the function.
+        this.dragUpdater    =   this.dragUpdater.bind(this);        // ... If this is worked around using wrapper arrow functions, deleting listeners becomes impossible, as the listeners cannot be referred to.
+        this.dragStop       =   this.dragStop.bind(this);           // ... Alternatives include storing references to named functions as static class variables or passing them to dragStop as arguments.
+
+        // Attach core listener
+        this.container.addEventListener("mousedown", this.dragStart   );     // Handle mousedown action; must target container, not document; event object is automatically passed as first argument
+
+    }
 
     // Drag handling (TODO: Write and implement generic)
 
-    dragStart() {
+    dragStart(event, elementToMove = this.container) {
+        print("MovableElement.dragStart(): Drag initiated" );
+        // DEV: elementToMove is a legacy parameter left as a reminder, it can be used for tweaks (or to guard against some scope inheritance issues where this.scope is not natively passed), may be necessary for textArea drag handling
+
+        // Check if movement prohibited
+        if (!this.allowMove) return;
+
+        // Set core drag flag
+        this.isDragging = true;
+
+        // Get current coordinates
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+        this.containerX = parseInt(this.container.style.left, 10) || 0;  // Parses position to decimal number. Number is set to 0 if NaN.
+        this.containerY = parseInt(this.container.style.top, 10) || 0;
+
+        // DEV: Offsets considered in legacy overlay version
+        // parseInt(elementToMove.style.left, 10) || elementToMove.offsetLeft || 0;
+        // parseInt(elementToMove.style.top, 10) || elementToMove.offsetTop || 0;
+
+        // Attach listeners
+        document.addEventListener("mousemove", this.dragUpdater );     // Handle mousemove action
+        document.addEventListener("mouseup",   this.dragStop    );     // Stop moving or resizing when the mouse is released
+        // DEV: Attaching listener to document instead of an element should be avoided, but may by unavoidable (is at least mousemove and mouseup do not target document, moving an element under another will leave drag in a weird state).
+
     }
 
-    dragUpdater() {
+    dragUpdater(event) {
+        print("MovableElement.dragUpdater(): Mass event: Drag in progress");  // DEV: If this printout is visible when not dragging, drag handling is broken
+
+        // Check core drag flag
+        if (this.isDragging) {                                                // DEV: This conditional will behaviorally mask issues like drag handlers not being removed
+            // Calculate new position
+            let deltaX = mouseX - event.clientX;
+            let deltaY = mouseY - event.clientY;
+
+            // DEV: Some legacy updater also updated these here
+            // mouseX = event.clientX;
+            // mouseY = event.clientY;
+
+            // Update the dragged container's position
+            this.container.style.left = `${this.containerX - deltaX}px`;
+            this.container.style.top = `${this.containerY - deltaY}px`;
+
+            // DEV: Useless
+            // Alternative syntax
+            // this.container.style.left = (this.container.offsetLeft - deltaX) + "px";
+            // this.container.style.top = (this.container.offsetTop - deltaY) + "px";
+            // Legacy overlay used inverted
+            // const deltaX = e.clientX - mouseX;
+            // const deltaY = e.clientY - mouseY;
+            // overlay.style.left = `${this.containerX + deltaX}px`;
+            // overlay.style.top = `${this.containerY + deltaY}px`;
+        }
     }
 
-    dragStop() {
+    dragStop(event) {
+        print("MovableElement.dragStop(): Drag stopped");
+
+        // Set core drag flag
+        this.isDragging = false;
+
+        // Remove listeners
+        document.removeEventListener('mousemove', this.dragUpdater);         // DEV: ! Incomplete removal is hard to spot! Beware! Fails to remove do not throw any error.
+        document.removeEventListener('mouseup', this.dragStop);
     }
 
 
@@ -2558,7 +2689,7 @@ class MovableElement extends CreatedElement {
      * @param id Unique identifier for added element
      * @param createRemoveButton True of remove button should be created (optional, css class for button is classNameRemoveButton)
      */
-    createElement(type, className, id, createRemoveButton = false) { // TODO: Move to super
+    createElement(type, className, id, createRemoveButton = false) { // TODO: Move to highest super
 
         // Create main element
         let newElement = document.createElement(type);
@@ -2617,13 +2748,7 @@ class MovableElement extends CreatedElement {
  */
 class Overlay extends MovableElement {
 
-    // Class shared variables (TODO: Deprecate)
-    static isOverlayDragging = false;                                                       // Shows if dragging of an overlay element is allowed
-
-    // Other
-    overlayX;                                                                               // Initial position of the overlay when starting drag
-    overlayY;
-    defaultTextureBackground;                                                               // Inline style for overlay background
+    // Texture and parameters
     static defaultTextureColors = [                                                                // Color definition literals for overlay texture generation
         236, 250,               // r min, max
         230, 240,               // g min, max
@@ -2642,42 +2767,39 @@ class Overlay extends MovableElement {
      * Relies on parent class.
      */
     constructor() {
-        super('overlay');
+        super('overlay'); // Derived class must call superclass
         this.create();
     }
 
     /**
      * Creates new overlay on top of feed.
-     * Draggable.
      */
     create() {
         // Create main element
-        this.element = super.createElement("div", "createdOverlay", this.id, true);
+        this.element = super.createElement("div", "createdOverlay", this.id, true); // TODO: Should create container instead; eliminate call for super
+        this.container = this.element;
 
+        // Render texture if it does not exist
         if (!Overlay.noiseCanvas) { // TODO: Add max size or check for size mismatch: if overlay larger than noise canvas then need to rerender.
             Overlay.renderNoiseCanvas(this.element);
         }
 
-        // TODO: Make into async block, enable fade-in
-        this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas));
+        // Apply texture
+        this.element.appendChild(this.copyCanvas(Overlay.noiseCanvas)); // TODO: Make into async block, enable fade-in
 
         // Regenerate texture on element resize
+        // DEV: Note that this would be run in multiple async instances, each very heavy! Beware!
         // new ResizeObserver(() => applyPaperTexture(target)).observe(target);
 
-        // Add listeners
-        this.handleListeners();
+        // Initialize listeners
+        this.handleDragListeners(); // TODO: After reworking createElement(), call this in super constructor instead
+
     }
 
     /**
-     * Adds listener for drag of overlay.
+     * Pre-render canvas used for texturing of overlays
+     * @returns {Promise<void>}
      */
-    handleListeners() {
-        // Add listener for drag
-        print("handleListeners(): Adding drag listener for overlay: " +  this.id);
-        let overlay = document.getElementById(this.id);                              // TODO: Remove extra gets, use reference in variable
-        overlay.addEventListener('mousedown', (e) => this.dragStart(e, overlay)); // Start overlay dragging
-    }
-
     static async preRenderNoiseCanvas() {
         // Create temporary container element for actual dimensions
         let newElement = document.createElement("div");
@@ -2685,78 +2807,13 @@ class Overlay extends MovableElement {
         newElement.className = "createdOverlay";
         newElement.classList.add("hidden");
         videoContainer.appendChild(newElement);
-        print("Overlay: preRenderNoiseCanvas(): Pre-rendering noise canvas for overlays (async)");
+        print("Overlay.preRenderNoiseCanvas(): Pre-rendering noise canvas for overlays (async)");
 
         // Render
         Overlay.renderNoiseCanvas(newElement);
 
         // Cleanup
         removeElement(newElement);
-    }
-
-
-    // Drag handling (TODO: Replace with generic in MovableElement)
-
-    /**
-     * Handles dragging overlay elements with mouse.
-     * Starts drag.
-     * @param e MouseEvent 'mousedown'
-     * @param overlay Overlay element
-     */
-    dragStart(e, overlay) {
-        print("dragStart(): Overlay drag initiated");
-
-        // overlay.style.zIndex = "499"                                                       // Get on top
-        Overlay.isOverlayDragging = true;
-
-        // Stores the initial mouse and overlay positions
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        this.overlayX = parseInt(overlay.style.left, 10) || overlay.offsetLeft || 0;  // Parses overlay's position to decimal number. Number is set to 0 if NaN.
-        this.overlayY = parseInt(overlay.style.top, 10) || overlay.offsetTop || 0;
-
-        // Stores references to the event handlers
-        const mouseMoveHandler = (event) => this.dragUpdater(event, overlay);
-        const mouseUpHandler = () => this.dragStop(overlay, mouseMoveHandler, mouseUpHandler);
-
-        // Event listeners for mouse move and release
-        document.addEventListener('mousemove', mouseMoveHandler);
-        document.addEventListener('mouseup', mouseUpHandler);
-    }
-
-    /**
-     * Calculates new position for overlay when dragged with mouse.
-     * Runs while dragging.
-     * @param e MouseEvent 'mousemove'
-     * @param overlay Overlay element
-     */
-    dragUpdater(e, overlay) {
-        print("dragUpdater(): Mass event: Overlay drag in progress");
-        if (Overlay.isOverlayDragging) {
-            // Calculates new position
-            const deltaX = e.clientX - mouseX;
-            const deltaY = e.clientY - mouseY;
-
-            // Updates the dragged overlay's position
-            overlay.style.left = `${this.overlayX + deltaX}px`;
-            overlay.style.top = `${this.overlayY + deltaY}px`;
-        }
-    }
-
-    /**
-     * Stops overlay dragging.
-     * @param overlay Overlay element
-     * @param mouseMoveHandler EventListener
-     * @param mouseUpHandler EventListener
-     */
-    dragStop(overlay, mouseMoveHandler, mouseUpHandler) {
-        print("dragStop(): Overlay drag stopped");
-
-        // overlay.style.zIndex = "400";                                                       // Return z-index
-        Overlay.isOverlayDragging = false;
-
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
     }
 
 
@@ -2911,7 +2968,6 @@ class Overlay extends MovableElement {
         ctx.putImageData(imageData, 0, 0);                      // draw on canvas
     }
 
-
     /**
      *
      * @param containerElement
@@ -2972,7 +3028,6 @@ class Overlay extends MovableElement {
 
         return clone;
     }
-
 
 
 }
@@ -3091,7 +3146,7 @@ class TextArea extends MovableElement {
                 clearInterval(interval);
                 return;
             }
-            moveElementToView(this.container);
+            moveElementToView(this.container).then(() => {  } );
         }, 3000);
 
     }
@@ -3115,8 +3170,9 @@ class TextArea extends MovableElement {
      * Activates the selected text area with mouse click and captures the mouse click position.
      * Attaches event listeners for `mousemove` and `mouseup`.
      * @param e MouseEvent 'mousedown'
+     * @param elementToMove Legacy
      */
-    dragStart(e) {
+    dragStart(e, elementToMove = this.container) {
         print("dragStart(): Text area drag initiated");
 
         createdElements.setActiveTextArea(this.element, this);
@@ -3251,7 +3307,7 @@ class TextArea extends MovableElement {
     // Other
 
     deleteTextArea() {
-        hideElement(this.container, true);
+        removeElement(this.container);
     }
 
 }
@@ -3315,11 +3371,12 @@ class Menu extends CreatedElement {
      * Instantiates class.
      * Relies on parent class.
      */
-    constructor(menuDefinitions, callerElement) {
+    constructor(menuDefinitions, callerElement, extraCallAction) {
         super('menu');
 
         this.menuDefinitions = menuDefinitions;
         this.callerElement = callerElement;
+        this.extraCallAction = extraCallAction;
 
         this.create();
     }
@@ -3386,7 +3443,16 @@ class Menu extends CreatedElement {
         document.getElementById('videoContainer').appendChild(this.element);
 
         // Attach listener for clicks on button
-        this.callerElement.addEventListener('click', () => this.toggleVisibility() );
+        this.callerElement.addEventListener('click', () => {
+            this.toggleVisibility()
+            if (this.extraCallAction) {
+                try {
+                    this.extraCallAction();
+                } catch (e) {
+                    // TODO: A stricter initial check (check exist and is function) may reduce need for error handling here, this.extraCallAction?.() is insufficient
+                }
+            }
+        } );
 
         // Attach listener for clicks outside menu
         document.addEventListener("click", (e) => this.handleClickOutside(e), true);
@@ -3682,6 +3748,73 @@ class Drawing extends CreatedElement {
 }
 
 
+// Temporary drawing functions (TODO: Move to Drawing class when possible)
+
+function drawStart() {
+    print("drawStart(): Draw activated", "green");
+    // This function is called from the draw menu button.
+    // Called _every time_ the menu button is pressed, and only when it is pressed.
+
+    // Fill in drawing start functionality here
+}
+
+/**
+ * Changes active drawing color.
+ *
+ * @param color Color to use
+ */
+function setDrawColor(color) {
+    print("setDrawColor(): Changing color to " + color, "green");
+    // This function is called from the color buttons. Do not call this function. This function should just change color practically.
+    // Colors from parameter are strings of this type: '#000000' '#FFFFFF' '#FC6C85' etc
+    // Example call of this function: setDrawColor('#FFDE21')
+
+    // Fill in whatever code practically changes the color to use
+}
+
+/**
+ * Changes active drawing thickness.
+ *
+ * @param thickness Thickness to use
+ */
+function setDrawThickness(thickness) {
+    print("setDrawThickness(): Changing thickness to " + thickness, "green");
+    // This function is called from the thickness buttons. Do not call this function. This function should just change thickness practically.
+    // Thickness values from parameter are numbers (int) of this type: 2 4 8 etc
+    // Example call of this function: setDrawThickness(12)
+    // Thickness values are diameters
+
+    // Fill in whatever code practically changes the width to use
+}
+
+function drawEraser() {
+    print("drawEraser(): Eraser activated", "green");
+    // This function is called from the eraser button.
+
+    // Fill eraser functionality here
+}
+
+function drawClear() {
+    print("drawClear(): Clear called", "yellow");
+    // This function is called from the clear button.
+
+    // Create modal prompt
+    // TODO: Will be added later
+    let response = true;
+
+    // Answer is yes
+    if (response) {
+        print("drawClear(): Clear confirmed");
+        // Fill clear functionality here
+
+        return;
+    }
+
+    // Answer is cancel
+    print("drawClear(): Clear cancelled");
+}
+
+
 // Developer functions (do not delete)
 
 /**
@@ -3782,7 +3915,7 @@ function debug() {
     //  {id: "buttonUpdateInputs",        text: "Update video inputs",       img: "restart.png"     , action: backgroundUpdateInputList},
         {id: "buttonReleaseStream",       text: "Release video stream",      img: "delete.png"      , action: () => { releaseVideoStream(); }},
         {id: "buttonStartVideo",          text: "Start video (reset)",       img: "showVideo.png"   , action: videoStart},
-        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png"        , action: () => { getMaxResolutionFallback(); }},
+        {id: "buttonFallbackRes",         text: "Fallback resolution test",  img: "test.png"        , action: () => { getMaxResolutionFallback().then(() => {  } ); }},
     //  {id: "buttonTestDrawMethods",     text: "Test draw methods",         img: "draw.png"        , action: () => { Drawing.test(); }},
     ];
 
@@ -4018,6 +4151,7 @@ function drawElementTrackingIndicators(element) {
     };
 }
 
+
 // Developer functions (safe to delete)
 
 /**
@@ -4037,85 +4171,5 @@ function getElementCorners(element) {
         bottomLeft:     { x: rect.left + scrollX,   y: rect.bottom + scrollY    },
         bottomRight:    { x: rect.right + scrollX,  y: rect.bottom + scrollY    }
     };
-
-}
-
-/**
- * Temporary container for obsolete island control bar functions.
- * Use while generalizing drag handler.
- */
-class IslandControlBar {
-    island                = document.getElementById('island_controlBar');                  // Floating island control bar
-    isIslandDragging = false                                                               // Dragging island control bar
-    islandX;                                                                               // Initial position of the control island
-    islandY;
-
-    setupAll() {
-        showElement(this.island);
-        listenerToElement('island_controlBar', 'mousedown', this.islandDragStart);                                // Draggable island bar
-
-        // Keep control island visible
-        setInterval(() => { moveElementToView(this.island) }, 5000); // Periodically ensures control island is visible
-
-        showElement(this.island, 'flex');
-
-    }
-
-
-
-    /**
-     * Drag floating island control bar with mouse. Add event listeners for mousemove and mouseup events.
-     * @param event Mouse event 'mousedown'
-     */
-    islandDragStart (event) {
-
-        print("islandDragStart(): Island drag initiated" );
-
-        this.isIslandDragging = true;
-
-        // Get current coordinates
-        mouseX = event.clientX;
-        mouseY = event.clientY;
-        this.islandX = parseInt(this.island.style.left, 10) || 0;  // Parses island's position to decimal number. Number is set to 0 if NaN.
-        this.islandY = parseInt(this.island.style.top, 10) || 0;
-
-        document.addEventListener('mousemove', this.islandDragUpdater);                          // Note that event object is passed automatically. Arrow function here would cause a major issue with duplicate function instances.
-        document.addEventListener('mouseup', this.islandDragStop);
-
-    }
-
-    /**
-     * Calculate new position for island control bar. Update island style according new position.
-     * @param event Mouse event 'mousemove'
-     */
-    islandDragUpdater(event) {
-
-        print("islandDragUpdater(): Mass event: Island drag in progress");
-
-        if (this.isIslandDragging) {                                                // This conditional will MASK issues like drag handlers not being removed
-            // Calculates new position
-            let pos1 = mouseX - event.clientX;
-            let pos2 = mouseY - event.clientY;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-
-            // Updates the dragged island's position
-            this.island.style.top = (this.island.offsetTop - pos2) + "px";
-            this.island.style.left = (this.island.offsetLeft - pos1) + "px";
-        }
-    }
-
-    /**
-     * Stop Island dragging when mouse key is lifted. Remove event listeners.
-     */
-    islandDragStop() {
-        this.isIslandDragging = false;
-        document.removeEventListener('mousemove', this.islandDragUpdater);
-        document.removeEventListener('mouseup', this.islandDragStop);
-
-        moveElementToView(this.island);
-
-        print("islandDragStop(): Island drag stopped");
-    }
 
 }
