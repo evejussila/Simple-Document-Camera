@@ -29,7 +29,7 @@ let mouseY;
 // Other
 let selector;                                                                        // Camera feed selector
 let createdElements;                                                                 // Handles created elements
-let appStatus = {};                                                                  // Stores app status information
+let appStatus = {  };                                                                // Stores app status information TODO: List used keys
 
 
 // Initialization
@@ -2241,13 +2241,13 @@ function updateVideoTransform() {
 
     // Apply other transforms to subordinate frame
     videoElement.style.transform =
-        `rotate(${rotation}deg) scaleX(${flip})`;
+        `rotate(${rotation}deg) scaleX(${flip})`;                           // DEV: Transform order matters greatly
 
     // Apply transforms to pause canvas (zoom scaling is automatically applied from parent div)
-    videoPauseCanvas.style.transform = videoElement.style.transform; // Updates transformations to pause canvas (still frame)
+    videoPauseCanvas.style.transform = videoElement.style.transform;        // Updates transformations to pause canvas (still frame)
 
     // DEV: Legacy
-    // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;    // Updates transforms, order matters!
+    // videoElement.style.transform = `rotate(${rotation}deg) scale(${currentZoom}) scaleX(${flip})`;
 }
 
 /**
